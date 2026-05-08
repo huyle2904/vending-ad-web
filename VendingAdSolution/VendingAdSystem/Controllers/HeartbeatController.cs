@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using VendingAdSystem.Data;
-using VendingAdSystem.Models;
+using VendingAdSystem.Application.Services;
+using VendingAdSystem.Domain.Entities;
 
 namespace VendingAdSystem.Controllers;
 
@@ -9,9 +9,9 @@ namespace VendingAdSystem.Controllers;
 [Route("api")]
 public class HeartbeatController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly IDeviceService _deviceService;
 
-    public HeartbeatController(AppDbContext db) => _db = db;
+    public HeartbeatController(IDeviceService deviceService) => _deviceService = deviceService;
 
     /// <summary>
     /// POST /api/heartbeat
@@ -24,17 +24,17 @@ public class HeartbeatController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.DeviceCode))
             return BadRequest(new { message = "DeviceCode is required." });
 
-        var device = await _db.Devices
+        var device = await _deviceService.Query()
             .FirstOrDefaultAsync(d => d.DeviceCode == req.DeviceCode);
 
         if (device == null)
         {
             device = new Device { DeviceCode = req.DeviceCode };
-            _db.Devices.Add(device);
+            await _deviceService.AddAsync(device);
         }
 
         device.LastSeen = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await _deviceService.SaveChangesAsync();
 
         return Ok(new { message = "ok", timestamp = device.LastSeen });
     }

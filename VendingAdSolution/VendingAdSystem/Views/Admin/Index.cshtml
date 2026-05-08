@@ -1,0 +1,46 @@
+@{
+    ViewData["Title"] = "Bảng điều khiển Admin";
+}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Bảng điều khiển Admin</h1>
+    <p class="text-muted">Tổng quan hệ thống và quản lý</p>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">@ViewBag.UserCount</div>
+    <div class="stat-label">Tài khoản</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">@ViewBag.DeviceCount</div>
+    <div class="stat-label">Tổng thiết bị</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-success">@ViewBag.OnlineCount</div>
+    <div class="stat-label">Online</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-danger">@ViewBag.OfflineCount</div>
+    <div class="stat-label">Offline</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-3">
+  <a href="/admin/devices" class="card" style="text-decoration: none; transition: border-color 0.15s, transform 0.15s;">
+    <div style="font-size: 2rem; margin-bottom: 0.75rem;">📱</div>
+    <h3 class="card-title">Quản lý Thiết bị</h3>
+    <p class="card-description">Tạo thiết bị và gán cho tài khoản</p>
+  </a>
+  <a href="/dashboard" class="card" style="text-decoration: none; transition: border-color 0.15s, transform 0.15s;">
+    <div style="font-size: 2rem; margin-bottom: 0.75rem;">📊</div>
+    <h3 class="card-title">Xem Bảng điều khiển</h3>
+    <p class="card-description">Xem trạng thái thiết bị và chiến dịch</p>
+  </a>
+</div>
+
+<style>
+  .card:hover { border-color: var(--primary); transform: translateY(-2px); }
+</style>

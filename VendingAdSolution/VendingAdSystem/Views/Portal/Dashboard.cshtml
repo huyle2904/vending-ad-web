@@ -1,0 +1,126 @@
+@model List<Device>
+@{
+    ViewData["Title"] = "Bảng điều khiển";
+}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Chào mừng</h1>
+    <p class="text-muted">Tổng quan thiết bị và chiến dịch của bạn</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="/portal/videos" class="btn btn-primary">Tải lên Video</a>
+    <a href="/portal/playlist" class="btn btn-secondary">Quản lý Playlist</a>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">@ViewBag.TotalDevices</div>
+    <div class="stat-label">Tổng thiết bị</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-success">@ViewBag.OnlineDevices</div>
+    <div class="stat-label">Online</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-danger">@ViewBag.OfflineDevices</div>
+    <div class="stat-label">Offline</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-primary">@ViewBag.ActiveCampaigns</div>
+    <div class="stat-label">Chiến dịch đang hoạt động</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2 class="section-title">Thiết bị của bạn</h2>
+  <div class="table-wrapper">
+    @if (!Model.Any())
+    {
+      <div class="empty-state">
+        <div class="empty-state-icon">📱</div>
+        <p>Chưa có thiết bị nào được gán cho tài khoản.</p>
+        <p class="text-sm text-muted">Liên hệ admin để thêm thiết bị.</p>
+      </div>
+    }
+    else
+    {
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Trạng thái</th>
+            <th>Mã thiết bị</th>
+            <th>Vị trí</th>
+            <th>Chiến dịch</th>
+            <th>Lần cuối hoạt động</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var device in Model)
+          {
+            var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
+            var campaignCount = device.Campaigns.Count(c => c.IsActive);
+            
+            <tr>
+              <td>
+                @if (isOnline)
+                {
+                  <span class="badge badge-success">
+                    <span class="status-dot status-online"></span>Online
+                  </span>
+                }
+                else
+                {
+                  <span class="badge badge-danger">
+                    <span class="status-dot status-offline"></span>Offline
+                  </span>
+                }
+              </td>
+              <td><strong style="color: var(--primary);">@device.DeviceCode</strong></td>
+              <td class="text-muted">@device.Location</td>
+              <td>
+                <span class="badge badge-secondary">@campaignCount video@(campaignCount == 1 ? "" : "s")</span>
+              </td>
+              <td class="text-muted text-sm">
+                @(device.LastSeen.HasValue ? device.LastSeen.Value.ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>
+
+@if (ViewBag.ActiveCampaignsList != null && ((List<Campaign>)ViewBag.ActiveCampaignsList).Any())
+{
+  <div class="section">
+    <h2 class="section-title">Chiến dịch đang hoạt động</h2>
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Thiết bị</th>
+            <th>Video</th>
+            <th>Thứ tự</th>
+            <th>Ngày bắt đầu</th>
+            <th>Ngày kết thúc</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var campaign in (List<Campaign>)ViewBag.ActiveCampaignsList)
+          {
+            <tr>
+              <td><strong style="color: var(--primary);">@campaign.Device.DeviceCode</strong></td>
+              <td>@campaign.Media.FileName</td>
+              <td>#@(campaign.OrderIndex + 1)</td>
+              <td class="text-muted text-sm">@campaign.StartDate?.ToString("yyyy-MM-dd")</td>
+              <td class="text-muted text-sm">@campaign.EndDate?.ToString("yyyy-MM-dd")</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

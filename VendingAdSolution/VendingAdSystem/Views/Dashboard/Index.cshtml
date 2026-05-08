@@ -1,116 +1,53 @@
 @model List<Device>
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Bảng điều khiển";
 }
 
-<style>
-  .stats { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
-  .stat {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 28px;
-    min-width: 140px;
-  }
-  .stat-val {
-    font-family: var(--display);
-    font-size: 36px;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-  .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
-  .online-val  { color: var(--green); }
-  .offline-val { color: var(--red); }
-
-  .table-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  table { width: 100%; border-collapse: collapse; }
-  thead tr { border-bottom: 2px solid var(--border); }
-  th {
-    text-align: left;
-    padding: 10px 16px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-  }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
-  tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: rgba(255,255,255,0.02); }
-  td { padding: 14px 16px; vertical-align: middle; }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-  }
-  .badge-online  { background: rgba(57,255,122,0.12); color: var(--green); }
-  .badge-offline { background: rgba(255,71,87,0.12);  color: var(--red); }
-
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-  .pulse { animation: blink 1.8s ease-in-out infinite; }
-  @@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
-
-  .device-code { color: var(--accent); letter-spacing: 0.04em; }
-  .media-name  { color: var(--muted); font-size: 13px; }
-  .timestamp   { color: var(--muted); font-size: 12px; }
-
-  .empty { text-align: center; padding: 64px 32px; color: var(--muted); }
-  .empty-icon { font-size: 40px; margin-bottom: 12px; }
-
-  .footer-hint { color: var(--muted); font-size: 12px; margin-top: 14px; text-align: right; }
-</style>
-
-<h1>Device Dashboard</h1>
-<p class="subtitle">Real-time status of all registered tablets</p>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Bảng điều khiển thiết bị</h1>
+    <p class="text-muted">Trạng thái thời gian thực của tất cả thiết bị đã đăng ký</p>
+  </div>
+</div>
 
 @{
     var online  = Model.Count(d => d.LastSeen.HasValue && (DateTime.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
     var offline = Model.Count - online;
 }
 
-<div class="stats">
-  <div class="stat">
-    <div class="stat-val">@Model.Count</div>
-    <div class="stat-label">Total Devices</div>
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">@Model.Count</div>
+    <div class="stat-label">Tổng thiết bị</div>
   </div>
-  <div class="stat">
-    <div class="stat-val online-val">@online</div>
+  <div class="stat-card">
+    <div class="stat-value stat-success">@online</div>
     <div class="stat-label">Online</div>
   </div>
-  <div class="stat">
-    <div class="stat-val offline-val">@offline</div>
+  <div class="stat-card">
+    <div class="stat-value stat-danger">@offline</div>
     <div class="stat-label">Offline</div>
   </div>
 </div>
 
-<div class="table-wrap">
+<div class="table-wrapper">
   @if (!Model.Any())
   {
-    <div class="empty">
-      <div class="empty-icon">📟</div>
-      <div>No devices registered yet.</div>
-      <div style="margin-top:6px;font-size:12px;">Tablets appear automatically after their first heartbeat.</div>
+    <div class="empty-state">
+      <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📟</div>
+      <p>Chưa có thiết bị nào được đăng ký.</p>
+      <p class="text-sm text-muted">Thiết bị sẽ xuất hiện tự động sau lần heartbeat đầu tiên.</p>
     </div>
   }
   else
   {
-    <table>
+    <table class="table">
       <thead>
         <tr>
-          <th>Status</th>
-          <th>Device Code</th>
-          <th>Assigned Media</th>
-          <th>Last Seen (UTC)</th>
+          <th>Trạng thái</th>
+          <th>Mã thiết bị</th>
+          <th>Media đã gán</th>
+          <th>Lần cuối hoạt động (UTC)</th>
         </tr>
       </thead>
       <tbody>
@@ -124,32 +61,32 @@
             <td>
               @if (isOnline)
               {
-                <span class="badge badge-online">
-                  <span class="dot pulse"></span>Online
+                <span class="badge badge-success">
+                  <span class="status-dot status-online" style="animation: blink 1.8s ease-in-out infinite;"></span>Online
                 </span>
               }
               else
               {
-                <span class="badge badge-offline">
-                  <span class="dot"></span>Offline
+                <span class="badge badge-danger">
+                  <span class="status-dot status-offline"></span>Offline
                 </span>
               }
             </td>
-            <td><span class="device-code">@device.DeviceCode</span></td>
-            <td>
+            <td><strong style="color: var(--primary); font-family: monospace;">@device.DeviceCode</strong></td>
+            <td class="text-muted">
               @if (campaign?.Media != null)
               {
-                <span class="media-name">@campaign.Media.FileName</span>
+                @campaign.Media.FileName
               }
               else
               {
-                <span class="media-name">— no media assigned —</span>
+                <span style="font-style: italic;">— chưa gán media —</span>
               }
             </td>
-            <td class="timestamp">
+            <td class="text-muted text-sm">
               @(device.LastSeen.HasValue
                 ? device.LastSeen.Value.ToString("yyyy-MM-dd HH:mm:ss")
-                : "Never")
+                : "Chưa bao giờ")
             </td>
           </tr>
         }
@@ -158,11 +95,14 @@
   }
 </div>
 
-<p class="footer-hint">
-  🟢 Online = heartbeat received within last 5 minutes &nbsp;·&nbsp; Auto-refreshes every 30s
+<p class="text-sm text-muted" style="margin-top: 1rem; text-align: right;">
+  🟢 Online = heartbeat trong vòng 5 phút · Tự động cập nhật mỗi 30s
 </p>
 
+<style>
+  @@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
+</style>
+
 <script>
-  // Auto-refresh page every 30 seconds
   setTimeout(() => location.reload(), 30_000);
 </script>

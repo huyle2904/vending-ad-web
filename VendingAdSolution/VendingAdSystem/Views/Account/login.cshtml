@@ -1,0 +1,41 @@
+@model LoginRequest
+@{
+    ViewData["Title"] = "Đăng nhập";
+    Layout = "_LayoutLogin";
+}
+
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <h1 class="login-title">VendingAds</h1>
+      <p class="login-subtitle">Đăng nhập vào hệ thống</p>
+    </div>
+
+    <form class="login-form" method="post" action="/account/login">
+      @if (!ViewData.ModelState.IsValid)
+      {
+        <div class="alert alert-danger">
+          @foreach (var modelState in ViewData.ModelState.Values)
+          {
+            @foreach (var error in modelState.Errors)
+            {
+              @error.ErrorMessage<br />
+            }
+          }
+        </div>
+      }
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" name="username" class="form-input" placeholder="your.username" required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input" placeholder="••••••••" required />
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
+    </form>
+  </div>
+</div>

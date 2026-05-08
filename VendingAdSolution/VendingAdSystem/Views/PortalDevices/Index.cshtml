@@ -1,0 +1,107 @@
+@model List<Device>
+@{
+    var totalDevices = ViewBag.TotalDevices;
+    var onlineCount = ViewBag.OnlineCount;
+    var offlineCount = ViewBag.OfflineCount;
+    ViewData["Title"] = "Devices";
+    
+}
+
+<div class="page-header">
+  <h1 class="page-title">Quản lý Thiết bị</h1>
+  <button class="btn btn-primary" onclick="showAddModal()">+ Thêm thiết bị</button>
+</div>
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">@totalDevices</div>
+    <div class="stat-label">Tổng thiết bị</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-success">@onlineCount</div>
+    <div class="stat-label">Online</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-danger">@offlineCount</div>
+    <div class="stat-label">Offline</div>
+  </div>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="empty-state">
+    <div style="font-size: 3rem; margin-bottom: 0.75rem;">📱</div>
+    <p>Chưa có thiết bị nào</p>
+    <button class="btn btn-primary" style="margin-top: 1rem;" onclick="showAddModal()">+ Thêm thiết bị</button>
+  </div>
+}
+else
+{
+  <div class="grid grid-cols-3">
+    @foreach (var device in Model)
+    {
+      var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
+      var videoCount = device.Campaigns.Count;
+      
+      <div class="card">
+        <div class="flex items-center justify-between" style="margin-bottom: 0.75rem;">
+          <div class="flex items-center gap-2" style="font-weight: 600;">
+            <span>📱</span>
+            <span>@device.DeviceCode</span>
+          </div>
+          <span class="badge @(isOnline ? "badge-success" : "badge-danger")">
+            <span class="status-dot @(isOnline ? "status-online" : "status-offline")"></span>
+            @(isOnline ? "Online" : "Offline")
+          </span>
+        </div>
+        <div class="flex items-center gap-2 text-muted text-sm">📍 @device.Location</div>
+        <div class="text-muted text-sm" style="margin-top: 0.5rem;">@videoCount video(s)</div>
+        <div class="flex gap-2" style="padding-top: 0.75rem; margin-top: 0.75rem; border-top: 1px solid var(--border);">
+          <a href="/portal/devices/@device.Id" class="btn btn-ghost btn-sm flex-1">Chi tiết</a>
+          <a href="/portal/devices/@device.Id/update-video" class="btn btn-ghost btn-sm flex-1">Cập nhật video</a>
+          <form method="post" action="/portal/devices/delete" style="flex: 1;">
+            <input type="hidden" name="deviceId" value="@device.Id" />
+            <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--destructive); width: 100%;" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')">Xóa</button>
+          </form>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<div class="modal-overlay" id="addModal" style="display: none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Thêm thiết bị mới</h3>
+      <button class="modal-close" onclick="hideAddModal()">&times;</button>
+    </div>
+    <form method="post" action="/portal/devices">
+      <div class="form-group">
+        <label class="form-label">Mã thiết bị</label>
+        <input type="text" name="deviceCode" class="form-input" placeholder="VM004" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vị trí</label>
+        <input type="text" name="location" class="form-input" placeholder="Tầng 1, Tòa nhà D" required />
+      </div>
+      <div class="flex gap-2" style="margin-top: 1.25rem;">
+        <button type="button" class="btn btn-secondary flex-1" onclick="hideAddModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary flex-1">Thêm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function showAddModal() { document.getElementById('addModal').style.display = 'flex'; }
+  function hideAddModal() { document.getElementById('addModal').style.display = 'none'; }
+</script>

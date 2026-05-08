@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using VendingAdSystem.Data;
+using VendingAdSystem.Application.Services;
 
 namespace VendingAdSystem.Controllers;
 
@@ -8,9 +8,9 @@ namespace VendingAdSystem.Controllers;
 [Route("api")]
 public class PlaylistController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly ICampaignService _campaignService;
 
-    public PlaylistController(AppDbContext db) => _db = db;
+    public PlaylistController(ICampaignService campaignService) => _campaignService = campaignService;
 
     /// <summary>
     /// GET /api/playlist/{deviceCode}
@@ -19,7 +19,7 @@ public class PlaylistController : ControllerBase
     [HttpGet("playlist/{deviceCode}")]
     public async Task<IActionResult> GetPlaylist(string deviceCode)
     {
-        var items = await _db.Campaigns
+        var items = await _campaignService.Query()
             .Include(c => c.Device)
             .Include(c => c.Media)
             .Where(c => c.Device.DeviceCode == deviceCode)

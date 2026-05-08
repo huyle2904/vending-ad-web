@@ -1,0 +1,180 @@
+@model List<Device>
+@{
+    var users = (List<User>)ViewBag.Users;
+    ViewData["Title"] = "Quản lý Thiết bị";
+}
+
+<div class="page-header">
+  <h1 class="page-title">Quản lý Thiết bị</h1>
+  <button class="btn btn-primary" onclick="showCreateModal()">+ Thêm Thiết bị</button>
+</div>
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="flex gap-2" style="margin-bottom: 1.25rem; flex-wrap: wrap;">
+  <select id="userFilter" class="form-input" style="width: auto;" onchange="filterDevices()">
+    <option value="">Tất cả tài khoản</option>
+    @foreach (var user in users)
+    {
+      <option value="@user.Id">@user.Username</option>
+    }
+  </select>
+</div>
+
+<div class="table-wrapper">
+  @if (!Model.Any())
+  {
+    <div class="empty-state">
+      <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📱</div>
+      <p>Chưa có thiết bị nào.</p>
+    </div>
+  }
+  else
+  {
+    <table class="table" id="deviceTable">
+      <thead>
+        <tr>
+          <th>Mã thiết bị</th>
+          <th>Vị trí</th>
+          <th>Tài khoản</th>
+          <th>Trạng thái</th>
+          <th>Lần cuối hoạt động</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var device in Model)
+        {
+          var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
+          <tr data-user-id="@(device.UserId?.ToString() ?? string.Empty)">
+            <td><strong style="color: var(--primary); font-family: monospace;">@device.DeviceCode</strong></td>
+            <td class="text-muted">@device.Location</td>
+            <td>
+              <span class="badge badge-primary">@(device.User?.Username ?? "Chưa gán")</span>
+            </td>
+            <td>
+              @if (isOnline)
+              {
+                <span class="badge badge-success"><span class="status-dot status-online"></span>Online</span>
+              }
+              else
+              {
+                <span class="badge badge-danger"><span class="status-dot status-offline"></span>Offline</span>
+              }
+            </td>
+            <td class="text-muted text-sm">
+              @(device.LastSeen.HasValue ? device.LastSeen.Value.ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn btn-sm btn-secondary" onclick="showEditModal(@device.Id, '@device.DeviceCode', '@device.Location', @(device.UserId?.ToString() ?? "0"))">Sửa</button>
+                <form method="post" action="/admin/devices/delete" onsubmit="return confirm('Xóa thiết bị @device.DeviceCode?')">
+                  <input type="hidden" name="deviceId" value="@device.Id" />
+                  <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+<div class="modal-overlay" id="createModal" style="display: none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Thêm Thiết bị mới</h3>
+      <button class="modal-close" onclick="hideCreateModal()">&times;</button>
+    </div>
+    <form method="post" action="/admin/devices/create">
+      <div class="form-group">
+        <label class="form-label">Mã thiết bị</label>
+        <input type="text" name="deviceCode" class="form-input" placeholder="VD: TAB-MALL-03" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vị trí</label>
+        <input type="text" name="location" class="form-input" placeholder="VD: Vincom Center" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gán cho tài khoản</label>
+        <select name="userId" class="form-input" required>
+          @foreach (var user in users)
+          {
+            <option value="@user.Id">@user.Username</option>
+          }
+        </select>
+      </div>
+      <div class="flex gap-2" style="margin-top: 1.25rem;">
+        <button type="button" class="btn btn-secondary flex-1" onclick="hideCreateModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary flex-1">Tạo Thiết bị</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal" style="display: none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Sửa Thiết bị</h3>
+      <button class="modal-close" onclick="hideEditModal()">&times;</button>
+    </div>
+    <form method="post" action="/admin/devices/update">
+      <input type="hidden" name="deviceId" id="editDeviceId" />
+      <div class="form-group">
+        <label class="form-label">Mã thiết bị</label>
+        <input type="text" name="deviceCode" id="editDeviceCode" class="form-input" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vị trí</label>
+        <input type="text" name="location" id="editLocation" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gán cho tài khoản</label>
+        <select name="userId" id="editUserId" class="form-input" required>
+          @foreach (var user in users)
+          {
+            <option value="@user.Id">@user.Username</option>
+          }
+        </select>
+      </div>
+      <div class="flex gap-2" style="margin-top: 1.25rem;">
+        <button type="button" class="btn btn-secondary flex-1" onclick="hideEditModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary flex-1">Lưu thay đổi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function showCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
+  function hideCreateModal() { document.getElementById('createModal').style.display = 'none'; }
+  
+  function showEditModal(id, code, location, userId) {
+    document.getElementById('editDeviceId').value = id;
+    document.getElementById('editDeviceCode').value = code;
+    document.getElementById('editLocation').value = location || '';
+    document.getElementById('editUserId').value = userId || '';
+    document.getElementById('editModal').style.display = 'flex';
+  }
+  function hideEditModal() { document.getElementById('editModal').style.display = 'none'; }
+
+  function filterDevices() {
+    var userId = document.getElementById('userFilter').value;
+    var rows = document.querySelectorAll('#deviceTable tbody tr');
+    rows.forEach(function(row) {
+      if (userId === '' || row.dataset.userId === userId) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+</script>

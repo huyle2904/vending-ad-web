@@ -2,115 +2,35 @@
     ViewData["Title"] = "Upload Media";
 }
 
-<style>
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 36px 40px;
-    max-width: 500px;
-  }
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Tải lên Media</h1>
+    <p class="text-muted">Gán file video vào thiết bị</p>
+  </div>
+</div>
 
-  .field { margin-bottom: 22px; }
-
-  label {
-    display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-
-  input[type="text"] {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 14px;
-    padding: 11px 14px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  input[type="text"]:focus { border-color: var(--accent); }
-
-  .file-drop {
-    width: 100%;
-    background: var(--bg);
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-    padding: 28px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-    position: relative;
-  }
-  .file-drop:hover, .file-drop.drag { border-color: var(--accent); background: var(--accent-dim); }
-  .file-drop input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-  .file-drop-icon { font-size: 28px; margin-bottom: 8px; }
-  .file-drop-label { color: var(--muted); font-size: 13px; }
-  .file-drop-name  { color: var(--accent); font-size: 13px; margin-top: 6px; }
-
-  .progress-bar { background: var(--border); border-radius: 4px; height: 4px; margin-top: 20px; overflow: hidden; display: none; }
-  .progress-fill { height: 100%; background: var(--accent); width: 0; transition: width 0.2s; border-radius: 4px; }
-
-  button {
-    width: 100%;
-    background: var(--accent);
-    color: #0a0a0f;
-    border: none;
-    border-radius: 6px;
-    font-family: var(--display);
-    font-size: 15px;
-    font-weight: 700;
-    padding: 13px 28px;
-    cursor: pointer;
-    letter-spacing: 0.02em;
-    transition: opacity 0.15s;
-    margin-top: 4px;
-  }
-  button:hover:not(:disabled) { opacity: 0.85; }
-  button:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .alert {
-    margin-top: 20px;
-    padding: 14px 16px;
-    border-radius: 6px;
-    font-size: 13px;
-    display: none;
-    line-height: 1.5;
-  }
-  .alert-ok  { background: rgba(57,255,122,0.1);  color: var(--green); border: 1px solid rgba(57,255,122,0.25); }
-  .alert-err { background: rgba(255,71,87,0.1);   color: var(--red);   border: 1px solid rgba(255,71,87,0.25); }
-</style>
-
-<h1>Upload Media</h1>
-<p class="subtitle">Assign a video file to a tablet device</p>
-
-<div class="card">
-  <div class="field">
-    <label>Device Code</label>
-    <input type="text" id="deviceCode" placeholder="e.g. TABLET-001" />
+<div class="card" style="max-width: 500px;">
+  <div class="form-group">
+    <label class="form-label">Mã thiết bị</label>
+    <input type="text" id="deviceCode" class="form-input" placeholder="VD: TABLET-001" />
   </div>
 
-  <div class="field">
-    <label>Video File</label>
-    <div class="file-drop" id="dropZone">
+  <div class="form-group">
+    <label class="form-label">Video File</label>
+    <div class="upload-area" id="dropZone">
       <input type="file" id="videoFile" accept="video/*" onchange="onFileChange(this)" />
-      <div class="file-drop-icon">🎬</div>
-      <div class="file-drop-label">Click to browse or drag & drop</div>
-      <div class="file-drop-name" id="fileName"></div>
+      <div style="font-size: 1.75rem; margin-bottom: 0.5rem;">🎬</div>
+      <p class="text-muted">Click hoặc kéo file vào đây</p>
+      <p id="fileName" style="color: var(--primary); font-size: 0.8125rem; margin-top: 0.375rem;"></p>
     </div>
   </div>
 
-  <div class="progress-bar" id="progressBar">
-    <div class="progress-fill" id="progressFill"></div>
+  <div id="progressBar" style="background: var(--border); border-radius: 4px; height: 4px; margin-top: 1.25rem; overflow: hidden; display: none;">
+    <div id="progressFill" style="height: 100%; background: var(--primary); width: 0; transition: width 0.2s; border-radius: 4px;"></div>
   </div>
 
-  <button id="uploadBtn" onclick="doUpload()">Upload &amp; Assign →</button>
-  <div class="alert" id="alert"></div>
+  <button id="uploadBtn" class="btn btn-primary btn-block" onclick="doUpload()">Tải lên & Gán →</button>
+  <div id="alert" class="alert" style="display: none; margin-top: 1.25rem;"></div>
 </div>
 
 <script>
@@ -127,11 +47,11 @@ async function doUpload() {
   const bar   = document.getElementById('progressBar');
   const fill  = document.getElementById('progressFill');
 
-  if (!code)  { showAlert('err', 'Please enter a Device Code.'); return; }
-  if (!file)  { showAlert('err', 'Please select a video file.'); return; }
+  if (!code)  { showAlert('err', 'Vui lòng nhập mã thiết bị.'); return; }
+  if (!file)  { showAlert('err', 'Vui lòng chọn file video.'); return; }
 
   btn.disabled = true;
-  btn.textContent = 'Uploading…';
+  btn.textContent = 'Đang tải lên…';
   alert.style.display = 'none';
   bar.style.display = 'block';
   fill.style.width = '0%';
@@ -152,28 +72,28 @@ async function doUpload() {
 
     xhr.onload = () => {
       btn.disabled = false;
-      btn.textContent = 'Upload & Assign →';
+      btn.textContent = 'Tải lên & Gán →';
       bar.style.display = 'none';
       try {
         const data = JSON.parse(xhr.responseText);
         if (xhr.status === 200) {
-          showAlert('ok', `✓ "${data.fileName}" assigned to ${data.deviceCode}`);
+          showAlert('ok', `✓ "${data.fileName}" đã gán cho ${data.deviceCode}`);
           document.getElementById('videoFile').value = '';
           document.getElementById('fileName').textContent = '';
         } else {
-          showAlert('err', '✗ ' + (data.message ?? 'Upload failed'));
+          showAlert('err', '✗ ' + (data.message ?? 'Tải lên thất bại'));
         }
       } catch {
-        showAlert('err', '✗ Unexpected server response');
+        showAlert('err', '✗ Phản hồi máy chủ không hợp lệ');
       }
       resolve();
     };
 
     xhr.onerror = () => {
       btn.disabled = false;
-      btn.textContent = 'Upload & Assign →';
+      btn.textContent = 'Tải lên & Gán →';
       bar.style.display = 'none';
-      showAlert('err', '✗ Network error — is the server running?');
+      showAlert('err', '✗ Lỗi mạng — máy chủ có đang chạy không?');
       resolve();
     };
 
@@ -183,7 +103,7 @@ async function doUpload() {
 
 function showAlert(type, msg) {
   const el = document.getElementById('alert');
-  el.className = 'alert alert-' + type;
+  el.className = 'alert ' + (type === 'ok' ? 'alert-success' : 'alert-danger');
   el.textContent = msg;
   el.style.display = 'block';
 }

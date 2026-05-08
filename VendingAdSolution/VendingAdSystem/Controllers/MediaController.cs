@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using VendingAdSystem.Data;
-using VendingAdSystem.Models;
+using VendingAdSystem.Application.Services;
+using VendingAdSystem.Domain.Entities;
 
 namespace VendingAdSystem.Controllers;
 
@@ -9,13 +9,17 @@ namespace VendingAdSystem.Controllers;
 [Route("api/[controller]")]
 public class MediaController : ControllerBase
 {
-    private readonly AppDbContext _db;
     private readonly IWebHostEnvironment _env;
+    private readonly IDeviceService _deviceService;
+    private readonly IMediaService _mediaService;
+    private readonly ICampaignService _campaignService;
 
-    public MediaController(AppDbContext db, IWebHostEnvironment env)
+    public MediaController(IWebHostEnvironment env, IDeviceService deviceService, IMediaService mediaService, ICampaignService campaignService)
     {
-        _db = db;
         _env = env;
+        _deviceService = deviceService;
+        _mediaService = mediaService;
+        _campaignService = campaignService;
     }
 
     /// <summary>
@@ -35,12 +39,12 @@ public class MediaController : ControllerBase
             return BadRequest(new { message = "Device code is required." });
 
         // Ensure device exists
-        var device = await _db.Devices.FirstOrDefaultAsync(d => d.DeviceCode == deviceCode);
+        var device = await _deviceService.GetByCodeAsync(deviceCode);
         if (device == null)
         {
             device = new Device { DeviceCode = deviceCode };
-            _db.Devices.Add(device);
-            await _db.SaveChangesAsync();
+            await _deviceService.AddAsync(device);
+            await _deviceService.SaveChangesAsync();
         }
 
         // Save file to wwwroot/uploads
@@ -59,14 +63,14 @@ public class MediaController : ControllerBase
             FileName = file.FileName,
             FileUrl  = $"{baseUrl}/uploads/{uniqueName}"
         };
-        _db.Medias.Add(media);
-        await _db.SaveChangesAsync();
+        await _mediaService.AddAsync(media);
+        await _mediaService.SaveChangesAsync();
 
         // Replace existing campaign assignment for this device
-        var existing = _db.Campaigns.Where(c => c.DeviceId == device.Id);
-        _db.Campaigns.RemoveRange(existing);
-        _db.Campaigns.Add(new Campaign { DeviceId = device.Id, MediaId = media.Id });
-        await _db.SaveChangesAsync();
+        var existing = _campaignService.Query().Where(c => c.DeviceId == device.Id);
+        _campaignService.RemoveRange(existing);
+        await _campaignService.AddAsync(new Campaign { DeviceId = device.Id, MediaId = media.Id });
+        await _campaignService.SaveChangesAsync();
 
         return Ok(new { media.FileUrl, media.FileName, deviceCode });
     }

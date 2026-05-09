@@ -1,8 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Domain.Entities;
-using VendingAdSystem.Infrastructure.Persistence;
+using VendingAdSystem.Infrastructure.Repositories.Interfaces;
 
 namespace VendingAdSystem.Application.Services;
 
@@ -15,11 +16,13 @@ public interface IAuthService
 
 public class AuthService : IAuthService
 {
-    private readonly AppDbContext _context;
+    private readonly IRepository<User> _users;
+    private readonly IRepository<Admin> _admins;
 
-    public AuthService(AppDbContext context)
+    public AuthService(IRepository<User> users, IRepository<Admin> admins)
     {
-        _context = context;
+        _users = users;
+        _admins = admins;
     }
 
     public async Task<AuthResponse> RegisterUserAsync(RegisterRequest request)
@@ -34,7 +37,7 @@ public class AuthService : IAuthService
             return new AuthResponse { Success = false, Message = "Password must be at least 6 characters." };
 
         var username = request.Username.Trim();
-        var existingUser = _context.Users.FirstOrDefault(u => u.Username == username);
+        var existingUser = await _users.Query().FirstOrDefaultAsync(u => u.Username == username);
         if (existingUser != null)
             return new AuthResponse { Success = false, Message = "Username already exists." };
 
@@ -48,8 +51,8 @@ public class AuthService : IAuthService
             IsActive = true
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await _users.AddAsync(user);
+        await _users.SaveChangesAsync();
 
         return new AuthResponse
         {
@@ -65,7 +68,7 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(request.Password))
             return new AuthResponse { Success = false, Message = "Username and password are required." };
 
-        var user = _context.Users.FirstOrDefault(u => u.Username == login || u.Email == login);
+        var user = await _users.Query().FirstOrDefaultAsync(u => u.Username == login || u.Email == login);
         if (user == null || !VerifyPassword(request.Password, user.PasswordHash) || !user.IsActive)
             return new AuthResponse { Success = false, Message = "Invalid email or password." };
 
@@ -84,7 +87,7 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(request.Password))
             return new AuthResponse { Success = false, Message = "Username and password are required." };
 
-        var admin = _context.Admins.FirstOrDefault(a => a.Email == login);
+        var admin = await _admins.Query().FirstOrDefaultAsync(a => a.Email == login);
         if (admin == null || !VerifyPassword(request.Password, admin.PasswordHash) || !admin.IsActive)
             return new AuthResponse { Success = false, Message = "Invalid email or password." };
 

@@ -121,4 +121,49 @@ public class PortalApiController : ControllerBase
 
         return Ok(devices);
     }
+
+    [HttpGet("playlist/{deviceCode}")]
+    public async Task<IActionResult> GetPlaylist(string deviceCode)
+    {
+        var items = await _campaignService.Query()
+            .Include(c => c.Device)
+            .Include(c => c.Media)
+            .Where(c => c.Device.DeviceCode == deviceCode && c.IsActive)
+            .OrderBy(c => c.OrderIndex)
+            .Select(c => new
+            {
+                c.Media.FileUrl,
+                c.Media.FileName,
+                c.OrderIndex
+            })
+            .ToListAsync();
+
+        if (!items.Any())
+            return NotFound(new { message = $"No campaign assigned to device '{deviceCode}'." });
+
+        return Ok(items);
+    }
+
+    [HttpPost("heartbeat")]
+    public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.DeviceCode))
+            return BadRequest(new { message = "DeviceCode is required." });
+
+        var device = await _deviceService.Query()
+            .FirstOrDefaultAsync(d => d.DeviceCode == req.DeviceCode);
+
+        if (device == null)
+        {
+            device = new Device { DeviceCode = req.DeviceCode };
+            await _deviceService.AddAsync(device);
+        }
+
+        device.LastSeen = DateTime.UtcNow;
+        await _deviceService.SaveChangesAsync();
+
+        return Ok(new { message = "ok", timestamp = device.LastSeen });
+    }
 }
+
+public record HeartbeatRequest(string DeviceCode);

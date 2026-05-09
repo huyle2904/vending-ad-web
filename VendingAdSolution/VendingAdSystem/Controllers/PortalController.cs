@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
-using VendingAdSystem.Infrastructure.Persistence;
 
 namespace VendingAdSystem.Controllers;
 
@@ -34,6 +33,31 @@ public class PortalController : Controller
     public IActionResult Index()
     {
         return RedirectToAction("Dashboard");
+    }
+
+    [HttpGet("/")]
+    [HttpGet("/dashboard")]
+    public async Task<IActionResult> DashboardHome()
+    {
+        if (!_currentSession.IsAdminLoggedIn && !_currentSession.IsPortalLoggedIn)
+            return RedirectToAction("Login", "Account");
+
+        var devices = await _deviceService.Query()
+            .Include(d => d.Campaigns)
+            .ThenInclude(c => c.Media)
+            .OrderByDescending(d => d.LastSeen)
+            .ToListAsync();
+
+        return View("~/Views/Dashboard/Index.cshtml", devices);
+    }
+
+    [HttpGet("/upload")]
+    public IActionResult Upload()
+    {
+        if (!_currentSession.IsAdminLoggedIn && !_currentSession.IsPortalLoggedIn)
+            return RedirectToAction("Login", "Account");
+
+        return RedirectToAction("Videos");
     }
 
     [HttpGet("/portal/dashboard")]

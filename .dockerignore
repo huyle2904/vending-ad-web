@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.git/
+.gitignore
+.vscode/
+.agents/
+.opencode/
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+VendingAdSolution/VendingAdSystem/wwwroot/uploads/

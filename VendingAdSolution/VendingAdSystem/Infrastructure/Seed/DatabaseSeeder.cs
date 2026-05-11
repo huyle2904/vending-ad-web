@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
 
@@ -12,6 +13,8 @@ public static class DatabaseSeeder
 
         EnsureColumn(db, "Users", "Username", "TEXT NOT NULL DEFAULT ''");
         EnsureColumn(db, "Devices", "UserId", "INTEGER NULL");
+        EnsureColumn(db, "Devices", "ClaimCode", "TEXT NULL");
+        EnsureColumn(db, "Devices", "ClaimedAt", "TEXT NULL");
         EnsureColumn(db, "Medias", "UserId", "INTEGER NULL");
         EnsurePlaybackScheduleColumns(db);
         MigratePlaylistsSchema(db);
@@ -19,6 +22,7 @@ public static class DatabaseSeeder
 
         db.Database.ExecuteSqlRaw("UPDATE Users SET Username = Email WHERE Username = ''");
         db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_Users_Username ON Users (Username)");
+        db.Database.ExecuteSqlRaw("CREATE UNIQUE INDEX IF NOT EXISTS IX_Devices_ClaimCode ON Devices (ClaimCode) WHERE ClaimCode IS NOT NULL");
 
         if (!db.Admins.Any())
         {
@@ -43,7 +47,6 @@ public static class DatabaseSeeder
         var users = db.Users.OrderBy(u => u.Id).ToList();
         if (users.Any())
         {
-            db.Database.ExecuteSqlRaw("UPDATE Devices SET UserId = {0} WHERE UserId IS NULL", users[0].Id);
             db.Database.ExecuteSqlRaw("UPDATE Medias SET UserId = {0} WHERE UserId IS NULL", users[0].Id);
         }
 
@@ -69,7 +72,14 @@ public static class DatabaseSeeder
         if (HasColumn(db, tableName, columnName))
             return;
 
-        ExecuteSchemaCommand(db, $"ALTER TABLE {tableName} ADD COLUMN {columnName} {columnDefinition}");
+        try
+        {
+            ExecuteSchemaCommand(db, $"ALTER TABLE {tableName} ADD COLUMN {columnName} {columnDefinition}");
+        }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 1 && ex.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase))
+        {
+            // EnsureCreated may already create new columns before the repair step runs.
+        }
     }
 
     private static void ExecuteSchemaCommand(AppDbContext db, string commandText)

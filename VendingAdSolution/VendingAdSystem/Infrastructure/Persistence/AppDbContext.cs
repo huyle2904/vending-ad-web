@@ -28,6 +28,11 @@ public class AppDbContext : DbContext
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<Device>()
+            .HasIndex(d => d.ClaimCode)
+            .IsUnique()
+            .HasFilter("ClaimCode IS NOT NULL");
+
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Username)
             .IsUnique();

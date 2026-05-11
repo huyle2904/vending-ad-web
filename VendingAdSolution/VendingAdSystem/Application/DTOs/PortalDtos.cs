@@ -32,4 +32,5 @@ public class HeartbeatRequestDto
 public class RegisterDeviceRequestDto
 {
     public string DeviceCode { get; set; } = string.Empty;
+    public string? Location { get; set; }
 }

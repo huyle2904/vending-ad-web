@@ -1,34 +1,22 @@
 @model List<Playlist>
 @{
     var medias = (List<Media>)ViewBag.Medias;
-    ViewData["Title"] = "Manage Playlist";
+    ViewData["Title"] = "Quản lý danh sách phát";
 }
 
 <div class="page-header">
   <div>
-    <h1 class="page-title">Playlist Templates</h1>
-    <p class="page-subtitle">Tạo template từ video đã upload. Schedule sẽ chọn playlist này để phát.</p>
+    <h1 class="page-title">Danh sách phát</h1>
+    <p class="page-subtitle">Tạo playlist từ video đã upload.</p>
   </div>
 </div>
 
-<div class="alert alert-success" id="successMsg" style="display: none;">Thứ tự playlist đã được lưu!</div>
-@if (TempData["Success"] != null)
-{
-  <div class="alert alert-success">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-  <div class="alert alert-danger">@TempData["Error"]</div>
-}
-
 <div class="card surface" style="margin-bottom: 1.5rem;">
-  <p style="color: var(--primary); font-size: 0.875rem;">
-    Video trong playlist được dùng lại khi tạo lịch phát. Playlist không còn giữ thiết bị hoặc thời gian phát.
-  </p>
+  
   <form method="post" action="/portal/playlist/create" class="flex gap-2" style="align-items: end; flex-wrap: wrap; margin-top: 1rem;">
     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 220px;">
       <label class="form-label">Tên playlist mới</label>
-      <input type="text" name="name" class="form-input" required />
+      <input type="text" name="name" class="form-input" value="@ViewBag.PlaylistDraftName" required />
     </div>
     <button type="submit" class="btn btn-primary">Tạo playlist</button>
   </form>
@@ -39,7 +27,7 @@
   <div class="empty-state">
     <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
     <p>Chưa có playlist nào.</p>
-    <p class="text-sm text-muted">Tạo playlist rồi thêm video từ thư viện.</p>
+    <p class="text-sm text-muted">Tạo playlist rồi thêm video từ kho video.</p>
     <a href="/portal/videos" class="btn btn-primary" style="margin-top: 1rem;">Đến Video</a>
   </div>
 }
@@ -52,7 +40,7 @@ else
       <div class="flex items-center justify-between" style="padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
         <div>
           <div style="color: var(--primary); font-weight: 700;">@playlist.Name</div>
-          <div class="text-sm text-muted">Template video, không gắn lịch hoặc thiết bị.</div>
+          <div class="text-sm text-muted">Danh sách phát chứa các video được chọn.</div>
         </div>
         <div class="flex gap-2" style="flex-wrap: wrap;">
           <span class="badge badge-secondary">@items.Count video</span>
@@ -89,7 +77,7 @@ else
         @if (!items.Any())
         {
           <div class="text-center text-muted" style="padding: 1.5rem; border: 1px dashed var(--border); border-radius: var(--radius);">
-            Playlist chưa có video.
+            Danh sách phát chưa có video.
           </div>
         }
         else
@@ -273,17 +261,14 @@ else
         });
 
         if (!response.ok) {
-          alert('Lưu thứ tự thất bại');
+          window.showToast('Lưu thứ tự thất bại', 'error');
           return;
         }
       }
 
-      document.getElementById('successMsg').style.display = 'block';
-      setTimeout(() => {
-        document.getElementById('successMsg').style.display = 'none';
-      }, 3000);
+      window.showToast('Thứ tự playlist đã được lưu!', 'success');
     } catch (e) {
-      alert('Lỗi khi lưu thứ tự');
+      window.showToast('Lỗi khi lưu thứ tự', 'error');
     }
   }
 </script>

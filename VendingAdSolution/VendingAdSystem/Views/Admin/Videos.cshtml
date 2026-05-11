@@ -10,20 +10,11 @@
   <h1 class="page-title">Quản lý toàn bộ Video</h1>
 </div>
 
-@if (TempData["Success"] != null)
-{
-  <div class="alert alert-success">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-  <div class="alert alert-danger">@TempData["Error"]</div>
-}
-
 <form method="get" action="/admin/videos" class="card" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
   <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
-    <label class="form-label">User</label>
+    <label class="form-label">Người dùng</label>
     <select name="userId" class="form-input">
-      <option value="">Tất cả user</option>
+      <option value="">Tất cả người dùng</option>
       @foreach (var user in users)
       {
         <option value="@user.Id" selected="@(selectedUserId == user.Id)">@user.Username</option>
@@ -32,10 +23,10 @@
   </div>
   <div class="form-group" style="margin-bottom: 0; min-width: 260px;">
     <label class="form-label">Tìm kiếm</label>
-    <input type="text" name="keyword" value="@keyword" class="form-input" placeholder="Tên video hoặc playlist" />
+    <input type="text" name="keyword" value="@keyword" class="form-input" placeholder="Tên video hoặc danh sách phát" />
   </div>
   <button type="submit" class="btn btn-primary">Lọc</button>
-  <a href="/admin/videos" class="btn btn-secondary">Xóa lọc</a>
+  <a href="/admin/videos" class="btn btn-secondary">Xóa bộ lọc</a>
 </form>
 
 <div class="table-wrapper">
@@ -52,12 +43,12 @@
       <thead>
         <tr>
           <th>Video</th>
-          <th>User</th>
-          <th>Playlist</th>
+      <th>Người dùng</th>
+      <th>Danh sách phát</th>
           <th>Thiết bị</th>
           <th>Dung lượng</th>
           <th>Ngày upload</th>
-          <th>Hành động</th>
+      <th>Hành động</th>
         </tr>
       </thead>
       <tbody>
@@ -72,7 +63,7 @@
                 <span class="badge badge-secondary" style="margin-right: 0.35rem;">@playlist.Name</span>
               }
             </td>
-            <td><span class="text-muted">Schedule</span></td>
+            <td><span class="text-muted">Lịch phát</span></td>
             <td>@(video.FileSize / 1024 / 1024) MB</td>
             <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm")</td>
             <td>

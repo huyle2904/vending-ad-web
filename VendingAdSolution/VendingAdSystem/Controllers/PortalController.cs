@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
@@ -131,6 +132,11 @@ public class PortalController : Controller
             .OrderBy(s => GetNextScheduleStartUtc(s, now))
             .ToList();
         var onlineDevices = devices.Count(d => d.LastSeen.HasValue && (now - d.LastSeen.Value).TotalMinutes < 5);
+        var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
+        var medias = await _mediaService.Query()
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.UploadedAt)
+            .ToListAsync();
 
         ViewBag.TotalDevices = devices.Count;
         ViewBag.OnlineDevices = onlineDevices;
@@ -142,6 +148,8 @@ public class PortalController : Controller
         ViewBag.UpcomingScheduleList = upcomingSchedules;
         ViewBag.CurrentScheduleByDevice = currentByDevice;
         ViewBag.UpcomingScheduleByDevice = upcomingByDevice;
+        ViewBag.Playlists = playlists;
+        ViewBag.Medias = medias;
         ViewBag.UtcNow = now;
         ViewBag.VietnamNow = vietnamNow;
 
@@ -213,12 +221,19 @@ public class PortalController : Controller
         }
 
         var onlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId);
+        var medias = await _mediaService.Query()
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.UploadedAt)
+            .ToListAsync();
 
         ViewBag.TotalDevices = devices.Count;
         ViewBag.OnlineCount = onlineCount;
         ViewBag.OfflineCount = devices.Count - onlineCount;
         ViewBag.CurrentScheduleByDevice = currentByDevice;
         ViewBag.UpcomingScheduleByDevice = upcomingByDevice;
+        ViewBag.Playlists = playlists;
+        ViewBag.Medias = medias;
         ViewBag.UtcNow = now;
         ViewBag.VietnamNow = vietnamNow;
 
@@ -244,37 +259,20 @@ public class PortalController : Controller
     }
 
     [HttpPost("/portal/devices")]
-    public async Task<IActionResult> CreateDevice([FromForm] string deviceCode, [FromForm] string location)
+    public async Task<IActionResult> ClaimDevice([FromForm] string claimCode)
     {
         if (!IsPortalLoggedIn())
             return RedirectToAction("Login", "Account");
 
-        if (string.IsNullOrWhiteSpace(deviceCode))
+        if (string.IsNullOrWhiteSpace(claimCode))
         {
-            TempData["Error"] = "Device code is required";
+            TempData["Error"] = "Mã liên kết là bắt buộc";
             return RedirectToAction("Devices");
         }
 
-        var existing = await _deviceService.GetByCodeAsync(deviceCode);
-        if (existing != null)
-        {
-            TempData["Error"] = "Device code already exists";
-            return RedirectToAction("Devices");
-        }
-
-        var device = new Device
-        {
-            DeviceCode = deviceCode,
-            Location = location,
-            UserId = _currentSession.UserId ?? 0,
-            IsActive = true,
-            LastSeen = null
-        };
-
-        await _deviceService.AddAsync(device);
-        await _deviceService.SaveChangesAsync();
-
-        TempData["Success"] = "Device added successfully";
+        var userId = _currentSession.UserId ?? 0;
+        var result = await _deviceService.ClaimAsync(claimCode, userId, _timeService.UtcNow);
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
         return RedirectToAction("Devices");
     }
 
@@ -289,14 +287,14 @@ public class PortalController : Controller
 
         if (device == null)
         {
-            TempData["Error"] = "Device not found";
+            TempData["Error"] = "Không tìm thấy thiết bị";
             return RedirectToAction("Devices");
         }
 
         _deviceService.Remove(device);
         await _deviceService.SaveChangesAsync();
 
-        TempData["Success"] = "Device deleted successfully";
+        TempData["Success"] = "Đã xóa thiết bị";
         return RedirectToAction("Devices");
     }
 
@@ -308,6 +306,7 @@ public class PortalController : Controller
             return RedirectToAction("Login", "Account");
 
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
+        ViewBag.PlaylistDraftName = TempData["PlaylistDraftName"] as string ?? string.Empty;
         ViewBag.Medias = await _mediaService.Query()
             .Where(m => m.UserId == userId)
             .OrderByDescending(m => m.UploadedAt)
@@ -323,6 +322,8 @@ public class PortalController : Controller
             return Unauthorized();
 
         var result = await _playlistManagementService.CreateTemplateAsync(name, userId.Value);
+        if (!result.Success)
+            TempData["PlaylistDraftName"] = name;
         TempData[result.Success ? "Success" : "Error"] = result.Message;
         return RedirectToAction("Playlist");
     }
@@ -399,11 +400,11 @@ public class PortalController : Controller
         var deleted = await _playlistManagementService.DeletePlaylistAsync(playlistId, userId.Value);
         if (!deleted)
         {
-            TempData["Error"] = "Playlist not found.";
+            TempData["Error"] = "Không tìm thấy danh sách phát";
             return RedirectToAction("Playlist");
         }
 
-        TempData["Success"] = "Playlist deleted successfully.";
+        TempData["Success"] = "Đã xóa danh sách phát";
         return RedirectToAction("Playlist");
     }
 
@@ -417,6 +418,7 @@ public class PortalController : Controller
         ViewBag.Devices = await _deviceService.Query().Where(d => d.UserId == userId && d.IsActive).OrderBy(d => d.DeviceCode).ToListAsync();
         ViewBag.Playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
         ViewBag.Medias = await _mediaService.Query().Where(m => m.UserId == userId).OrderByDescending(m => m.UploadedAt).ToListAsync();
+        ViewBag.ScheduleDraftJson = TempData["ScheduleDraftJson"] as string ?? string.Empty;
         var schedules = await _playbackScheduleService.GetForUserAsync(userId.Value);
         var sortedSchedules = schedules
             .OrderByDescending(s => s.IsActive)
@@ -426,7 +428,7 @@ public class PortalController : Controller
     }
 
     [HttpPost("/portal/schedules/create")]
-    public async Task<IActionResult> CreateSchedule([FromForm] PlaybackScheduleRequest request, [FromForm] string actionType)
+    public async Task<IActionResult> CreateSchedule([FromForm] PlaybackScheduleRequest request, [FromForm] string actionType, [FromForm] string? sourceTab, [FromForm] int? selectedSourcePlaylistId)
     {
         var userId = _currentSession.UserId;
         if (userId == null || userId <= 0)
@@ -435,6 +437,23 @@ public class PortalController : Controller
         var result = actionType == "immediate"
             ? await _playbackScheduleService.CreateImmediateAsync(userId.Value, request)
             : await _playbackScheduleService.CreateAsync(userId.Value, request);
+        if (!result.Success)
+        {
+            TempData["ScheduleDraftJson"] = JsonSerializer.Serialize(new
+            {
+                actionType,
+                request.Name,
+                startDate = request.StartDate.ToString("yyyy-MM-dd"),
+                endDate = request.EndDate.ToString("yyyy-MM-dd"),
+                startTime = request.StartTime.ToString(@"hh\:mm"),
+                endTime = request.EndTime.ToString(@"hh\:mm"),
+                deviceIds = request.DeviceIds,
+                mediaIds = request.MediaIds,
+                sourceTab = string.IsNullOrWhiteSpace(sourceTab) ? "media" : sourceTab,
+                selectedSourcePlaylistId,
+                request.PlaylistId
+            });
+        }
         TempData[result.Success ? "Success" : "Error"] = result.Message;
         return RedirectToAction("Schedules");
     }
@@ -479,7 +498,7 @@ public class PortalController : Controller
             return Unauthorized();
 
         var removed = await _playbackScheduleService.RemoveItemAsync(userId.Value, scheduleItemId);
-        TempData[removed ? "Success" : "Error"] = removed ? "Video removed from schedule." : "Schedule item not found.";
+        TempData[removed ? "Success" : "Error"] = removed ? "Đã xóa video khỏi lịch phát" : "Không tìm thấy mục lịch phát";
         return RedirectToAction("Schedules");
     }
 
@@ -492,7 +511,7 @@ public class PortalController : Controller
 
         var updated = await _playbackScheduleService.UpdateItemOrderAsync(userId.Value, request.ScheduleId, request.Updates);
         if (!updated)
-            return NotFound(new { success = false, message = "Schedule not found." });
+            return NotFound(new { success = false, message = "Không tìm thấy lịch phát" });
 
         return Ok(new { success = true });
     }
@@ -546,11 +565,11 @@ public class PortalController : Controller
         var removed = await _playlistManagementService.RemovePlaylistItemAsync(playlistItemId, userId.Value);
         if (!removed)
         {
-            TempData["Error"] = "Playlist item not found.";
+            TempData["Error"] = "Không tìm thấy video trong danh sách phát";
             return RedirectToAction("Playlist");
         }
 
-        TempData["Success"] = "Video removed from playlist.";
+        TempData["Success"] = "Đã xóa video khỏi danh sách phát";
         return RedirectToAction("Playlist");
     }
 

@@ -1,10 +1,12 @@
 @model List<Device>
-@{
+@{ 
     ViewData["Title"] = "Bảng điều khiển";
     var currentByDevice = ViewBag.CurrentScheduleByDevice as Dictionary<int, PlaybackSchedule> ?? new Dictionary<int, PlaybackSchedule>();
     var upcomingByDevice = ViewBag.UpcomingScheduleByDevice as Dictionary<int, PlaybackSchedule> ?? new Dictionary<int, PlaybackSchedule>();
     var currentSchedules = ViewBag.CurrentSchedules as List<PlaybackSchedule> ?? new List<PlaybackSchedule>();
     var upcomingSchedules = ViewBag.UpcomingScheduleList as List<PlaybackSchedule> ?? new List<PlaybackSchedule>();
+    var playlists = ViewBag.Playlists as List<Playlist> ?? new List<Playlist>();
+    var medias = ViewBag.Medias as List<Media> ?? new List<Media>();
     var utcNow = ViewBag.UtcNow as DateTime? ?? DateTime.UtcNow;
     var vietnamNow = ViewBag.VietnamNow as DateTime? ?? DateTime.UtcNow.AddHours(7);
 
@@ -12,16 +14,16 @@
     string LastSeenText(Device device) => device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ";
 }
 
+<script>
+  window.quickPlayDeviceMap = window.quickPlayDeviceMap || {};
+</script>
+
 <div class="page-header portal-dashboard-header">
   <div>
     <h1 class="page-title">Bảng điều khiển</h1>
-    <p class="text-muted">Tổng quan thiết bị, lịch đang phát và lịch sắp tới theo giờ Việt Nam.</p>
+    <p class="text-muted">Tổng quan thiết bị, lịch đang phát và lịch phát sắp tới.</p>
   </div>
-  <div class="flex gap-2" style="flex-wrap: wrap;">
-    <a href="/portal/device-wall" class="btn btn-primary">Device Wall</a>
-    <a href="/portal/schedules" class="btn btn-secondary">Schedules</a>
-    <a href="/portal/videos" class="btn btn-secondary">Upload Video</a>
-  </div>
+  
 </div>
 
 <div class="stats-grid dashboard-stats">
@@ -31,11 +33,11 @@
   </div>
   <div class="stat-card">
     <div class="stat-value stat-success">@ViewBag.OnlineDevices</div>
-    <div class="stat-label">Online</div>
+    <div class="stat-label">Đang online</div>
   </div>
   <div class="stat-card">
     <div class="stat-value stat-danger">@ViewBag.OfflineDevices</div>
-    <div class="stat-label">Offline</div>
+    <div class="stat-label">Ngoại tuyến</div>
   </div>
   <div class="stat-card">
     <div class="stat-value stat-primary">@ViewBag.ActiveSchedules</div>
@@ -51,11 +53,11 @@
   <div class="card surface">
     <div class="card-header">
       <h2 class="card-title">Đang phát</h2>
-      <div class="card-description">Chỉ tính lịch đúng ngày và đúng khung giờ hiện tại.</div>
+      <div class="card-description">Danh sách đang phát.</div>
     </div>
     @if (!currentSchedules.Any())
     {
-      <div class="empty-inline">Không có schedule đang phát.</div>
+      <div class="empty-inline">Không có danh sách đang phát.</div>
     }
     else
     {
@@ -83,11 +85,11 @@
   <div class="card surface">
     <div class="card-header">
       <h2 class="card-title">Sắp phát</h2>
-      <div class="card-description">Lịch gần nhất theo từng device.</div>
+      <div class="card-description">Danh sách phát sắp tới.</div>
     </div>
     @if (!upcomingSchedules.Any())
     {
-      <div class="empty-inline">Chưa có schedule sắp tới.</div>
+      <div class="empty-inline">Chưa có danh sách phát phát sắp tới.</div>
     }
     else
     {
@@ -117,7 +119,7 @@
   <div class="section-header-row">
     <div>
       <h2 class="section-title">Thiết bị của bạn</h2>
-      <p class="text-sm text-muted">Current/upcoming tính theo lịch thật đang áp dụng cho từng device.</p>
+      <p class="text-sm text-muted"></p>
     </div>
     <a href="/portal/devices" class="btn btn-secondary btn-sm">Quản lý device</a>
   </div>
@@ -127,7 +129,7 @@
     <div class="empty-state">
       <div class="empty-state-icon">📱</div>
       <p>Chưa có thiết bị nào.</p>
-      <p class="text-sm text-muted">Thêm device để bắt đầu phát nội dung.</p>
+      <p class="text-sm text-muted">Thêm thiết bị để bắt đầu phát nội dung.</p>
     </div>
   }
   else
@@ -146,7 +148,7 @@
             </div>
             <span class="badge @(isOnline ? "badge-success" : "badge-danger")">
               <span class="status-dot @(isOnline ? "status-online" : "status-offline")"></span>
-              @(isOnline ? "Online" : "Offline")
+              @(isOnline ? "Đang online" : "Ngoại tuyến")
             </span>
           </div>
           <div class="flex items-center gap-2 text-muted text-sm">📍 @(device.Location ?? "Chưa có vị trí")</div>
@@ -156,13 +158,98 @@
             <div>Video: <strong>@((currentSchedule?.Items.Count ?? 0).ToString())</strong></div>
           </div>
           <div class="dashboard-device-footer">
-            <span>Last seen: <strong>@LastSeenText(device)</strong></span>
-            <a href="/portal/devices" class="btn btn-ghost btn-sm">Chi tiết</a>
+            <span>Lần hoạt động cuối: <strong>@LastSeenText(device)</strong></span>
+            <div class="flex gap-2" style="flex-wrap: wrap; justify-content:flex-end;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="openQuickPlay(@device.Id)">Phát nhanh</button>
+              <a href="/portal/devices" class="btn btn-ghost btn-sm">Chi tiết</a>
+            </div>
           </div>
         </div>
       }
     </div>
   }
+</div>
+
+<div class="modal-overlay" id="quickPlayModal" style="display: none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div>
+        <h3 class="modal-title">Phát nhanh trên device</h3>
+        <p class="text-sm text-muted" id="quickPlayDeviceInfo">Chọn nội dung rồi bấm phát.</p>
+      </div>
+      <button class="modal-close" type="button" onclick="hideQuickPlayModal()">&times;</button>
+    </div>
+
+    <form method="post" action="/portal/schedules/create" id="quickPlayForm">
+      <input type="hidden" name="actionType" value="immediate" />
+      <input type="hidden" name="DeviceIds" id="quickPlayDeviceId" />
+      <input type="hidden" name="Name" id="quickPlayName" />
+      <input type="hidden" name="StartDate" id="quickPlayStartDate" />
+      <input type="hidden" name="EndDate" id="quickPlayEndDate" />
+      <input type="hidden" name="StartTime" id="quickPlayStartTime" />
+      <input type="hidden" name="EndTime" id="quickPlayEndTime" />
+      <input type="hidden" name="PlaylistId" id="quickPlayPlaylistId" />
+
+      <div class="quick-play-tabs">
+        <button type="button" class="quick-play-tab active" id="quickPlayMediaTab" onclick="switchQuickPlaySource('media')">Video</button>
+        <button type="button" class="quick-play-tab" id="quickPlayPlaylistTab" onclick="switchQuickPlaySource('playlist')">Danh sách phát</button>
+      </div>
+
+      <div id="quickPlayMediaPanel">
+        @if (!medias.Any())
+        {
+          <div class="empty-state" style="padding: 1rem; margin-top: 1rem;">
+            <p>Chưa có video trong kho.</p>
+          </div>
+        }
+        else
+        {
+          <div class="quick-play-list">
+            @foreach (var media in medias)
+            {
+              <label class="quick-play-item">
+                <input type="checkbox" name="MediaIds" value="@media.Id" data-quickplay-media />
+                <div>
+                  <div class="quick-play-title">@media.FileName</div>
+                  <div class="quick-play-subtitle">@((media.FileSize / 1024 / 1024).ToString()) MB</div>
+                </div>
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <div id="quickPlayPlaylistPanel" style="display:none;">
+        @if (!playlists.Any())
+        {
+          <div class="empty-state" style="padding: 1rem; margin-top: 1rem;">
+            <p>Chưa có playlist nào.</p>
+          </div>
+        }
+        else
+        {
+          <div class="quick-play-list">
+            @foreach (var playlist in playlists)
+            {
+              var playlistItems = playlist.Items.OrderBy(i => i.OrderIndex).ToList();
+              <label class="quick-play-item">
+                <input type="radio" name="playlistChoice" value="@playlist.Id" data-quickplay-playlist />
+                <div>
+                  <div class="quick-play-title">@playlist.Name</div>
+                  <div class="quick-play-subtitle">@playlistItems.Count video(s)</div>
+                </div>
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="flex gap-2" style="margin-top: 1.25rem;">
+        <button type="button" class="btn btn-secondary flex-1" onclick="hideQuickPlayModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary flex-1" id="quickPlaySubmitBtn">Phát ngay</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <style>
@@ -183,6 +270,115 @@
   .dashboard-device-lines strong { color:var(--foreground); font-weight:600; }
   .dashboard-device-footer { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding-top:.75rem; margin-top:.75rem; border-top:1px solid var(--border); color:var(--muted-foreground); font-size:.8rem; }
   .dashboard-device-footer strong { color:var(--foreground); font-weight:600; }
+  .dashboard-device-footer .flex { justify-content: flex-end; }
   @@media (max-width: 1100px) { .dashboard-stats, .dashboard-device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboard-grid { grid-template-columns: 1fr; } }
-  @@media (max-width: 768px) { .dashboard-stats, .dashboard-device-grid { grid-template-columns: 1fr; } .section-header-row { flex-direction:column; align-items:flex-start; } }
+  @@media (max-width: 768px) { .dashboard-stats, .dashboard-device-grid { grid-template-columns: 1fr; } .section-header-row { flex-direction:column; align-items:flex-start; } .dashboard-device-footer { flex-direction: column; align-items: flex-start; } .dashboard-device-footer .flex { width: 100%; justify-content: stretch; } .dashboard-device-footer .btn { flex: 1; } }
+  .quick-play-tabs { display:flex; gap:.5rem; margin-top: 1rem; }
+  .quick-play-tab { border: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); border-radius: 999px; padding: .45rem .9rem; font-size: .85rem; font-weight: 600; cursor: pointer; }
+  .quick-play-tab.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+  .quick-play-list { display: grid; gap: .5rem; margin-top: 1rem; max-height: 42vh; overflow: auto; padding-right: .25rem; }
+  .quick-play-item { display:flex; align-items:flex-start; gap:.75rem; border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem .9rem; cursor: pointer; background: var(--card); }
+  .quick-play-item input { margin-top: .2rem; }
+  .quick-play-title { font-weight: 600; color: var(--foreground); }
+  .quick-play-subtitle { font-size: .78rem; color: var(--muted-foreground); margin-top: .15rem; }
 </style>
+
+<script>
+  let quickPlaySource = 'media';
+  const quickPlayDeviceData = {};
+
+  function setQuickPlayDateTime() {
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(Math.min(now.getMinutes(), 58)).padStart(2, '0');
+
+    document.getElementById('quickPlayStartDate').value = year + '-' + month + '-' + day;
+    document.getElementById('quickPlayEndDate').value = year + '-' + month + '-' + day;
+    document.getElementById('quickPlayStartTime').value = hours + ':' + minutes;
+    document.getElementById('quickPlayEndTime').value = '23:59';
+  }
+
+  function clearQuickPlaySelection() {
+    document.querySelectorAll('#quickPlayForm input[name="MediaIds"]').forEach(input => input.checked = false);
+    document.querySelectorAll('#quickPlayForm input[data-quickplay-playlist]').forEach(input => input.checked = false);
+    document.getElementById('quickPlayPlaylistId').value = '';
+  }
+
+  function switchQuickPlaySource(source) {
+    quickPlaySource = source;
+    document.getElementById('quickPlayMediaPanel').style.display = source === 'media' ? 'block' : 'none';
+    document.getElementById('quickPlayPlaylistPanel').style.display = source === 'playlist' ? 'block' : 'none';
+    document.getElementById('quickPlayMediaTab').classList.toggle('active', source === 'media');
+    document.getElementById('quickPlayPlaylistTab').classList.toggle('active', source === 'playlist');
+
+    if (source === 'media') {
+      document.getElementById('quickPlayPlaylistId').value = '';
+      document.querySelectorAll('#quickPlayForm input[data-quickplay-playlist]').forEach(input => input.checked = false);
+    } else {
+      document.querySelectorAll('#quickPlayForm input[name="MediaIds"]').forEach(input => input.checked = false);
+    }
+  }
+
+  function openQuickPlay(deviceId) {
+    const device = quickPlayDeviceData[deviceId];
+    if (!device) return;
+
+    document.getElementById('quickPlayDeviceId').value = deviceId;
+    document.getElementById('quickPlayName').value = 'Phát nhanh - ' + device.code + ' - ' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
+    document.getElementById('quickPlayDeviceInfo').textContent = device.code + ' | ' + device.location;
+    setQuickPlayDateTime();
+    clearQuickPlaySelection();
+    switchQuickPlaySource('media');
+    document.getElementById('quickPlayModal').style.display = 'flex';
+  }
+
+  function hideQuickPlayModal() {
+    document.getElementById('quickPlayModal').style.display = 'none';
+  }
+
+  document.querySelectorAll('#quickPlayForm input[data-quickplay-playlist]').forEach(input => {
+    input.addEventListener('change', function () {
+      if (!this.checked) return;
+      document.getElementById('quickPlayPlaylistId').value = this.value;
+      document.querySelectorAll('#quickPlayForm input[name="MediaIds"]').forEach(item => item.checked = false);
+      switchQuickPlaySource('playlist');
+    });
+  });
+
+  document.querySelectorAll('#quickPlayForm input[name="MediaIds"]').forEach(input => {
+    input.addEventListener('change', function () {
+      if (!this.checked) return;
+      document.getElementById('quickPlayPlaylistId').value = '';
+      document.querySelectorAll('#quickPlayForm input[data-quickplay-playlist]').forEach(item => item.checked = false);
+      switchQuickPlaySource('media');
+    });
+  });
+
+  document.getElementById('quickPlayForm').addEventListener('submit', function (e) {
+    const mediaIds = Array.from(document.querySelectorAll('#quickPlayForm input[name="MediaIds"]:checked')).map(input => input.value);
+    const playlistId = document.getElementById('quickPlayPlaylistId').value;
+
+    if (quickPlaySource === 'media') {
+      document.getElementById('quickPlayPlaylistId').value = '';
+      if (!mediaIds.length) {
+        e.preventDefault();
+        window.showToast('Chọn ít nhất một video.', 'error');
+      }
+      return;
+    }
+
+    if (!playlistId) {
+      e.preventDefault();
+      window.showToast('Chọn playlist trước khi phát.', 'error');
+      return;
+    }
+  });
+
+  @foreach (var device in Model)
+  {
+    <text>quickPlayDeviceData[@device.Id] = { code: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(device.DeviceCode)), location: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(device.Location ?? "Chưa có vị trí")) };</text>
+  }
+</script>

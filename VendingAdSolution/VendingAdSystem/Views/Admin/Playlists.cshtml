@@ -4,27 +4,18 @@
     var users = (List<User>)ViewBag.Users;
     int? selectedUserId = ViewBag.SelectedUserId;
     string? keyword = ViewBag.Keyword;
-    ViewData["Title"] = "Quản lý toàn bộ Playlist";
+    ViewData["Title"] = "Quản lý toàn bộ danh sách phát";
 }
 
 <div class="page-header">
-  <h1 class="page-title">Quản lý toàn bộ Playlist</h1>
+  <h1 class="page-title">Quản lý toàn bộ danh sách phát</h1>
 </div>
-
-@if (TempData["Success"] != null)
-{
-  <div class="alert alert-success">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-  <div class="alert alert-danger">@TempData["Error"]</div>
-}
 
 <form method="get" action="/admin/playlists" class="card" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
   <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
-    <label class="form-label">User</label>
+    <label class="form-label">Người dùng</label>
     <select name="userId" class="form-input">
-      <option value="">Tất cả user</option>
+      <option value="">Tất cả người dùng</option>
       @foreach (var user in users)
       {
         <option value="@user.Id" selected="@(selectedUserId == user.Id)">@user.Username</option>
@@ -33,10 +24,10 @@
   </div>
   <div class="form-group" style="margin-bottom: 0; min-width: 260px;">
     <label class="form-label">Tìm kiếm</label>
-    <input type="text" name="keyword" value="@keyword" class="form-input" placeholder="Tên playlist hoặc video" />
+    <input type="text" name="keyword" value="@keyword" class="form-input" placeholder="Tên danh sách phát hoặc video" />
   </div>
   <button type="submit" class="btn btn-primary">Lọc</button>
-  <a href="/admin/playlists" class="btn btn-secondary">Xóa lọc</a>
+  <a href="/admin/playlists" class="btn btn-secondary">Xóa bộ lọc</a>
 </form>
 
 <div class="table-wrapper">
@@ -52,8 +43,8 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Playlist</th>
-          <th>User</th>
+          <th>Danh sách phát</th>
+          <th>Người dùng</th>
           <th>Thiết bị</th>
           <th>Video</th>
           <th>Thời gian</th>
@@ -68,8 +59,8 @@
             <td><strong style="color: var(--primary);">@playlist.Name</strong></td>
             <td><span class="badge badge-primary">@(playlist.User?.Username ?? "-")</span></td>
             <td>@playlist.Items.Count video</td>
-            <td class="text-muted text-sm">Template only</td>
-            <td><span class="badge @(playlist.IsActive ? "badge-success" : "badge-danger")">@(playlist.IsActive ? "Active" : "Inactive")</span></td>
+            <td class="text-muted text-sm">Chỉ là mẫu</td>
+            <td><span class="badge @(playlist.IsActive ? "badge-success" : "badge-danger")">@(playlist.IsActive ? "Đang hoạt động" : "Đã tắt")</span></td>
             <td>
               <div class="action-buttons">
                 <button class="btn btn-sm btn-secondary" onclick="toggleEdit(@playlist.Id)">Sửa</button>
@@ -92,7 +83,7 @@
                   <div class="form-group">
                     <label class="form-label">Trạng thái</label>
                     <label class="form-label" style="display: flex; gap: 0.5rem; align-items: center;">
-                      <input type="checkbox" name="isActive" value="true" @(playlist.IsActive ? "checked" : "") /> Active
+                      <input type="checkbox" name="isActive" value="true" @(playlist.IsActive ? "checked" : "") /> Đang hoạt động
                     </label>
                   </div>
                   </div>

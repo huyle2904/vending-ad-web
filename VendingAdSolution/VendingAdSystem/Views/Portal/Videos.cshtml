@@ -1,23 +1,14 @@
 @model List<Media>
 @{
-    ViewData["Title"] = "Videos";
+    ViewData["Title"] = "Thư viện video";
 }
 
 <div class="page-header">
   <div>
-    <h1 class="page-title">Video Library</h1>
+    <h1 class="page-title">Thư viện video</h1>
     <p class="page-subtitle">Upload một lần. Dùng lại cho playlist và schedule.</p>
   </div>
 </div>
-
-@if (TempData["Success"] != null)
-{
-  <div class="alert alert-success">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-  <div class="alert alert-danger">@TempData["Error"]</div>
-}
 
 <div class="card surface" style="margin-bottom: 1.5rem;">
   <div class="card-header">
@@ -101,10 +92,10 @@
     <div class="card-header flex items-center justify-between" style="gap: 1rem; flex-wrap: wrap;">
       <div>
         <h3 class="card-title">Danh sách video (@Model.Count)</h3>
-        <div class="card-description">Chọn nhiều để xóa, hoặc mở playlist/schedule từ kho này.</div>
+        <div class="card-description">Chọn nhiều để xóa, hoặc mở danh sách phát/lịch phát từ kho này.</div>
       </div>
       <div class="page-actions">
-        <button type="button" class="btn btn-secondary" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Xóa Video</button>
+        <button type="button" class="btn btn-secondary" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Xóa video</button>
       </div>
       <div id="deleteActions" class="page-actions" style="display:none;">
         <button type="button" class="btn btn-secondary" onclick="cancelDeleteMode()">Hủy</button>
@@ -127,8 +118,8 @@
             <tr>
               <th>Tên video</th>
               <th>Dung lượng</th>
-              <th>Ngày upload</th>
-              <th>Playlist</th>
+              <th>Ngày tải lên</th>
+              <th>Danh sách phát</th>
               <th style="width: 56px; display:none;" class="delete-col">Chọn</th>
               <th>Thao tác</th>
             </tr>
@@ -173,7 +164,7 @@
     if (!file) return;
 
     if (file.size > 50 * 1024 * 1024) {
-      alert('File phải nhỏ hơn 50MB');
+      window.showToast('File phải nhỏ hơn 50MB', 'error');
       input.value = '';
       return;
     }
@@ -189,7 +180,7 @@
   async function doUpload() {
     var file = document.getElementById('videoFile').files[0];
     if (!file) {
-      alert('Chọn file video');
+      window.showToast('Chọn file video', 'error');
       return;
     }
 
@@ -214,19 +205,19 @@
 
     xhr.onload = function() {
       btn.disabled = false;
-      btn.textContent = 'Upload Video';
+      btn.textContent = 'Tải lên video';
       if (xhr.status === 200) {
         location.reload();
       } else {
-        var data = JSON.parse(xhr.responseText);
-        alert(data.message || 'Tải lên thất bại');
+        var data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        window.showToast(data.message || 'Tải lên thất bại', 'error');
       }
     };
 
     xhr.onerror = function() {
       btn.disabled = false;
-      btn.textContent = 'Upload Video';
-      alert('Lỗi mạng');
+      btn.textContent = 'Tải lên video';
+      window.showToast('Lỗi mạng', 'error');
     };
 
     xhr.send(formData);
@@ -252,7 +243,7 @@
   function confirmBatchDelete() {
     const selected = Array.from(document.querySelectorAll('.delete-check:checked')).map(x => x.value);
     if (selected.length === 0) {
-      alert('Chọn ít nhất 1 video');
+      window.showToast('Chọn ít nhất 1 video', 'error');
       return;
     }
 

@@ -1,11 +1,16 @@
 @model List<Media>
 @{
-    var devices = (List<Device>)ViewBag.Devices;
     ViewData["Title"] = "Videos";
 }
 
 <div class="page-header">
-  <h1 class="page-title">Quản lý Video</h1>
+  <div>
+    <h1 class="page-title">Video Library</h1>
+    <p class="page-subtitle">Upload một lần. Dùng lại cho playlist và schedule.</p>
+  </div>
+  <div class="page-actions">
+    <button type="button" class="btn btn-secondary" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Xóa tổng</button>
+  </div>
 </div>
 
 @if (TempData["Success"] != null)
@@ -17,9 +22,10 @@
   <div class="alert alert-danger">@TempData["Error"]</div>
 }
 
-<div class="card">
+<div class="card surface" style="margin-bottom: 1.5rem;">
   <div class="card-header">
-    <h3 class="card-title">Tải lên Video</h3>
+    <h3 class="card-title">Tải lên video vào thư viện</h3>
+    <div class="card-description">Chỉ nơi này nhận file mới.</div>
   </div>
   
   <style>
@@ -70,44 +76,17 @@
     }
   </style>
 
-  <div class="video-upload-grid">
-    <div>
-      <div class="upload-area" id="dropZone">
-        <input type="file" id="videoFile" accept="video/*" onchange="onFileSelect(this)" />
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📤</div>
-        <p class="text-muted">Click hoặc kéo file vào đây</p>
-        <p class="text-sm text-muted">MP4, AVI, MOV (Max 50MB)</p>
-        <p id="fileName" style="color: var(--primary); font-weight: 500; margin-top: 0.5rem;"></p>
-      </div>
-      <div id="previewVideo" style="display: none; margin-top: 1rem;">
-        <video id="videoPreview" controls style="width: 100%; max-height: 200px; border-radius: var(--radius);"></video>
-      </div>
+  <div>
+    <div class="upload-area" id="dropZone">
+      <input type="file" id="videoFile" accept="video/*" onchange="onFileSelect(this)" />
+      <div style="font-size: 2rem; margin-bottom: 0.5rem;">📤</div>
+      <p class="text-muted">Click hoặc kéo file vào đây</p>
+      <p class="text-sm text-muted">MP4, AVI, MOV (Max 50MB)</p>
+      <p class="text-sm text-muted">Upload chỉ lưu vào thư viện video. Lịch phát chọn ở trang schedule.</p>
+      <p id="fileName" style="color: var(--primary); font-weight: 500; margin-top: 0.5rem;"></p>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 1rem;">
-      <div>
-        <label class="form-label">Chọn thiết bị</label>
-        <div class="device-select-panel">
-          <div class="device-select-body">
-            @foreach (var device in devices)
-            {
-              <label class="device-select-item">
-                <input type="checkbox" name="selectedDevices" value="@device.Id" style="accent-color: var(--primary);" />
-                <span class="text-sm">@device.DeviceCode - @device.Location</span>
-              </label>
-            }
-          </div>
-        </div>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-        <div class="form-group">
-          <label class="form-label">Ngày bắt đầu</label>
-          <input type="date" id="startDate" class="form-input" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Ngày kết thúc</label>
-          <input type="date" id="endDate" class="form-input" />
-        </div>
-      </div>
+    <div id="previewVideo" style="display: none; margin-top: 1rem;">
+      <video id="videoPreview" controls style="width: 100%; max-height: 200px; border-radius: var(--radius);"></video>
     </div>
   </div>
 
@@ -115,13 +94,22 @@
     <div id="progressFill" style="height: 100%; background: var(--primary); width: 0%; transition: width 0.2s;"></div>
   </div>
 
-  <button class="btn btn-primary" id="uploadBtn" onclick="doUpload()" disabled style="margin-top: 1rem;">Tải lên Video</button>
+  <div class="flex gap-2" style="margin-top: 1rem; flex-wrap: wrap;">
+    <button class="btn btn-primary" id="uploadBtn" onclick="doUpload()" disabled>Tải lên</button>
+  </div>
 </div>
 
 <div class="section" style="margin-top: 2rem;">
-  <div class="card" style="background: var(--muted);">
-    <div class="card-header">
-      <h3 class="card-title">Danh sách Video (@Model.Count)</h3>
+  <div class="card surface">
+    <div class="card-header flex items-center justify-between" style="gap: 1rem; flex-wrap: wrap;">
+      <div>
+        <h3 class="card-title">Danh sách video (@Model.Count)</h3>
+        <div class="card-description">Chọn nhiều để xóa, hoặc mở playlist/schedule từ kho này.</div>
+      </div>
+      <div id="deleteActions" class="page-actions" style="display:none;">
+        <button type="button" class="btn btn-secondary" onclick="cancelDeleteMode()">Hủy</button>
+        <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">Xác nhận xóa</button>
+      </div>
     </div>
     
     @if (!Model.Any())
@@ -140,7 +128,8 @@
               <th>Tên video</th>
               <th>Dung lượng</th>
               <th>Ngày upload</th>
-              <th>Thiết bị</th>
+              <th>Playlist</th>
+              <th style="width: 56px; display:none;" class="delete-col">Chọn</th>
               <th>Thao tác</th>
             </tr>
           </thead>
@@ -150,12 +139,15 @@
               <tr>
                 <td>@video.FileName</td>
                 <td>@(video.FileSize / 1024 / 1024) MB</td>
-                <td>@video.UploadedAt.ToString("yyyy-MM-dd")</td>
+                <td>@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd")</td>
                 <td>
-                  @foreach (var campaign in video.Campaigns)
+                  @foreach (var playlist in video.PlaylistItems.Select(i => i.Playlist).DistinctBy(p => p.Id).OrderBy(p => p.Name))
                   {
-                    <span class="badge badge-secondary" style="margin-right: 0.5rem;">@campaign.Device.DeviceCode</span>
+                    <span class="badge badge-primary" style="margin-right: 0.5rem;">@playlist.Name</span>
                   }
+                </td>
+                <td class="delete-col" style="display:none;">
+                  <input type="checkbox" class="delete-check" value="@video.Id" />
                 </td>
                 <td>
                   <form method="post" action="/portal/videos/delete">
@@ -174,6 +166,7 @@
 
 <script>
   var userId = @Context.Session.GetInt32("UserId");
+  var deleteMode = false;
 
   function onFileSelect(input) {
     var file = input.files[0];
@@ -200,22 +193,6 @@
       return;
     }
 
-    var startDate = document.getElementById('startDate').value;
-    var endDate = document.getElementById('endDate').value;
-
-    var selectedDevices = Array.from(document.querySelectorAll('input[name="selectedDevices"]:checked'))
-      .map(cb => cb.value);
-
-    if (selectedDevices.length === 0) {
-      alert('Chọn ít nhất 1 thiết bị');
-      return;
-    }
-
-    if (!startDate || !endDate) {
-      alert('Chọn ngày bắt đầu và kết thúc');
-      return;
-    }
-
     var btn = document.getElementById('uploadBtn');
     btn.disabled = true;
     btn.textContent = 'Đang upload...';
@@ -223,9 +200,6 @@
     var formData = new FormData();
     formData.append('file', file);
     formData.append('userId', userId);
-    formData.append('startDate', startDate);
-    formData.append('endDate', endDate);
-    selectedDevices.forEach(d => formData.append('deviceIds', d));
 
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/portal/upload');
@@ -256,5 +230,43 @@
     };
 
     xhr.send(formData);
+  }
+
+  function toggleDeleteMode() {
+    deleteMode = true;
+    document.querySelectorAll('.delete-col').forEach(el => el.style.display = 'table-cell');
+    document.getElementById('deleteActions').style.display = 'flex';
+    document.getElementById('toggleDeleteModeBtn').style.display = 'none';
+    document.querySelectorAll('form[action="/portal/videos/delete"]').forEach(f => f.style.display = 'none');
+  }
+
+  function cancelDeleteMode() {
+    deleteMode = false;
+    document.querySelectorAll('.delete-col').forEach(el => el.style.display = 'none');
+    document.getElementById('deleteActions').style.display = 'none';
+    document.getElementById('toggleDeleteModeBtn').style.display = 'inline-flex';
+    document.querySelectorAll('.delete-check').forEach(cb => cb.checked = false);
+    document.querySelectorAll('form[action="/portal/videos/delete"]').forEach(f => f.style.display = 'block');
+  }
+
+  function confirmBatchDelete() {
+    const selected = Array.from(document.querySelectorAll('.delete-check:checked')).map(x => x.value);
+    if (selected.length === 0) {
+      alert('Chọn ít nhất 1 video');
+      return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '/portal/videos/batch-delete';
+    selected.forEach(id => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'videoIds';
+      input.value = id;
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
   }
 </script>

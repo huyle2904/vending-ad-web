@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 
@@ -10,18 +11,30 @@ public class PortalController : Controller
     private readonly ICurrentSession _currentSession;
     private readonly IDeviceService _deviceService;
     private readonly IMediaService _mediaService;
-    private readonly ICampaignService _campaignService;
+    private readonly IMediaUploadService _mediaUploadService;
+    private readonly IPlaylistService _playlistService;
+    private readonly ITimeService _timeService;
+    private readonly IPlaylistManagementService _playlistManagementService;
+    private readonly IPlaybackScheduleService _playbackScheduleService;
 
     public PortalController(
         ICurrentSession currentSession,
         IDeviceService deviceService,
         IMediaService mediaService,
-        ICampaignService campaignService)
+        IMediaUploadService mediaUploadService,
+        IPlaylistService playlistService,
+        ITimeService timeService,
+        IPlaylistManagementService playlistManagementService,
+        IPlaybackScheduleService playbackScheduleService)
     {
         _currentSession = currentSession;
         _deviceService = deviceService;
         _mediaService = mediaService;
-        _campaignService = campaignService;
+        _mediaUploadService = mediaUploadService;
+        _playlistService = playlistService;
+        _timeService = timeService;
+        _playlistManagementService = playlistManagementService;
+        _playbackScheduleService = playbackScheduleService;
     }
 
     private bool IsPortalLoggedIn()
@@ -43,8 +56,6 @@ public class PortalController : Controller
             return RedirectToAction("Login", "Account");
 
         var devices = await _deviceService.Query()
-            .Include(d => d.Campaigns)
-            .ThenInclude(c => c.Media)
             .OrderByDescending(d => d.LastSeen)
             .ToListAsync();
 
@@ -72,30 +83,20 @@ public class PortalController : Controller
 
         var devices = await _deviceService.Query()
             .Where(d => d.UserId == userId && d.IsActive)
-            .Include(d => d.Campaigns)
-            .ThenInclude(c => c.Media)
             .ToListAsync();
 
         var totalDevices = devices.Count;
-        var onlineDevices = devices.Count(d => d.LastSeen.HasValue && (DateTime.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
-        var totalCampaigns = devices.SelectMany(d => d.Campaigns).Count(c => c.IsActive);
-        var activeCampaigns = devices.SelectMany(d => d.Campaigns).Count(c => c.IsActive && c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow);
-
-        var now = DateTime.UtcNow;
-        var activeCampaignsList = await _campaignService.Query()
-            .Where(c => c.Device.UserId == userId && c.IsActive && c.StartDate <= now && c.EndDate >= now)
-            .Include(c => c.Device)
-            .Include(c => c.Media)
-            .OrderBy(c => c.Device.DeviceCode)
-            .ThenBy(c => c.OrderIndex)
-            .ToListAsync();
+        var onlineDevices = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var schedules = await _playbackScheduleService.GetForUserAsync(userId.Value);
+        var now = _timeService.UtcNow;
+        var activeSchedules = schedules.Where(s => s.IsActive && s.StartDate <= now && s.EndDate >= now).OrderBy(s => s.Name).ToList();
 
         ViewBag.TotalDevices = totalDevices;
         ViewBag.OnlineDevices = onlineDevices;
         ViewBag.OfflineDevices = totalDevices - onlineDevices;
-        ViewBag.TotalCampaigns = totalCampaigns;
-        ViewBag.ActiveCampaigns = activeCampaigns;
-        ViewBag.ActiveCampaignsList = activeCampaignsList;
+        ViewBag.TotalSchedules = schedules.Count;
+        ViewBag.ActiveSchedules = activeSchedules.Count;
+        ViewBag.ActivePlaylists = activeSchedules;
 
         return View(devices);
     }
@@ -109,17 +110,10 @@ public class PortalController : Controller
 
         var videos = await _mediaService.Query()
             .Where(m => m.UserId == userId)
-            .Include(m => m.Campaigns)
-            .ThenInclude(c => c.Device)
+            .Include(m => m.PlaylistItems)
+            .ThenInclude(pi => pi.Playlist)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync();
-
-        var devices = await _deviceService.Query()
-            .Where(d => d.UserId == userId && d.IsActive)
-            .OrderBy(d => d.DeviceCode)
-            .ToListAsync();
-
-        ViewBag.Devices = devices;
 
         return View(videos);
     }
@@ -134,12 +128,10 @@ public class PortalController : Controller
 
         var devices = await _deviceService.Query()
             .Where(d => d.UserId == userId && d.IsActive)
-            .Include(d => d.Campaigns)
-            .ThenInclude(c => c.Media)
             .OrderBy(d => d.DeviceCode)
             .ToListAsync();
 
-        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (DateTime.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
 
         ViewBag.TotalDevices = devices.Count;
         ViewBag.OnlineCount = onlineCount;
@@ -190,7 +182,6 @@ public class PortalController : Controller
             return Unauthorized();
 
         var device = await _deviceService.Query()
-            .Include(d => d.Campaigns)
             .FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == _currentSession.UserId);
 
         if (device == null)
@@ -199,7 +190,6 @@ public class PortalController : Controller
             return RedirectToAction("Devices");
         }
 
-        _campaignService.RemoveRange(device.Campaigns);
         _deviceService.Remove(device);
         await _deviceService.SaveChangesAsync();
 
@@ -214,29 +204,24 @@ public class PortalController : Controller
         if (userId == null || userId <= 0)
             return RedirectToAction("Login", "Account");
 
-        var now = DateTime.UtcNow;
-        var campaigns = await _campaignService.Query()
-            .Where(c => c.Device.UserId == userId && c.IsActive && c.StartDate <= now && c.EndDate >= now)
-            .Include(c => c.Device)
-            .Include(c => c.Media)
-            .OrderBy(c => c.Device.DeviceCode)
-            .ThenBy(c => c.OrderIndex)
+        var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
+        ViewBag.Medias = await _mediaService.Query()
+            .Where(m => m.UserId == userId)
+            .OrderByDescending(m => m.UploadedAt)
             .ToListAsync();
+        return View(playlists);
+    }
 
-        // Group by device - use concrete type
-        var grouped = campaigns
-            .GroupBy(c => c.Device)
-            .Select(g => new DevicePlaylistGroup
-            {
-                Device = g.Key,
-                Videos = g.OrderBy(c => c.OrderIndex).ToList()
-            })
-            .OrderBy(g => g.Device.DeviceCode)
-            .ToList();
+    [HttpPost("/portal/playlist/create")]
+    public async Task<IActionResult> CreatePlaylist([FromForm] string name)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
 
-        ViewBag.GroupedCampaigns = grouped;
-
-        return View(campaigns);
+        var result = await _playlistManagementService.CreateTemplateAsync(name, userId.Value);
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
+        return RedirectToAction("Playlist");
     }
 
     [HttpPost("/portal/videos/delete")]
@@ -246,62 +231,174 @@ public class PortalController : Controller
         if (userId == null || userId <= 0)
             return Unauthorized();
 
-        var video = await _mediaService.Query()
-            .Include(m => m.Campaigns)
-            .FirstOrDefaultAsync(m => m.Id == videoId && m.UserId == userId);
-
-        if (video == null)
+        var result = await _mediaUploadService.DeleteVideosAsync(new[] { videoId }, userId.Value);
+        if (!result.Success)
         {
-            TempData["Error"] = "Video not found.";
+            TempData["Error"] = result.Message;
             return RedirectToAction("Videos");
         }
 
-        // Delete campaigns first
-        _campaignService.RemoveRange(video.Campaigns);
-        
-        // Delete file
-        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", video.FileUrl.TrimStart('/'));
-        if (System.IO.File.Exists(filePath))
-            System.IO.File.Delete(filePath);
-
-        _mediaService.Remove(video);
-        await _mediaService.SaveChangesAsync();
-
-        TempData["Success"] = "Video deleted successfully.";
+        TempData["Success"] = result.Message;
         return RedirectToAction("Videos");
     }
 
-    [HttpPost("/portal/playlist/update-order")]
-    public async Task<IActionResult> UpdatePlaylistOrder([FromBody] List<PlaylistUpdate> updates)
+    [HttpPost("/portal/videos/batch-delete")]
+    public async Task<IActionResult> DeleteVideos([FromForm] List<int> videoIds)
     {
         var userId = _currentSession.UserId;
         if (userId == null || userId <= 0)
             return Unauthorized();
 
-        foreach (var update in updates)
+        var result = await _mediaUploadService.DeleteVideosAsync(videoIds, userId.Value);
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
+        return RedirectToAction("Videos");
+    }
+
+    [HttpPost("/portal/playlist/update-order")]
+    public async Task<IActionResult> UpdatePlaylistOrder([FromBody] PlaylistOrderRequest request)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var updated = await _playlistManagementService.UpdatePlaylistOrderAsync(request.PlaylistId, request.Updates, userId.Value);
+        if (!updated)
+            return NotFound(new { success = false });
+
+        return Ok(new { success = true });
+    }
+
+    [HttpPost("/portal/playlist/update")]
+    public async Task<IActionResult> UpdatePlaylist([FromForm] UpdatePlaylistRequest request)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var result = await _playlistManagementService.UpdatePlaylistAsync(request, userId.Value);
+        if (!result.Success)
         {
-            var campaign = await _campaignService.Query()
-                .FirstOrDefaultAsync(c => c.Id == update.CampaignId && c.Device.UserId == userId);
-            
-            if (campaign != null)
-            {
-                campaign.OrderIndex = update.OrderIndex;
-            }
+            TempData["Error"] = result.Message;
+            return RedirectToAction("Playlist");
         }
 
-        await _campaignService.SaveChangesAsync();
-        return Ok(new { success = true });
+        TempData["Success"] = result.Message;
+        return RedirectToAction("Playlist");
+    }
+
+    [HttpPost("/portal/playlist/delete")]
+    public async Task<IActionResult> DeletePlaylist([FromForm] int playlistId)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var deleted = await _playlistManagementService.DeletePlaylistAsync(playlistId, userId.Value);
+        if (!deleted)
+        {
+            TempData["Error"] = "Playlist not found.";
+            return RedirectToAction("Playlist");
+        }
+
+        TempData["Success"] = "Playlist deleted successfully.";
+        return RedirectToAction("Playlist");
+    }
+
+    [HttpGet("/portal/schedules")]
+    public async Task<IActionResult> Schedules()
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return RedirectToAction("Login", "Account");
+
+        ViewBag.Devices = await _deviceService.Query().Where(d => d.UserId == userId && d.IsActive).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
+        ViewBag.Medias = await _mediaService.Query().Where(m => m.UserId == userId).OrderByDescending(m => m.UploadedAt).ToListAsync();
+        return View("~/Views/Portal/Schedules.cshtml", await _playbackScheduleService.GetForUserAsync(userId.Value));
+    }
+
+    [HttpPost("/portal/schedules/create")]
+    public async Task<IActionResult> CreateSchedule([FromForm] PlaybackScheduleRequest request, [FromForm] string actionType)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        if (actionType == "immediate")
+        {
+            var now = _timeService.ToVietnamTime(_timeService.UtcNow);
+            request.StartDate = now.Date;
+            request.EndDate = now.Date;
+            request.StartTime = now.TimeOfDay;
+            request.EndTime = new TimeSpan(23, 59, 0);
+        }
+
+        var result = actionType == "immediate"
+            ? await _playbackScheduleService.CreateImmediateAsync(userId.Value, request)
+            : await _playbackScheduleService.CreateAsync(userId.Value, request);
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
+        return RedirectToAction("Schedules");
+    }
+
+    [HttpPost("/portal/schedules/toggle")]
+    public async Task<IActionResult> ToggleSchedule([FromForm] int scheduleId)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+        await _playbackScheduleService.ToggleAsync(userId.Value, scheduleId);
+        return RedirectToAction("Schedules");
+    }
+
+    [HttpPost("/portal/schedules/delete")]
+    public async Task<IActionResult> DeleteSchedule([FromForm] int scheduleId)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+        await _playbackScheduleService.DeleteAsync(userId.Value, scheduleId);
+        return RedirectToAction("Schedules");
+    }
+
+    [HttpPost("/portal/playlist/remove-item")]
+    public async Task<IActionResult> RemovePlaylistItem([FromForm] int playlistItemId)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var removed = await _playlistManagementService.RemovePlaylistItemAsync(playlistItemId, userId.Value);
+        if (!removed)
+        {
+            TempData["Error"] = "Playlist item not found.";
+            return RedirectToAction("Playlist");
+        }
+
+        TempData["Success"] = "Video removed from playlist.";
+        return RedirectToAction("Playlist");
+    }
+
+    [HttpPost("/portal/playlist/add-video")]
+    public async Task<IActionResult> AddVideoToPlaylist([FromForm] int playlistId, [FromForm] List<int> mediaIds)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var result = await _playlistManagementService.AddMediasToPlaylistAsync(playlistId, mediaIds, userId.Value);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Message;
+            return RedirectToAction("Playlist");
+        }
+
+        TempData["Success"] = result.Message;
+        return RedirectToAction("Playlist");
     }
 }
 
-public class PlaylistUpdate
+public class PlaylistOrderRequest
 {
-    public int CampaignId { get; set; }
-    public int OrderIndex { get; set; }
-}
-
-public class DevicePlaylistGroup
-{
-    public Device Device { get; set; } = null!;
-    public List<Campaign> Videos { get; set; } = new();
+    public int PlaylistId { get; set; }
+    public List<VendingAdSystem.Application.DTOs.PlaylistOrderUpdate> Updates { get; set; } = new();
 }

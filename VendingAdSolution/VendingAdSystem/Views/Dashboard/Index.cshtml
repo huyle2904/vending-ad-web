@@ -46,7 +46,7 @@
         <tr>
           <th>Trạng thái</th>
           <th>Mã thiết bị</th>
-          <th>Media đã gán</th>
+          <th>Nội dung</th>
           <th>Lần cuối hoạt động (UTC)</th>
         </tr>
       </thead>
@@ -55,8 +55,6 @@
         {
           var isOnline = device.LastSeen.HasValue &&
                          (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
-          var campaign = device.Campaigns.FirstOrDefault();
-
           <tr>
             <td>
               @if (isOnline)
@@ -73,19 +71,10 @@
               }
             </td>
             <td><strong style="color: var(--primary); font-family: monospace;">@device.DeviceCode</strong></td>
-            <td class="text-muted">
-              @if (campaign?.Media != null)
-              {
-                @campaign.Media.FileName
-              }
-              else
-              {
-                <span style="font-style: italic;">— chưa gán media —</span>
-              }
-            </td>
+            <td class="text-muted"><span style="font-style: italic;">— dùng schedule —</span></td>
             <td class="text-muted text-sm">
               @(device.LastSeen.HasValue
-                ? device.LastSeen.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                ? TimeZoneInfo.ConvertTimeFromUtc(device.LastSeen.Value, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm:ss")
                 : "Chưa bao giờ")
             </td>
           </tr>

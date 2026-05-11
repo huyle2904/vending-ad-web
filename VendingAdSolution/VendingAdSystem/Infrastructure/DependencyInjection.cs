@@ -15,10 +15,14 @@ public static class DependencyInjection
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentSession, CurrentSession>();
+        services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<IMediaService, MediaService>();
-        services.AddScoped<ICampaignService, CampaignService>();
+        services.AddScoped<IMediaUploadService, MediaUploadService>();
+        services.AddScoped<IPlaylistService, PlaylistService>();
+        services.AddScoped<IPlaylistManagementService, PlaylistManagementService>();
+        services.AddScoped<IPlaybackScheduleService, PlaybackScheduleService>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
         return services;

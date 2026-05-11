@@ -12,4 +12,6 @@ public class User
 
     public ICollection<Device> Devices { get; set; } = new List<Device>();
     public ICollection<Media> Medias { get; set; } = new List<Media>();
+    public ICollection<Playlist> Playlists { get; set; } = new List<Playlist>();
+    public ICollection<PlaybackSchedule> PlaybackSchedules { get; set; } = new List<PlaybackSchedule>();
 }

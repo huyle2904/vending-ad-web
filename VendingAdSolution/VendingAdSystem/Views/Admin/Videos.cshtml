@@ -1,0 +1,92 @@
+@model List<Media>
+@{
+    var users = (List<User>)ViewBag.Users;
+    int? selectedUserId = ViewBag.SelectedUserId;
+    string? keyword = ViewBag.Keyword;
+    ViewData["Title"] = "Quản lý toàn bộ Video";
+}
+
+<div class="page-header">
+  <h1 class="page-title">Quản lý toàn bộ Video</h1>
+</div>
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<form method="get" action="/admin/videos" class="card" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
+  <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
+    <label class="form-label">User</label>
+    <select name="userId" class="form-input">
+      <option value="">Tất cả user</option>
+      @foreach (var user in users)
+      {
+        <option value="@user.Id" selected="@(selectedUserId == user.Id)">@user.Username</option>
+      }
+    </select>
+  </div>
+  <div class="form-group" style="margin-bottom: 0; min-width: 260px;">
+    <label class="form-label">Tìm kiếm</label>
+    <input type="text" name="keyword" value="@keyword" class="form-input" placeholder="Tên video hoặc playlist" />
+  </div>
+  <button type="submit" class="btn btn-primary">Lọc</button>
+  <a href="/admin/videos" class="btn btn-secondary">Xóa lọc</a>
+</form>
+
+<div class="table-wrapper">
+  @if (!Model.Any())
+  {
+    <div class="empty-state">
+      <div style="font-size: 3rem; margin-bottom: 0.75rem;">🎬</div>
+      <p>Chưa có video nào.</p>
+    </div>
+  }
+  else
+  {
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Video</th>
+          <th>User</th>
+          <th>Playlist</th>
+          <th>Thiết bị</th>
+          <th>Dung lượng</th>
+          <th>Ngày upload</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach (var video in Model)
+        {
+          <tr>
+            <td>@video.FileName</td>
+            <td><span class="badge badge-primary">@(video.User?.Username ?? "-")</span></td>
+            <td>
+              @foreach (var playlist in video.PlaylistItems.Select(i => i.Playlist).DistinctBy(p => p.Id).OrderBy(p => p.Name))
+              {
+                <span class="badge badge-secondary" style="margin-right: 0.35rem;">@playlist.Name</span>
+              }
+            </td>
+            <td><span class="text-muted">Schedule</span></td>
+            <td>@(video.FileSize / 1024 / 1024) MB</td>
+            <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm")</td>
+            <td>
+              <div class="action-buttons">
+                <a class="btn btn-sm btn-secondary" href="@video.FileUrl" target="_blank">Xem</a>
+                <form method="post" action="/admin/videos/delete" onsubmit="return confirm('Xóa video @video.FileName?')">
+                  <input type="hidden" name="videoId" value="@video.Id" />
+                  <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

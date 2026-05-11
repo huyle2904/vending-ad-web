@@ -6,7 +6,7 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">Chào mừng</h1>
-    <p class="text-muted">Tổng quan thiết bị và chiến dịch của bạn</p>
+    <p class="text-muted">Tổng quan thiết bị và lịch phát của bạn</p>
   </div>
   <div class="flex gap-2">
     <a href="/portal/videos" class="btn btn-primary">Tải lên Video</a>
@@ -28,8 +28,8 @@
     <div class="stat-label">Offline</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value stat-primary">@ViewBag.ActiveCampaigns</div>
-    <div class="stat-label">Chiến dịch đang hoạt động</div>
+    <div class="stat-value stat-primary">@ViewBag.ActiveSchedules</div>
+    <div class="stat-label">Schedule đang hoạt động</div>
   </div>
 </div>
 
@@ -52,7 +52,8 @@
             <th>Trạng thái</th>
             <th>Mã thiết bị</th>
             <th>Vị trí</th>
-            <th>Chiến dịch</th>
+            <th>Schedule</th>
+            <th>Video đang chiếu</th>
             <th>Lần cuối hoạt động</th>
           </tr>
         </thead>
@@ -60,8 +61,10 @@
           @foreach (var device in Model)
           {
             var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
-            var campaignCount = device.Campaigns.Count(c => c.IsActive);
-            
+            var activeSchedule = ((List<PlaybackSchedule>)ViewBag.ActivePlaylists)
+              .FirstOrDefault(s => s.Devices.Any(d => d.DeviceId == device.Id));
+            var activeVideoCount = activeSchedule?.Items.Count ?? 0;
+
             <tr>
               <td>
                 @if (isOnline)
@@ -80,10 +83,13 @@
               <td><strong style="color: var(--primary);">@device.DeviceCode</strong></td>
               <td class="text-muted">@device.Location</td>
               <td>
-                <span class="badge badge-secondary">@campaignCount video@(campaignCount == 1 ? "" : "s")</span>
+                <span class="badge badge-secondary">@(activeSchedule?.Name ?? "Chưa gán")</span>
+              </td>
+              <td>
+                <span class="badge badge-secondary">@activeVideoCount video@(activeVideoCount == 1 ? "" : "s")</span>
               </td>
               <td class="text-muted text-sm">
-                @(device.LastSeen.HasValue ? device.LastSeen.Value.ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
+                @(device.LastSeen.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(device.LastSeen.Value, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
               </td>
             </tr>
           }
@@ -93,15 +99,16 @@
   </div>
 </div>
 
-@if (ViewBag.ActiveCampaignsList != null && ((List<Campaign>)ViewBag.ActiveCampaignsList).Any())
+@if (ViewBag.ActivePlaylists != null && ((List<PlaybackSchedule>)ViewBag.ActivePlaylists).Any())
 {
   <div class="section">
-    <h2 class="section-title">Chiến dịch đang hoạt động</h2>
+    <h2 class="section-title">Video đang chiếu</h2>
     <div class="table-wrapper">
       <table class="table">
         <thead>
           <tr>
             <th>Thiết bị</th>
+            <th>Schedule</th>
             <th>Video</th>
             <th>Thứ tự</th>
             <th>Ngày bắt đầu</th>
@@ -109,15 +116,24 @@
           </tr>
         </thead>
         <tbody>
-          @foreach (var campaign in (List<Campaign>)ViewBag.ActiveCampaignsList)
+          @foreach (var schedule in (List<PlaybackSchedule>)ViewBag.ActivePlaylists)
           {
-            <tr>
-              <td><strong style="color: var(--primary);">@campaign.Device.DeviceCode</strong></td>
-              <td>@campaign.Media.FileName</td>
-              <td>#@(campaign.OrderIndex + 1)</td>
-              <td class="text-muted text-sm">@campaign.StartDate?.ToString("yyyy-MM-dd")</td>
-              <td class="text-muted text-sm">@campaign.EndDate?.ToString("yyyy-MM-dd")</td>
-            </tr>
+            foreach (var item in schedule.Items.OrderBy(i => i.OrderIndex))
+            {
+              <tr>
+                <td>
+                  @foreach (var device in schedule.Devices.OrderBy(d => d.Device.DeviceCode))
+                  {
+                    <span class="badge badge-secondary" style="margin-right: 0.35rem;">@device.Device.DeviceCode</span>
+                  }
+                </td>
+                <td>@schedule.Name</td>
+                <td>@item.Media.FileName</td>
+                <td>#@(item.OrderIndex + 1)</td>
+                <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(schedule.StartDate, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd")</td>
+                <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(schedule.EndDate, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd")</td>
+              </tr>
+            }
           }
         </tbody>
       </table>

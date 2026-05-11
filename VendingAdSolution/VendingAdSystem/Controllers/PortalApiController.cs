@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 
@@ -9,100 +10,40 @@ namespace VendingAdSystem.Controllers;
 [Route("api/portal")]
 public class PortalApiController : ControllerBase
 {
-    private readonly IWebHostEnvironment _env;
-    private readonly IMediaService _mediaService;
     private readonly IDeviceService _deviceService;
-    private readonly ICampaignService _campaignService;
+    private readonly ITimeService _timeService;
+    private readonly IMediaUploadService _mediaUploadService;
+    private readonly IPlaylistService _playlistService;
 
-    public PortalApiController(IWebHostEnvironment env, IMediaService mediaService, IDeviceService deviceService, ICampaignService campaignService)
+    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService)
     {
-        _env = env;
-        _mediaService = mediaService;
         _deviceService = deviceService;
-        _campaignService = campaignService;
+        _timeService = timeService;
+        _mediaUploadService = mediaUploadService;
+        _playlistService = playlistService;
     }
 
     [HttpPost("upload")]
     [RequestSizeLimit(50_000_000)] // 50MB max
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] int userId, [FromForm] string startDate, [FromForm] string endDate, [FromForm] List<int> deviceIds)
+    public async Task<IActionResult> Upload(IFormFile file, [FromForm] int userId)
     {
         var sessionUserId = HttpContext.Session.GetInt32("UserId");
         if (sessionUserId == null || sessionUserId != userId)
             return Unauthorized(new { message = "Invalid user session" });
 
-        if (file == null || file.Length == 0)
-            return BadRequest(new { message = "No file provided" });
-
-        if (file.Length > 50 * 1024 * 1024)
-            return BadRequest(new { message = "File size must be less than 50MB" });
-
-        if (deviceIds == null || !deviceIds.Any())
-            return BadRequest(new { message = "Please select at least one device" });
-
-        if (string.IsNullOrEmpty(startDate) || string.IsNullOrEmpty(endDate))
-            return BadRequest(new { message = "Please select start and end dates" });
-
-        var startDateTime = DateTime.Parse(startDate);
-        var endDateTime = DateTime.Parse(endDate);
-
-        if (endDateTime <= startDateTime)
-            return BadRequest(new { message = "End date must be after start date" });
-
-        // Save file
-        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads");
-        Directory.CreateDirectory(uploadsPath);
-
-        var uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        var filePath = Path.Combine(uploadsPath, uniqueName);
-
-        using (var stream = new FileStream(filePath, FileMode.Create))
-            await file.CopyToAsync(stream);
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var media = new Media
+        var result = await _mediaUploadService.UploadAsync(new UploadVideoRequest
         {
-            FileName = file.FileName,
-            FileUrl = $"{baseUrl}/uploads/{uniqueName}",
-            FileSize = file.Length,
-            UserId = userId,
-            UploadedAt = DateTime.UtcNow
-        };
+            File = file,
+            UserId = userId
+        }, Request.Scheme, Request.Host);
 
-        await _mediaService.AddAsync(media);
-        await _mediaService.SaveChangesAsync();
-
-        // Create campaigns for each selected device
-        var orderIndex = 0;
-        foreach (var deviceId in deviceIds)
-        {
-            var device = await _deviceService.Query().FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId);
-            if (device == null) continue;
-
-            // Remove existing campaigns for this device during the same period
-            var existingCampaigns = _campaignService.Query()
-                .Where(c => c.DeviceId == deviceId && c.IsActive && c.StartDate <= endDateTime && c.EndDate >= startDateTime);
-            _campaignService.RemoveRange(existingCampaigns);
-
-            var campaign = new Campaign
-            {
-                DeviceId = deviceId,
-                MediaId = media.Id,
-                StartDate = startDateTime,
-                EndDate = endDateTime,
-                OrderIndex = orderIndex++,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-            await _campaignService.AddAsync(campaign);
-        }
-
-        await _campaignService.SaveChangesAsync();
+        if (!result.Success)
+            return BadRequest(new { message = result.Message });
 
         return Ok(new { 
-            message = "Video uploaded successfully",
-            fileName = media.FileName,
-            fileUrl = media.FileUrl,
-            deviceCount = deviceIds.Count 
+            message = result.Message,
+            fileName = result.FileName,
+            fileUrl = result.FileUrl
         });
     }
 
@@ -125,21 +66,10 @@ public class PortalApiController : ControllerBase
     [HttpGet("playlist/{deviceCode}")]
     public async Task<IActionResult> GetPlaylist(string deviceCode)
     {
-        var items = await _campaignService.Query()
-            .Include(c => c.Device)
-            .Include(c => c.Media)
-            .Where(c => c.Device.DeviceCode == deviceCode && c.IsActive)
-            .OrderBy(c => c.OrderIndex)
-            .Select(c => new
-            {
-                c.Media.FileUrl,
-                c.Media.FileName,
-                c.OrderIndex
-            })
-            .ToListAsync();
+        var items = await _playlistService.GetPlaylistAsync(deviceCode);
 
-        if (!items.Any())
-            return NotFound(new { message = $"No campaign assigned to device '{deviceCode}'." });
+        if (items == null || !items.Any())
+            return NotFound(new { message = $"No active schedule assigned to device '{deviceCode}'." });
 
         return Ok(items);
     }
@@ -154,16 +84,46 @@ public class PortalApiController : ControllerBase
             .FirstOrDefaultAsync(d => d.DeviceCode == req.DeviceCode);
 
         if (device == null)
-        {
-            device = new Device { DeviceCode = req.DeviceCode };
-            await _deviceService.AddAsync(device);
-        }
+            return NotFound(new { message = "Device not found." });
 
-        device.LastSeen = DateTime.UtcNow;
+        device.LastSeen = _timeService.UtcNow;
         await _deviceService.SaveChangesAsync();
 
         return Ok(new { message = "ok", timestamp = device.LastSeen });
     }
+
+    [HttpPost("devices/register")]
+    public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.DeviceCode))
+            return BadRequest(new { message = "DeviceCode is required." });
+
+        var deviceCode = request.DeviceCode.Trim();
+        var existing = await _deviceService.GetByCodeAsync(deviceCode);
+        if (existing != null)
+            return Conflict(new { message = "DeviceCode already exists." });
+
+        var device = new Device
+        {
+            DeviceCode = deviceCode,
+            UserId = null,
+            IsActive = true,
+            LastSeen = _timeService.UtcNow
+        };
+
+        await _deviceService.AddAsync(device);
+        await _deviceService.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = "registered",
+            device.Id,
+            device.DeviceCode,
+            device.IsActive,
+            device.LastSeen
+        });
+    }
 }
 
 public record HeartbeatRequest(string DeviceCode);
+public record RegisterDeviceRequest(string DeviceCode);

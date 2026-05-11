@@ -11,5 +11,5 @@ public class Device
     public int? UserId { get; set; }
     public User? User { get; set; }
 
-    public ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
+    public ICollection<PlaybackScheduleDevice> PlaybackScheduleDevices { get; set; } = new List<PlaybackScheduleDevice>();
 }

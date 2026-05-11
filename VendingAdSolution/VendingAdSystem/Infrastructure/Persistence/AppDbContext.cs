@@ -11,7 +11,11 @@ public class AppDbContext : DbContext
     public DbSet<Admin> Admins => Set<Admin>();
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<Media> Medias => Set<Media>();
-    public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<Playlist> Playlists => Set<Playlist>();
+    public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
+    public DbSet<PlaybackSchedule> PlaybackSchedules => Set<PlaybackSchedule>();
+    public DbSet<PlaybackScheduleDevice> PlaybackScheduleDevices => Set<PlaybackScheduleDevice>();
+    public DbSet<PlaybackScheduleItem> PlaybackScheduleItems => Set<PlaybackScheduleItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,16 +39,52 @@ public class AppDbContext : DbContext
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
-        modelBuilder.Entity<Campaign>()
-            .HasOne(c => c.Device)
-            .WithMany(d => d.Campaigns)
-            .HasForeignKey(c => c.DeviceId)
+        modelBuilder.Entity<Playlist>()
+            .HasOne(p => p.User)
+            .WithMany(u => u.Playlists)
+            .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Campaign>()
-            .HasOne(c => c.Media)
-            .WithMany(m => m.Campaigns)
-            .HasForeignKey(c => c.MediaId)
+        modelBuilder.Entity<PlaylistItem>()
+            .HasOne(pi => pi.Playlist)
+            .WithMany(p => p.Items)
+            .HasForeignKey(pi => pi.PlaylistId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaylistItem>()
+            .HasOne(pi => pi.Media)
+            .WithMany(m => m.PlaylistItems)
+            .HasForeignKey(pi => pi.MediaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasOne(ps => ps.User)
+            .WithMany(u => u.PlaybackSchedules)
+            .HasForeignKey(ps => ps.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackScheduleDevice>()
+            .HasOne(psd => psd.PlaybackSchedule)
+            .WithMany(ps => ps.Devices)
+            .HasForeignKey(psd => psd.PlaybackScheduleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackScheduleDevice>()
+            .HasOne(psd => psd.Device)
+            .WithMany(d => d.PlaybackScheduleDevices)
+            .HasForeignKey(psd => psd.DeviceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackScheduleItem>()
+            .HasOne(psi => psi.PlaybackSchedule)
+            .WithMany(ps => ps.Items)
+            .HasForeignKey(psi => psi.PlaybackScheduleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackScheduleItem>()
+            .HasOne(psi => psi.Media)
+            .WithMany(m => m.PlaybackScheduleItems)
+            .HasForeignKey(psi => psi.MediaId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

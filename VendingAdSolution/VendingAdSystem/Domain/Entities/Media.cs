@@ -13,5 +13,6 @@ public class Media
     public int? UserId { get; set; }
     public User? User { get; set; }
 
-    public ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
+    public ICollection<PlaylistItem> PlaylistItems { get; set; } = new List<PlaylistItem>();
+    public ICollection<PlaybackScheduleItem> PlaybackScheduleItems { get; set; } = new List<PlaybackScheduleItem>();
 }

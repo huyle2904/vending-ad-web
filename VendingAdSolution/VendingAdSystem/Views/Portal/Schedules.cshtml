@@ -1,0 +1,79 @@
+@model List<PlaybackSchedule>
+@{
+    var devices = (List<Device>)ViewBag.Devices;
+    var playlists = (List<Playlist>)ViewBag.Playlists;
+    var medias = (List<Media>)ViewBag.Medias;
+    ViewData["Title"] = "Schedules";
+}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Playback Schedule</h1>
+    <p class="page-subtitle">Tạo lịch thường hoặc phát ngay. Không qua nửa đêm.</p>
+  </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+<div class="card surface" style="margin-bottom: 1.5rem;">
+  <div class="card-header">
+    <h3 class="card-title">Tạo schedule</h3>
+    <div class="card-description">Chọn nội dung, device và khung giờ. Phát ngay sẽ chạy lập tức nếu device rảnh.</div>
+  </div>
+  <form method="post" action="/portal/schedules/create" class="grid" style="gap: 1rem;">
+    <input type="hidden" name="actionType" id="scheduleActionType" value="schedule" />
+    <div class="form-group"><label class="form-label">Tên</label><input class="form-input" name="Name" required /></div>
+    <div class="form-group"><label class="form-label">Ngày bắt đầu</label><input class="form-input" type="date" name="StartDate" required /></div>
+    <div class="form-group"><label class="form-label">Ngày kết thúc</label><input class="form-input" type="date" name="EndDate" required /></div>
+    <div class="form-group"><label class="form-label">Giờ bắt đầu</label><input class="form-input" type="time" name="StartTime" required /></div>
+    <div class="form-group"><label class="form-label">Giờ kết thúc</label><input class="form-input" type="time" name="EndTime" required /></div>
+    <div class="form-group"><label class="form-label">Playlist</label><select class="form-input" name="PlaylistId" id="playlistSelect"><option value="">Video lẻ</option>@foreach (var p in playlists) { <option value="@p.Id">@p.Name</option> }</select></div>
+    <div class="form-group"><label class="form-label">Thiết bị</label><div class="device-select-panel">@foreach (var d in devices) { <label class="device-select-item"><input type="checkbox" name="DeviceIds" value="@d.Id" /> <span class="text-sm">@d.DeviceCode</span></label> }</div></div>
+    <div class="form-group"><label class="form-label">Video lẻ</label><div class="device-select-panel" id="mediaPanel">@foreach (var m in medias) { <label class="device-select-item"><input type="checkbox" name="MediaIds" value="@m.Id" /> <span class="text-sm">@m.FileName</span></label> }</div></div>
+    <div class="page-actions">
+      <button class="btn btn-secondary" type="submit" onclick="setScheduleAction('schedule')">Lên lịch</button>
+      <button class="btn btn-primary" type="submit" onclick="setScheduleAction('immediate')">Phát ngay</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function setScheduleAction(value) {
+    document.getElementById('scheduleActionType').value = value;
+  }
+
+  document.getElementById('playlistSelect').addEventListener('change', function () {
+    const hasPlaylist = !!this.value;
+    document.querySelectorAll('#mediaPanel input[type="checkbox"]').forEach(cb => {
+      cb.disabled = hasPlaylist;
+      if (hasPlaylist) cb.checked = false;
+    });
+  });
+</script>
+
+@foreach (var s in Model)
+{
+  <div class="card" style="margin-bottom: 1rem;">
+    <div class="flex items-center justify-between">
+      <div>
+        <strong>@s.Name</strong>
+        <div class="text-sm text-muted">@s.StartDate.ToString("yyyy-MM-dd") - @s.EndDate.ToString("yyyy-MM-dd") | @s.StartTime - @s.EndTime</div>
+        @if (s.IsImmediate)
+        {
+          <span class="badge badge-primary" style="margin-top: 0.35rem;">Phát ngay</span>
+        }
+      </div>
+      <div class="flex gap-2">
+        <form method="post" action="/portal/schedules/toggle"><input type="hidden" name="scheduleId" value="@s.Id" /><button class="btn btn-sm btn-secondary" type="submit">@(s.IsActive ? "Disable" : "Enable")</button></form>
+        <form method="post" action="/portal/schedules/delete" onsubmit="return confirm('Xóa schedule?')"><input type="hidden" name="scheduleId" value="@s.Id" /><button class="btn btn-sm" type="submit">Xóa</button></form>
+      </div>
+    </div>
+  </div>
+}

@@ -1,69 +1,114 @@
-@using VendingAdSystem.Controllers
+@model List<Playlist>
 @{
-    var groupedCampaigns = (List<DevicePlaylistGroup>)ViewBag.GroupedCampaigns;
+    var medias = (List<Media>)ViewBag.Medias;
     ViewData["Title"] = "Manage Playlist";
 }
 
 <div class="page-header">
   <div>
-    <h1 class="page-title">Quản lý Playlist</h1>
-    <p class="text-muted">Kéo và thả để sắp xếp lại video cho từng thiết bị</p>
+    <h1 class="page-title">Playlist Templates</h1>
+    <p class="page-subtitle">Tạo template từ video đã upload. Schedule sẽ chọn playlist này để phát.</p>
   </div>
 </div>
 
 <div class="alert alert-success" id="successMsg" style="display: none;">Thứ tự playlist đã được lưu!</div>
+@if (TempData["Success"] != null)
+{
+  <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+  <div class="alert alert-danger">@TempData["Error"]</div>
+}
 
-<div class="card" style="margin-bottom: 1.5rem;">
-<p style="color: var(--primary); font-size: 0.875rem;">
-      💡 Video được hiển thị theo thứ tự phát. Kéo để sắp xếp lại. Thay đổi được lưu khi bạn nhấn "Lưu thứ tự".
-    </p>
+<div class="card surface" style="margin-bottom: 1.5rem;">
+  <p style="color: var(--primary); font-size: 0.875rem;">
+    Video trong playlist được dùng lại khi tạo lịch phát. Playlist không còn giữ thiết bị hoặc thời gian phát.
+  </p>
+  <form method="post" action="/portal/playlist/create" class="flex gap-2" style="align-items: end; flex-wrap: wrap; margin-top: 1rem;">
+    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 220px;">
+      <label class="form-label">Tên playlist mới</label>
+      <input type="text" name="name" class="form-input" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Tạo playlist</button>
+  </form>
 </div>
 
-@if (groupedCampaigns == null || !groupedCampaigns.Any())
+@if (Model == null || !Model.Any())
 {
-<div class="empty-state">
-      <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
-      <p>Không tìm thấy chiến dịch hoạt động nào.</p>
-      <p class="text-sm text-muted">Tải lên video và gán cho thiết bị để hiển thị tại đây.</p>
-      <a href="/portal/videos" class="btn btn-primary" style="margin-top: 1rem;">Đến Video</a>
-    </div>
+  <div class="empty-state">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+    <p>Chưa có playlist nào.</p>
+    <p class="text-sm text-muted">Tạo playlist rồi thêm video từ thư viện.</p>
+    <a href="/portal/videos" class="btn btn-primary" style="margin-top: 1rem;">Đến Video</a>
+  </div>
 }
 else
 {
-  @foreach (var group in groupedCampaigns)
+  @foreach (var playlist in Model)
   {
-    var device = group.Device;
-    var videos = group.Videos;
-    
+    var items = playlist.Items.OrderBy(i => i.OrderIndex).ToList();
     <div class="card" style="margin-bottom: 1.5rem;">
-      <div class="flex items-center justify-between" style="padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">
+      <div class="flex items-center justify-between" style="padding-bottom: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
         <div>
-          <span style="color: var(--primary); font-weight: 600;">@device.DeviceCode</span>
-          <span class="text-muted text-sm" style="margin-left: 0.5rem;">@device.Location</span>
+          <div style="color: var(--primary); font-weight: 700;">@playlist.Name</div>
+          <div class="text-sm text-muted">Template video, không gắn lịch hoặc thiết bị.</div>
         </div>
-        <span class="badge badge-secondary">@videos.Count video</span>
+        <div class="flex gap-2" style="flex-wrap: wrap;">
+          <span class="badge badge-secondary">@items.Count video</span>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="openVideoModal(@playlist.Id)">Thêm video</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="togglePanel('edit-@playlist.Id')">Sửa</button>
+          <form method="post" action="/portal/playlist/delete" onsubmit="return confirm('Xóa playlist @playlist.Name?')">
+            <input type="hidden" name="playlistId" value="@playlist.Id" />
+            <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
+          </form>
+        </div>
       </div>
-      
-      <div class="video-list" data-device-id="@device.Id" style="min-height: 100px;">
-        @if (!videos.Any())
+
+      <div id="edit-@playlist.Id" style="display: none; margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted);">
+        <form method="post" action="/portal/playlist/update">
+          <input type="hidden" name="playlistId" value="@playlist.Id" />
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label">Tên playlist</label>
+              <input type="text" name="name" class="form-input" value="@playlist.Name" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Trạng thái</label>
+              <label class="device-select-item" style="margin-bottom: 0;">
+                <input type="checkbox" name="isActive" value="true" @(playlist.IsActive ? "checked" : "") />
+                <span class="text-sm">Đang hoạt động</span>
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Lưu playlist</button>
+        </form>
+      </div>
+
+      <div class="video-list" data-playlist-id="@playlist.Id" style="min-height: 80px;">
+        @if (!items.Any())
         {
           <div class="text-center text-muted" style="padding: 1.5rem; border: 1px dashed var(--border); border-radius: var(--radius);">
-            Chưa có video nào được gán cho thiết bị này
+            Playlist chưa có video.
           </div>
         }
         else
         {
-          @foreach (var campaign in videos.OrderBy(c => c.OrderIndex))
+          @foreach (var item in items)
           {
-            <div class="video-item" draggable="true" data-campaign-id="@campaign.Id" 
+            <div class="video-item" draggable="true" data-playlist-item-id="@item.Id"
                  style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--muted); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 0.5rem; cursor: grab; transition: border-color 0.15s;">
               <span style="color: var(--muted-foreground); font-size: 1.125rem; cursor: grab;">☰</span>
-              <span style="background: rgba(37,99,235,0.1); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">@(campaign.OrderIndex + 1)</span>
+              <span style="background: rgba(37,99,235,0.1); color: var(--primary); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">@(item.OrderIndex + 1)</span>
               <span style="font-size: 1.5rem;">🎬</span>
               <div style="flex: 1;">
-                <div style="font-size: 0.875rem;">@campaign.Media.FileName</div>
-                <div class="text-sm text-muted">@campaign.StartDate?.ToString("MMM dd") - @campaign.EndDate?.ToString("MMM dd, yyyy")</div>
+                <div style="font-size: 0.875rem;">@item.Media.FileName</div>
+                <div class="text-sm text-muted">@((item.Media.FileSize / 1024 / 1024).ToString()) MB</div>
               </div>
+              <form method="post" action="/portal/playlist/remove-item" onsubmit="return confirm('Xóa video này khỏi playlist?')">
+                <input type="hidden" name="playlistItemId" value="@item.Id" />
+                <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
+              </form>
             </div>
           }
         }
@@ -76,13 +121,93 @@ else
   </div>
 }
 
+<div class="modal-overlay" id="videoModal" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Thêm video từ thư viện</div>
+        <p class="text-sm text-muted">Chọn một hoặc nhiều video đã upload.</p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeVideoModal()">×</button>
+    </div>
+    <form method="post" action="/portal/playlist/add-video">
+      <input type="hidden" name="playlistId" id="modalPlaylistId" />
+      <div class="modal-body">
+        @if (!medias.Any())
+        {
+          <div class="empty-state">Chưa có video trong thư viện.</div>
+        }
+        else
+        {
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr><th style="width:56px;">Chọn</th><th>Video</th><th>Dung lượng</th><th>Ngày upload</th></tr>
+              </thead>
+              <tbody>
+                @foreach (var media in medias)
+                {
+                  <tr>
+                    <td><input type="checkbox" name="mediaIds" value="@media.Id" /></td>
+                    <td>@media.FileName</td>
+                    <td>@(media.FileSize / 1024 / 1024) MB</td>
+                    <td>@TimeZoneInfo.ConvertTimeFromUtc(media.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd")</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+      <div class="flex justify-between" style="margin-top: 1rem; gap: 1rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeVideoModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary">Thêm video</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <style>
+  .device-select-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--background);
+    padding: 0.75rem;
+  }
+
+  .device-select-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+  }
+
   .video-item:hover { border-color: var(--primary) !important; }
   .video-item.dragging { opacity: 0.5; transform: scale(0.98); }
 </style>
 
 <script>
   let draggedItem = null;
+
+  function togglePanel(id) {
+    const panel = document.getElementById(id);
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function openVideoModal(playlistId) {
+    document.getElementById('modalPlaylistId').value = playlistId;
+    document.querySelectorAll('#videoModal input[name="mediaIds"]').forEach(cb => cb.checked = false);
+    document.getElementById('videoModal').style.display = 'flex';
+  }
+
+  function closeVideoModal() {
+    document.getElementById('videoModal').style.display = 'none';
+  }
 
   document.querySelectorAll('.video-item').forEach(item => {
     item.addEventListener('dragstart', function(e) {
@@ -109,7 +234,6 @@ else
         const items = Array.from(container.querySelectorAll('.video-item'));
         const fromIndex = items.indexOf(draggedItem);
         const toIndex = items.indexOf(this);
-        
         if (fromIndex < toIndex) {
           container.insertBefore(draggedItem, this.nextSibling);
         } else {
@@ -130,34 +254,34 @@ else
   }
 
   async function saveOrder() {
-    const updates = [];
-    
-    document.querySelectorAll('.video-list').forEach(list => {
-      const deviceId = list.dataset.deviceId;
-      const items = list.querySelectorAll('.video-item');
-      items.forEach((item, index) => {
-        updates.push({
-          campaignId: parseInt(item.dataset.campaignId),
-          orderIndex: index
-        });
-      });
-    });
-
+    const lists = document.querySelectorAll('.video-list');
     try {
-      const response = await fetch('/portal/playlist/update-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
+      for (const list of lists) {
+        const updates = [];
+        const items = list.querySelectorAll('.video-item');
+        items.forEach((item, index) => {
+          updates.push({
+            playlistItemId: parseInt(item.dataset.playlistItemId),
+            orderIndex: index
+          });
+        });
 
-      if (response.ok) {
-        document.getElementById('successMsg').style.display = 'block';
-        setTimeout(() => {
-          document.getElementById('successMsg').style.display = 'none';
-        }, 3000);
-      } else {
-        alert('Lưu thứ tự thất bại');
+        const response = await fetch('/portal/playlist/update-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playlistId: parseInt(list.dataset.playlistId), updates })
+        });
+
+        if (!response.ok) {
+          alert('Lưu thứ tự thất bại');
+          return;
+        }
       }
+
+      document.getElementById('successMsg').style.display = 'block';
+      setTimeout(() => {
+        document.getElementById('successMsg').style.display = 'none';
+      }, 3000);
     } catch (e) {
       alert('Lỗi khi lưu thứ tự');
     }

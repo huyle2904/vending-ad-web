@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
+using VendingAdSystem.Infrastructure.Repositories.Interfaces;
 
 namespace VendingAdSystem.Controllers;
 
@@ -11,18 +12,30 @@ public class AdminController : Controller
     private readonly ICurrentSession _currentSession;
     private readonly IUserService _userService;
     private readonly IDeviceService _deviceService;
-    private readonly ICampaignService _campaignService;
+    private readonly ITimeService _timeService;
+    private readonly IMediaService _mediaService;
+    private readonly IRepository<Playlist> _playlists;
+    private readonly IRepository<PlaylistItem> _playlistItems;
+    private readonly IPlaybackScheduleService _playbackScheduleService;
 
     public AdminController(
         ICurrentSession currentSession,
         IUserService userService,
         IDeviceService deviceService,
-        ICampaignService campaignService)
+        ITimeService timeService,
+        IMediaService mediaService,
+        IRepository<Playlist> playlists,
+        IRepository<PlaylistItem> playlistItems,
+        IPlaybackScheduleService playbackScheduleService)
     {
         _currentSession = currentSession;
         _userService = userService;
         _deviceService = deviceService;
-        _campaignService = campaignService;
+        _timeService = timeService;
+        _mediaService = mediaService;
+        _playlists = playlists;
+        _playlistItems = playlistItems;
+        _playbackScheduleService = playbackScheduleService;
     }
 
     [HttpGet("/admin")]
@@ -34,7 +47,7 @@ public class AdminController : Controller
         var devices = await _deviceService.Query().ToListAsync();
         var userCount = await _userService.Query().CountAsync();
         var deviceCount = devices.Count;
-        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (DateTime.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
 
         ViewBag.UserCount = userCount;
         ViewBag.DeviceCount = deviceCount;
@@ -52,8 +65,6 @@ public class AdminController : Controller
 
         var devices = await _deviceService.Query()
             .Include(d => d.User)
-            .Include(d => d.Campaigns)
-            .ThenInclude(c => c.Media)
             .OrderBy(d => d.DeviceCode)
             .ToListAsync();
 
@@ -61,6 +72,193 @@ public class AdminController : Controller
         ViewBag.Users = users;
 
         return View(devices);
+    }
+
+    [HttpGet("/admin/videos")]
+    public async Task<IActionResult> Videos([FromQuery] int? userId, [FromQuery] string? keyword)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return RedirectToAction("Login", "Account");
+
+        var query = _mediaService.Query()
+            .Include(m => m.User)
+            .Include(m => m.PlaylistItems)
+                .ThenInclude(pi => pi.Playlist)
+            .AsQueryable();
+
+        if (userId.HasValue && userId.Value > 0)
+            query = query.Where(m => m.UserId == userId.Value);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query = query.Where(m => m.FileName.Contains(keyword.Trim()) || m.PlaylistItems.Any(i => i.Playlist.Name.Contains(keyword.Trim())));
+
+        var videos = await query.OrderByDescending(m => m.UploadedAt).ToListAsync();
+
+        ViewBag.Users = await _userService.Query().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.SelectedUserId = userId;
+        ViewBag.Keyword = keyword;
+
+        return View("~/Views/Admin/Videos.cshtml", videos);
+    }
+
+    [HttpPost("/admin/videos/delete")]
+    public async Task<IActionResult> DeleteVideo([FromForm] int videoId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var media = await _mediaService.Query()
+            .Include(m => m.PlaylistItems)
+            .FirstOrDefaultAsync(m => m.Id == videoId);
+
+        if (media == null)
+        {
+            TempData["Error"] = "Video not found.";
+            return RedirectToAction("Videos");
+        }
+
+        foreach (var item in media.PlaylistItems.ToList())
+            _playlistItems.Delete(item);
+
+        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", media.FileUrl.TrimStart('/'));
+        if (System.IO.File.Exists(filePath))
+            System.IO.File.Delete(filePath);
+
+        _mediaService.Remove(media);
+        await _mediaService.SaveChangesAsync();
+
+        TempData["Success"] = "Video deleted successfully.";
+        return RedirectToAction("Videos");
+    }
+
+    [HttpGet("/admin/playlists")]
+    public async Task<IActionResult> Playlists([FromQuery] int? userId, [FromQuery] string? keyword)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return RedirectToAction("Login", "Account");
+
+        var query = _playlists.Query()
+            .Include(p => p.User)
+            .Include(p => p.Items)
+                .ThenInclude(pi => pi.Media)
+            .AsQueryable();
+
+        if (userId.HasValue && userId.Value > 0)
+            query = query.Where(p => p.UserId == userId.Value);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query = query.Where(p => p.Name.Contains(keyword.Trim()) || p.Items.Any(i => i.Media.FileName.Contains(keyword.Trim())));
+
+        var playlists = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
+
+        ViewBag.Devices = await _deviceService.Query().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Users = await _userService.Query().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.SelectedUserId = userId;
+        ViewBag.Keyword = keyword;
+        return View("~/Views/Admin/Playlists.cshtml", playlists);
+    }
+
+    [HttpGet("/admin/schedules")]
+    public async Task<IActionResult> Schedules([FromQuery] int? userId, [FromQuery] int? deviceId, [FromQuery] string? keyword)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return RedirectToAction("Login", "Account");
+
+        var allSchedules = await _playbackScheduleService.GetAllAsync();
+        var query = allSchedules.AsQueryable();
+
+        if (userId.HasValue && userId.Value > 0)
+            query = query.Where(s => s.UserId == userId.Value);
+
+        if (deviceId.HasValue && deviceId.Value > 0)
+            query = query.Where(s => s.Devices.Any(d => d.DeviceId == deviceId.Value));
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var key = keyword.Trim();
+            query = query.Where(s => s.Name.Contains(key) || s.Items.Any(i => i.Media.FileName.Contains(key)) || s.User.Username.Contains(key));
+        }
+
+        var filteredSchedules = query
+            .OrderByDescending(s => s.CreatedAt)
+            .ToList();
+
+        ViewBag.Users = await _userService.Query().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.Devices = await _deviceService.Query().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.SelectedUserId = userId;
+        ViewBag.SelectedDeviceId = deviceId;
+        ViewBag.Keyword = keyword;
+        return View("~/Views/Admin/Schedules.cshtml", filteredSchedules);
+    }
+
+    [HttpPost("/admin/schedules/toggle")]
+    public async Task<IActionResult> ToggleSchedule([FromForm] int scheduleId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var updated = await _playbackScheduleService.ToggleByIdAsync(scheduleId);
+        TempData[updated ? "Success" : "Error"] = updated ? "Schedule updated." : "Schedule not found.";
+        return RedirectToAction("Schedules");
+    }
+
+    [HttpPost("/admin/schedules/delete")]
+    public async Task<IActionResult> DeleteSchedule([FromForm] int scheduleId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var deleted = await _playbackScheduleService.DeleteByIdAsync(scheduleId);
+        TempData[deleted ? "Success" : "Error"] = deleted ? "Schedule deleted successfully." : "Delete schedule failed.";
+        return RedirectToAction("Schedules");
+    }
+
+    [HttpPost("/admin/playlists/update")]
+    public async Task<IActionResult> UpdatePlaylist([FromForm] int playlistId, [FromForm] string name, [FromForm] bool isActive)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var playlist = await _playlists.Query()
+            .FirstOrDefaultAsync(p => p.Id == playlistId);
+
+        if (playlist == null)
+        {
+            TempData["Error"] = "Playlist not found.";
+            return RedirectToAction("Playlists");
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            TempData["Error"] = "Playlist name is required.";
+            return RedirectToAction("Playlists");
+        }
+
+        playlist.Name = name.Trim();
+        playlist.IsActive = isActive;
+
+        await _playlists.SaveChangesAsync();
+        TempData["Success"] = "Playlist updated successfully.";
+        return RedirectToAction("Playlists");
+    }
+
+    [HttpPost("/admin/playlists/delete")]
+    public async Task<IActionResult> DeletePlaylist([FromForm] int playlistId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var playlist = await _playlists.Query().FirstOrDefaultAsync(p => p.Id == playlistId);
+        if (playlist == null)
+        {
+            TempData["Error"] = "Playlist not found.";
+            return RedirectToAction("Playlists");
+        }
+
+        _playlists.Delete(playlist);
+        await _playlists.SaveChangesAsync();
+        TempData["Success"] = "Playlist deleted successfully.";
+        return RedirectToAction("Playlists");
     }
 
     [HttpGet("/admin/users")]
@@ -74,6 +272,65 @@ public class AdminController : Controller
             .ToListAsync();
 
         return View("~/Views/AdminUsers/Index.cshtml", users);
+    }
+
+    [HttpPost("/admin/users/update")]
+    public async Task<IActionResult> UpdateUser([FromForm] int userId, [FromForm] string username, [FromForm] string email, [FromForm] string fullName)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId);
+        if (user == null)
+        {
+            TempData["Error"] = "User not found";
+            return RedirectToAction("Users");
+        }
+
+        username = username.Trim();
+        email = email.Trim();
+        fullName = fullName.Trim();
+
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email))
+        {
+            TempData["Error"] = "Username and email are required";
+            return RedirectToAction("Users");
+        }
+
+        var exists = await _userService.Query().AnyAsync(u => u.Id != userId && u.Username == username);
+        if (exists)
+        {
+            TempData["Error"] = "Username already exists";
+            return RedirectToAction("Users");
+        }
+
+        user.Username = username;
+        user.Email = email;
+        user.FullName = fullName;
+
+        await _userService.SaveChangesAsync();
+        TempData["Success"] = $"User {username} updated";
+        return RedirectToAction("Users");
+    }
+
+    [HttpPost("/admin/users/toggle-active")]
+    public async Task<IActionResult> ToggleUserActive([FromForm] int userId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var user = await _userService.GetByIdAsync(userId);
+        if (user == null)
+        {
+            TempData["Error"] = "User not found";
+            return RedirectToAction("Users");
+        }
+
+        user.IsActive = !user.IsActive;
+        await _userService.SaveChangesAsync();
+
+        TempData["Success"] = user.IsActive ? $"User {user.Username} activated" : $"User {user.Username} disabled";
+        return RedirectToAction("Users");
     }
 
     [HttpPost("/admin/users/create")]
@@ -106,7 +363,7 @@ public class AdminController : Controller
             FullName = fullName,
             PasswordHash = HashPassword("TD@12345"),
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = _timeService.UtcNow
         };
 
         await _userService.AddAsync(user);
@@ -133,26 +390,6 @@ public class AdminController : Controller
         await _userService.SaveChangesAsync();
 
         TempData["Success"] = $"Password reset for {user.Username}";
-        return RedirectToAction("Users");
-    }
-
-    [HttpPost("/admin/users/delete")]
-    public async Task<IActionResult> DeleteUser([FromForm] int userId)
-    {
-        if (!_currentSession.IsAdminLoggedIn)
-            return Unauthorized();
-
-        var user = await _userService.GetByIdAsync(userId);
-        if (user == null)
-        {
-            TempData["Error"] = "User not found";
-            return RedirectToAction("Users");
-        }
-
-        _userService.Remove(user);
-        await _userService.SaveChangesAsync();
-
-        TempData["Success"] = $"User {user.Username} deleted";
         return RedirectToAction("Users");
     }
 
@@ -220,7 +457,6 @@ public class AdminController : Controller
             return Unauthorized();
 
         var device = await _deviceService.Query()
-            .Include(d => d.Campaigns)
             .FirstOrDefaultAsync(d => d.Id == deviceId);
 
         if (device == null)
@@ -229,7 +465,6 @@ public class AdminController : Controller
             return RedirectToAction("Devices");
         }
 
-        _campaignService.RemoveRange(device.Campaigns);
         _deviceService.Remove(device);
         await _deviceService.SaveChangesAsync();
 

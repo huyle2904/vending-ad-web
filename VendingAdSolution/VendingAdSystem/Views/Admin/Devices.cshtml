@@ -70,7 +70,7 @@
               }
             </td>
             <td class="text-muted text-sm">
-              @(device.LastSeen.HasValue ? device.LastSeen.Value.ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
+               @(device.LastSeen.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(device.LastSeen.Value, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
             </td>
             <td>
               <div class="action-buttons">

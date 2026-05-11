@@ -50,8 +50,6 @@ else
     @foreach (var device in Model)
     {
       var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
-      var videoCount = device.Campaigns.Count;
-      
       <div class="card">
         <div class="flex items-center justify-between" style="margin-bottom: 0.75rem;">
           <div class="flex items-center gap-2" style="font-weight: 600;">
@@ -64,10 +62,9 @@ else
           </span>
         </div>
         <div class="flex items-center gap-2 text-muted text-sm">📍 @device.Location</div>
-        <div class="text-muted text-sm" style="margin-top: 0.5rem;">@videoCount video(s)</div>
+        <div class="text-muted text-sm" style="margin-top: 0.5rem;">Schedule: xem tại trang lịch phát</div>
         <div class="flex gap-2" style="padding-top: 0.75rem; margin-top: 0.75rem; border-top: 1px solid var(--border);">
-          <a href="/portal/devices/@device.Id" class="btn btn-ghost btn-sm flex-1">Chi tiết</a>
-          <a href="/portal/devices/@device.Id/update-video" class="btn btn-ghost btn-sm flex-1">Cập nhật video</a>
+          <a href="/portal/schedules" class="btn btn-ghost btn-sm flex-1">Lịch phát</a>
           <form method="post" action="/portal/devices/delete" style="flex: 1;">
             <input type="hidden" name="deviceId" value="@device.Id" />
             <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--destructive); width: 100%;" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')">Xóa</button>

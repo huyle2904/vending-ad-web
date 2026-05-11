@@ -1,0 +1,360 @@
+@model List<Device>
+@{
+    ViewData["Title"] = "Device Wall";
+}
+
+<div class="page-header device-wall-page-header" style="align-items: flex-start; gap: 1rem;">
+  <div>
+    <h1 class="page-title">Device Wall</h1>
+    <p class="page-subtitle">Trang giả lập nhiều device. Device nào có lịch sẽ tự phát video.</p>
+  </div>
+  <div class="flex gap-2" style="flex-wrap: wrap;">
+    <button class="btn btn-secondary" type="button" onclick="reloadAllDevices()">Reload all</button>
+    <button class="btn btn-secondary" type="button" onclick="toggleMutedAll()">Toggle sound</button>
+  </div>
+</div>
+
+<div class="stats-grid device-wall-stats" style="margin-bottom: 1.5rem;">
+  <div class="stat-card">
+    <div class="stat-value">@ViewBag.TotalDevices</div>
+    <div class="stat-label">Tổng device</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-success">@ViewBag.OnlineCount</div>
+    <div class="stat-label">Online</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value stat-primary" id="wallPlayingCount">0</div>
+    <div class="stat-label">Đang phát</div>
+  </div>
+</div>
+
+@if (!Model.Any())
+{
+  <div class="empty-state">
+    <div class="empty-state-icon">🖥️</div>
+    <p>Chưa có device nào</p>
+  </div>
+}
+else
+{
+  <div class="device-wall-grid">
+    @foreach (var device in Model)
+    {
+      <div class="device-wall-card" data-device-code="@device.DeviceCode" id="deviceCard-@device.Id">
+        <div class="device-wall-header">
+          <div>
+            <div class="device-wall-title">@device.DeviceCode</div>
+            <div class="device-wall-subtitle">@(device.Location ?? "Chưa có vị trí")</div>
+          </div>
+          <span class="badge badge-secondary" id="deviceStatus-@device.Id">Đang chờ</span>
+        </div>
+
+        <div class="device-screen">
+          <video id="deviceVideo-@device.Id" muted autoplay playsinline preload="metadata"></video>
+          <div class="device-placeholder" id="devicePlaceholder-@device.Id">
+            <div class="device-placeholder-icon">📺</div>
+            <div class="device-placeholder-title">Chưa có video</div>
+            <div class="device-placeholder-text">Chờ schedule active hoặc playlist mới.</div>
+          </div>
+        </div>
+
+        <div class="device-wall-meta">
+          <div>Now: <strong id="deviceNow-@device.Id">--</strong></div>
+          <div>Video: <strong id="deviceVideoName-@device.Id">--</strong></div>
+          <div class="text-muted text-sm" id="deviceInfo-@device.Id">Khởi tạo...</div>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<style>
+  .device-wall-page-header { margin-bottom: 1rem; }
+  .device-wall-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1rem !important; }
+  .device-wall-stats .stat-card { padding: .75rem 1rem; }
+  .device-wall-stats .stat-value { font-size: 1.5rem; }
+  .device-wall-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .device-wall-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); padding: .75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .device-wall-header { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; margin-bottom: .5rem; }
+  .device-wall-title { font-size: .9rem; font-weight: 700; color: var(--foreground); }
+  .device-wall-subtitle { font-size: .72rem; color: var(--muted-foreground); margin-top: .125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+  .device-wall-card .badge { font-size: .7rem; padding: .2rem .45rem; }
+  .device-screen { position: relative; background: #000; border-radius: calc(var(--radius) - 2px); overflow: hidden; aspect-ratio: 16 / 9; }
+  .device-screen video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+  .device-placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background: linear-gradient(180deg, rgba(15,23,42,.92), rgba(15,23,42,.78)); color: #fff; padding: .75rem; }
+  .device-placeholder-icon { font-size: 1.35rem; margin-bottom: .25rem; }
+  .device-placeholder-title { font-size: .85rem; font-weight: 700; }
+  .device-placeholder-text { font-size: .72rem; color: rgba(255,255,255,.72); margin-top: .15rem; }
+  .device-wall-meta { display:grid; gap: .1rem; margin-top: .45rem; font-size: .72rem; color: var(--muted-foreground); line-height: 1.35; }
+  .device-wall-meta strong { color: var(--foreground); font-weight: 600; }
+  @@media (max-width: 1200px) { .device-wall-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @@media (max-width: 768px) { .device-wall-grid, .device-wall-stats { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+  const deviceStates = {};
+  let wallMuted = true;
+
+  function initDeviceState(deviceId, deviceCode) {
+    deviceStates[deviceId] = {
+      deviceId,
+      deviceCode,
+      playlist: [],
+      playlistSignature: '',
+      currentIndex: 0,
+      pollTimer: null,
+      heartbeatTimer: null,
+      reloadTimer: null,
+      isLoading: false,
+      muted: wallMuted,
+      lastSeenAt: null,
+      isPlaying: false,
+      suppressVideoError: false
+    };
+  }
+
+  function setStatus(deviceId, text, badgeClass) {
+    const el = document.getElementById('deviceStatus-' + deviceId);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'badge ' + badgeClass;
+  }
+
+  function updateDeviceInfo(deviceId, text) {
+    const el = document.getElementById('deviceInfo-' + deviceId);
+    if (el) el.textContent = text;
+  }
+
+  function setDeviceNow(deviceId, text) {
+    const el = document.getElementById('deviceNow-' + deviceId);
+    if (el) el.textContent = text;
+  }
+
+  function setDeviceVideoName(deviceId, text) {
+    const el = document.getElementById('deviceVideoName-' + deviceId);
+    if (el) el.textContent = text;
+  }
+
+  function getVideoEl(deviceId) {
+    return document.getElementById('deviceVideo-' + deviceId);
+  }
+
+  function getPlaceholderEl(deviceId) {
+    return document.getElementById('devicePlaceholder-' + deviceId);
+  }
+
+  function setPlayingCount() {
+    const playing = Object.values(deviceStates).filter(state => state.isPlaying).length;
+    document.getElementById('wallPlayingCount').textContent = playing;
+  }
+
+  function playlistSignature(items) {
+    return items.map(x => x.orderIndex + ':' + x.fileUrl).join('|');
+  }
+
+  function normalizeItems(items) {
+    return (items || []).map(x => ({
+      fileUrl: resolveMediaUrl(x.fileUrl || x.FileUrl || ''),
+      fileName: x.fileName || x.FileName || '',
+      orderIndex: x.orderIndex ?? x.OrderIndex ?? 0
+    })).sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+
+  function resolveMediaUrl(rawUrl) {
+    if (!rawUrl) return '';
+
+    try {
+      const parsed = new URL(rawUrl, window.location.origin);
+      if (parsed.pathname.startsWith('/uploads/')) {
+        return parsed.pathname + parsed.search;
+      }
+
+      return parsed.href;
+    } catch {
+      return rawUrl;
+    }
+  }
+
+  async function fetchPlaylist(deviceId) {
+    const state = deviceStates[deviceId];
+    if (!state || state.isLoading) return;
+
+    state.isLoading = true;
+    try {
+      const response = await fetch('/api/portal/playlist/' + encodeURIComponent(state.deviceCode), { cache: 'no-store' });
+      if (!response.ok) {
+        state.playlist = [];
+        state.playlistSignature = '';
+        state.currentIndex = 0;
+        stopDevice(deviceId, 'No active schedule', 'badge-secondary');
+        return;
+      }
+
+      const items = normalizeItems(await response.json());
+      const signature = playlistSignature(items);
+      const changed = signature !== state.playlistSignature;
+
+      if (changed) {
+        state.playlist = items;
+        state.playlistSignature = signature;
+        state.currentIndex = 0;
+        updateDeviceInfo(deviceId, items.length + ' video(s) loaded');
+        setStatus(deviceId, 'Ready', 'badge-success');
+        if (items.length > 0) {
+          playCurrentVideo(deviceId);
+        } else {
+          stopDevice(deviceId, 'No video in schedule', 'badge-secondary');
+        }
+      } else if (items.length > 0 && !isVideoPlaying(deviceId)) {
+        playCurrentVideo(deviceId);
+      }
+
+      setPlayingCount();
+    } catch (error) {
+      console.error('fetchPlaylist error', deviceId, error);
+      stopDevice(deviceId, 'Fetch error', 'badge-danger');
+    } finally {
+      state.isLoading = false;
+    }
+  }
+
+  function isVideoPlaying(deviceId) {
+    const video = getVideoEl(deviceId);
+    return !!video && !video.paused && !video.ended && video.readyState > 2;
+  }
+
+  function stopDevice(deviceId, message, badgeClass) {
+    const state = deviceStates[deviceId];
+    const video = getVideoEl(deviceId);
+    const placeholder = getPlaceholderEl(deviceId);
+    if (video) {
+      if (state) state.suppressVideoError = true;
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      window.setTimeout(() => {
+        if (state) state.suppressVideoError = false;
+      }, 0);
+    }
+    if (placeholder) placeholder.style.display = 'flex';
+    if (state) state.isPlaying = false;
+    setStatus(deviceId, message, badgeClass);
+    setDeviceNow(deviceId, '--');
+    setDeviceVideoName(deviceId, '--');
+    if (state) state.currentIndex = 0;
+    setPlayingCount();
+  }
+
+  function playCurrentVideo(deviceId) {
+    const state = deviceStates[deviceId];
+    if (!state || !state.playlist.length) {
+      stopDevice(deviceId, 'Waiting', 'badge-secondary');
+      return;
+    }
+
+    const item = state.playlist[state.currentIndex % state.playlist.length];
+    const video = getVideoEl(deviceId);
+    const placeholder = getPlaceholderEl(deviceId);
+    if (!video || !item) return;
+
+    if (placeholder) placeholder.style.display = 'none';
+    state.isPlaying = true;
+    setStatus(deviceId, 'Playing', 'badge-success');
+    setDeviceNow(deviceId, (state.currentIndex + 1) + ' / ' + state.playlist.length);
+    setDeviceVideoName(deviceId, item.fileName || item.fileUrl.split('/').pop());
+    updateDeviceInfo(deviceId, 'Autoplay muted=' + state.muted);
+
+    video.muted = state.muted;
+    video.loop = false;
+    state.suppressVideoError = false;
+    video.src = item.fileUrl;
+    video.load();
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(err => {
+        console.warn('video play blocked', deviceId, err);
+        setStatus(deviceId, 'Tap to play', 'badge-secondary');
+      });
+    }
+  }
+
+  function nextVideo(deviceId) {
+    const state = deviceStates[deviceId];
+    if (!state || !state.playlist.length) return;
+    state.currentIndex = (state.currentIndex + 1) % state.playlist.length;
+    playCurrentVideo(deviceId);
+  }
+
+  function startDeviceTimers(deviceId) {
+    const state = deviceStates[deviceId];
+    if (!state) return;
+
+    state.pollTimer = setInterval(() => fetchPlaylist(deviceId), 5000);
+    state.heartbeatTimer = setInterval(() => sendHeartbeat(deviceId), 15000);
+    state.reloadTimer = setInterval(() => {
+      const video = getVideoEl(deviceId);
+      if (video && video.ended) nextVideo(deviceId);
+    }, 1000);
+
+    const video = getVideoEl(deviceId);
+    if (video) {
+      video.addEventListener('ended', () => nextVideo(deviceId));
+      video.addEventListener('error', () => {
+        if (state.suppressVideoError || !video.currentSrc) return;
+        state.isPlaying = false;
+        setStatus(deviceId, 'Video error', 'badge-danger');
+        updateDeviceInfo(deviceId, 'Video load error: ' + video.currentSrc);
+        setPlayingCount();
+      });
+    }
+  }
+
+  async function sendHeartbeat(deviceId) {
+    const state = deviceStates[deviceId];
+    if (!state) return;
+
+    try {
+      const response = await fetch('/api/portal/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceCode: state.deviceCode })
+      });
+
+      if (response.ok) {
+        state.lastSeenAt = new Date();
+      }
+    } catch (error) {
+      console.error('heartbeat error', deviceId, error);
+    }
+  }
+
+  function reloadAllDevices() {
+    Object.keys(deviceStates).forEach(deviceId => fetchPlaylist(deviceId));
+  }
+
+  function toggleMutedAll() {
+    wallMuted = !wallMuted;
+    Object.values(deviceStates).forEach(state => {
+      state.muted = wallMuted;
+      const video = getVideoEl(state.deviceId);
+      if (video) video.muted = wallMuted;
+      updateDeviceInfo(state.deviceId, 'Muted=' + wallMuted);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    @foreach (var device in Model)
+    {
+      <text>initDeviceState(@device.Id, @Html.Raw(System.Text.Json.JsonSerializer.Serialize(device.DeviceCode)));</text>
+    }
+
+    Object.keys(deviceStates).forEach(deviceId => {
+      fetchPlaylist(deviceId);
+      startDeviceTimers(deviceId);
+      sendHeartbeat(deviceId);
+    });
+
+    setPlayingCount();
+  });
+</script>

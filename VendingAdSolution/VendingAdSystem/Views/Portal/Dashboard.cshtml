@@ -1,20 +1,30 @@
 @model List<Device>
 @{
     ViewData["Title"] = "Bảng điều khiển";
+    var currentByDevice = ViewBag.CurrentScheduleByDevice as Dictionary<int, PlaybackSchedule> ?? new Dictionary<int, PlaybackSchedule>();
+    var upcomingByDevice = ViewBag.UpcomingScheduleByDevice as Dictionary<int, PlaybackSchedule> ?? new Dictionary<int, PlaybackSchedule>();
+    var currentSchedules = ViewBag.CurrentSchedules as List<PlaybackSchedule> ?? new List<PlaybackSchedule>();
+    var upcomingSchedules = ViewBag.UpcomingScheduleList as List<PlaybackSchedule> ?? new List<PlaybackSchedule>();
+    var utcNow = ViewBag.UtcNow as DateTime? ?? DateTime.UtcNow;
+    var vietnamNow = ViewBag.VietnamNow as DateTime? ?? DateTime.UtcNow.AddHours(7);
+
+    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("yyyy-MM-dd");
+    string LastSeenText(Device device) => device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ";
 }
 
-<div class="page-header">
+<div class="page-header portal-dashboard-header">
   <div>
-    <h1 class="page-title">Chào mừng</h1>
-    <p class="text-muted">Tổng quan thiết bị và lịch phát của bạn</p>
+    <h1 class="page-title">Bảng điều khiển</h1>
+    <p class="text-muted">Tổng quan thiết bị, lịch đang phát và lịch sắp tới theo giờ Việt Nam.</p>
   </div>
-  <div class="flex gap-2">
-    <a href="/portal/videos" class="btn btn-primary">Tải lên Video</a>
-    <a href="/portal/playlist" class="btn btn-secondary">Quản lý Playlist</a>
+  <div class="flex gap-2" style="flex-wrap: wrap;">
+    <a href="/portal/device-wall" class="btn btn-primary">Device Wall</a>
+    <a href="/portal/schedules" class="btn btn-secondary">Schedules</a>
+    <a href="/portal/videos" class="btn btn-secondary">Upload Video</a>
   </div>
 </div>
 
-<div class="stats-grid">
+<div class="stats-grid dashboard-stats">
   <div class="stat-card">
     <div class="stat-value">@ViewBag.TotalDevices</div>
     <div class="stat-label">Tổng thiết bị</div>
@@ -29,114 +39,150 @@
   </div>
   <div class="stat-card">
     <div class="stat-value stat-primary">@ViewBag.ActiveSchedules</div>
-    <div class="stat-label">Schedule đang hoạt động</div>
+    <div class="stat-label">Đang phát</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">@ViewBag.UpcomingSchedules</div>
+    <div class="stat-label">Sắp phát</div>
   </div>
 </div>
 
-<div class="section">
-  <h2 class="section-title">Thiết bị của bạn</h2>
-  <div class="table-wrapper">
-    @if (!Model.Any())
+<div class="dashboard-grid">
+  <div class="card surface">
+    <div class="card-header">
+      <h2 class="card-title">Đang phát</h2>
+      <div class="card-description">Chỉ tính lịch đúng ngày và đúng khung giờ hiện tại.</div>
+    </div>
+    @if (!currentSchedules.Any())
     {
-      <div class="empty-state">
-        <div class="empty-state-icon">📱</div>
-        <p>Chưa có thiết bị nào được gán cho tài khoản.</p>
-        <p class="text-sm text-muted">Liên hệ admin để thêm thiết bị.</p>
-      </div>
+      <div class="empty-inline">Không có schedule đang phát.</div>
     }
     else
     {
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Trạng thái</th>
-            <th>Mã thiết bị</th>
-            <th>Vị trí</th>
-            <th>Schedule</th>
-            <th>Video đang chiếu</th>
-            <th>Lần cuối hoạt động</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach (var device in Model)
-          {
-            var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
-            var activeSchedule = ((List<PlaybackSchedule>)ViewBag.ActivePlaylists)
-              .FirstOrDefault(s => s.Devices.Any(d => d.DeviceId == device.Id));
-            var activeVideoCount = activeSchedule?.Items.Count ?? 0;
+      <div class="dashboard-schedule-list">
+        @foreach (var schedule in currentSchedules)
+        {
+          <div class="dashboard-schedule-item active">
+            <div>
+              <strong>@schedule.Name</strong>
+              <div class="text-sm text-muted">@VietnamDate(schedule.StartDate) - @VietnamDate(schedule.EndDate) · @schedule.StartTime - @schedule.EndTime</div>
+              <div class="dashboard-badges">
+                @foreach (var device in schedule.Devices.OrderBy(d => d.Device.DeviceCode))
+                {
+                  <span class="badge badge-secondary">@device.Device.DeviceCode</span>
+                }
+              </div>
+            </div>
+            <span class="badge badge-success">@schedule.Items.Count video</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
 
-            <tr>
-              <td>
-                @if (isOnline)
+  <div class="card surface">
+    <div class="card-header">
+      <h2 class="card-title">Sắp phát</h2>
+      <div class="card-description">Lịch gần nhất theo từng device.</div>
+    </div>
+    @if (!upcomingSchedules.Any())
+    {
+      <div class="empty-inline">Chưa có schedule sắp tới.</div>
+    }
+    else
+    {
+      <div class="dashboard-schedule-list">
+        @foreach (var schedule in upcomingSchedules.Take(5))
+        {
+          <div class="dashboard-schedule-item">
+            <div>
+              <strong>@schedule.Name</strong>
+              <div class="text-sm text-muted">@VietnamDate(schedule.StartDate) - @VietnamDate(schedule.EndDate) · @schedule.StartTime - @schedule.EndTime</div>
+              <div class="dashboard-badges">
+                @foreach (var device in schedule.Devices.OrderBy(d => d.Device.DeviceCode))
                 {
-                  <span class="badge badge-success">
-                    <span class="status-dot status-online"></span>Online
-                  </span>
+                  <span class="badge badge-secondary">@device.Device.DeviceCode</span>
                 }
-                else
-                {
-                  <span class="badge badge-danger">
-                    <span class="status-dot status-offline"></span>Offline
-                  </span>
-                }
-              </td>
-              <td><strong style="color: var(--primary);">@device.DeviceCode</strong></td>
-              <td class="text-muted">@device.Location</td>
-              <td>
-                <span class="badge badge-secondary">@(activeSchedule?.Name ?? "Chưa gán")</span>
-              </td>
-              <td>
-                <span class="badge badge-secondary">@activeVideoCount video@(activeVideoCount == 1 ? "" : "s")</span>
-              </td>
-              <td class="text-muted text-sm">
-                @(device.LastSeen.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(device.LastSeen.Value, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+              </div>
+            </div>
+            <span class="badge badge-secondary">@schedule.Items.Count video</span>
+          </div>
+        }
+      </div>
     }
   </div>
 </div>
 
-@if (ViewBag.ActivePlaylists != null && ((List<PlaybackSchedule>)ViewBag.ActivePlaylists).Any())
-{
-  <div class="section">
-    <h2 class="section-title">Video đang chiếu</h2>
-    <div class="table-wrapper">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Thiết bị</th>
-            <th>Schedule</th>
-            <th>Video</th>
-            <th>Thứ tự</th>
-            <th>Ngày bắt đầu</th>
-            <th>Ngày kết thúc</th>
-          </tr>
-        </thead>
-        <tbody>
-          @foreach (var schedule in (List<PlaybackSchedule>)ViewBag.ActivePlaylists)
-          {
-            foreach (var item in schedule.Items.OrderBy(i => i.OrderIndex))
-            {
-              <tr>
-                <td>
-                  @foreach (var device in schedule.Devices.OrderBy(d => d.Device.DeviceCode))
-                  {
-                    <span class="badge badge-secondary" style="margin-right: 0.35rem;">@device.Device.DeviceCode</span>
-                  }
-                </td>
-                <td>@schedule.Name</td>
-                <td>@item.Media.FileName</td>
-                <td>#@(item.OrderIndex + 1)</td>
-                <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(schedule.StartDate, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd")</td>
-                <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(schedule.EndDate, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd")</td>
-              </tr>
-            }
-          }
-        </tbody>
-      </table>
+<div class="section dashboard-devices-surface card surface">
+  <div class="section-header-row">
+    <div>
+      <h2 class="section-title">Thiết bị của bạn</h2>
+      <p class="text-sm text-muted">Current/upcoming tính theo lịch thật đang áp dụng cho từng device.</p>
     </div>
+    <a href="/portal/devices" class="btn btn-secondary btn-sm">Quản lý device</a>
   </div>
-}
+
+  @if (!Model.Any())
+  {
+    <div class="empty-state">
+      <div class="empty-state-icon">📱</div>
+      <p>Chưa có thiết bị nào.</p>
+      <p class="text-sm text-muted">Thêm device để bắt đầu phát nội dung.</p>
+    </div>
+  }
+  else
+  {
+    <div class="dashboard-device-grid">
+      @foreach (var device in Model)
+      {
+        var isOnline = device.LastSeen.HasValue && (utcNow - device.LastSeen.Value).TotalMinutes < 5;
+        var currentSchedule = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
+        var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
+        <div class="card dashboard-device-card">
+          <div class="flex items-center justify-between" style="margin-bottom: 0.75rem;">
+            <div class="flex items-center gap-2 dashboard-device-code">
+              <span>📱</span>
+              <span>@device.DeviceCode</span>
+            </div>
+            <span class="badge @(isOnline ? "badge-success" : "badge-danger")">
+              <span class="status-dot @(isOnline ? "status-online" : "status-offline")"></span>
+              @(isOnline ? "Online" : "Offline")
+            </span>
+          </div>
+          <div class="flex items-center gap-2 text-muted text-sm">📍 @(device.Location ?? "Chưa có vị trí")</div>
+          <div class="dashboard-device-lines">
+            <div>Đang phát: <strong>@(currentSchedule?.Name ?? "Chưa có")</strong></div>
+            <div>Sắp phát: <strong>@(upcomingSchedule?.Name ?? "Chưa có")</strong></div>
+            <div>Video: <strong>@((currentSchedule?.Items.Count ?? 0).ToString())</strong></div>
+          </div>
+          <div class="dashboard-device-footer">
+            <span>Last seen: <strong>@LastSeenText(device)</strong></span>
+            <a href="/portal/devices" class="btn btn-ghost btn-sm">Chi tiết</a>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<style>
+  .portal-dashboard-header { align-items:flex-start; gap:1rem; }
+  .dashboard-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .dashboard-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:1.5rem; }
+  .dashboard-schedule-list { display:grid; gap:.75rem; }
+  .dashboard-schedule-item { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:.9rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--background); }
+  .dashboard-schedule-item.active { border-color: rgba(22, 163, 74, .35); }
+  .dashboard-badges { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
+  .empty-inline { padding:1rem; border:1px dashed var(--border); border-radius:var(--radius); color:var(--muted-foreground); text-align:center; }
+  .dashboard-devices-surface { margin-top: 1.5rem; }
+  .section-header-row { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+  .dashboard-device-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:1rem; }
+  .dashboard-device-card { padding:1.25rem; background: var(--background); }
+  .dashboard-device-code { font-weight:600; color:var(--foreground); }
+  .dashboard-device-lines { display:grid; gap:.25rem; color:var(--muted-foreground); font-size:.875rem; margin-top:.5rem; }
+  .dashboard-device-lines strong { color:var(--foreground); font-weight:600; }
+  .dashboard-device-footer { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding-top:.75rem; margin-top:.75rem; border-top:1px solid var(--border); color:var(--muted-foreground); font-size:.8rem; }
+  .dashboard-device-footer strong { color:var(--foreground); font-weight:600; }
+  @@media (max-width: 1100px) { .dashboard-stats, .dashboard-device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboard-grid { grid-template-columns: 1fr; } }
+  @@media (max-width: 768px) { .dashboard-stats, .dashboard-device-grid { grid-template-columns: 1fr; } .section-header-row { flex-direction:column; align-items:flex-start; } }
+</style>

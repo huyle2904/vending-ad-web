@@ -44,7 +44,7 @@ public class PlaylistService : IPlaylistService
             .OrderBy(i => i.OrderIndex)
             .Select(i => new PlaylistResponse
             {
-                FileUrl = i.Media.FileUrl,
+                FileUrl = NormalizeMediaUrl(i.Media.FileUrl),
                 FileName = i.Media.FileName,
                 OrderIndex = i.OrderIndex
             })
@@ -60,5 +60,16 @@ public class PlaylistService : IPlaylistService
             return currentTime <= schedule.EndTime;
 
         return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
+    }
+
+    private static string NormalizeMediaUrl(string fileUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrl))
+            return fileUrl;
+
+        if (Uri.TryCreate(fileUrl, UriKind.Absolute, out var absoluteUri) && absoluteUri.AbsolutePath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            return absoluteUri.AbsolutePath + absoluteUri.Query;
+
+        return fileUrl;
     }
 }

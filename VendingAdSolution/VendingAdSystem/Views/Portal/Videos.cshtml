@@ -8,9 +8,6 @@
     <h1 class="page-title">Video Library</h1>
     <p class="page-subtitle">Upload một lần. Dùng lại cho playlist và schedule.</p>
   </div>
-  <div class="page-actions">
-    <button type="button" class="btn btn-secondary" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Xóa tổng</button>
-  </div>
 </div>
 
 @if (TempData["Success"] != null)
@@ -105,6 +102,9 @@
       <div>
         <h3 class="card-title">Danh sách video (@Model.Count)</h3>
         <div class="card-description">Chọn nhiều để xóa, hoặc mở playlist/schedule từ kho này.</div>
+      </div>
+      <div class="page-actions">
+        <button type="button" class="btn btn-secondary" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()">Xóa Video</button>
       </div>
       <div id="deleteActions" class="page-actions" style="display:none;">
         <button type="button" class="btn btn-secondary" onclick="cancelDeleteMode()">Hủy</button>

@@ -19,3 +19,15 @@ public class PlaybackScheduleActionResult
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
 }
+
+public class PlaybackScheduleItemOrderUpdate
+{
+    public int ScheduleItemId { get; set; }
+    public int OrderIndex { get; set; }
+}
+
+public class PlaybackScheduleItemOrderRequest
+{
+    public int ScheduleId { get; set; }
+    public List<PlaybackScheduleItemOrderUpdate> Updates { get; set; } = new();
+}

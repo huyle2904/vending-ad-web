@@ -17,6 +17,9 @@ public interface IPlaybackScheduleService
     Task<bool> ToggleAsync(int userId, int scheduleId);
     Task<bool> DeleteByIdAsync(int scheduleId);
     Task<bool> ToggleByIdAsync(int scheduleId);
+    Task<PlaybackScheduleActionResult> AddItemAsync(int userId, int scheduleId, int mediaId);
+    Task<bool> RemoveItemAsync(int userId, int scheduleItemId);
+    Task<bool> UpdateItemOrderAsync(int userId, int scheduleId, List<PlaybackScheduleItemOrderUpdate> updates);
 }
 
 public class PlaybackScheduleService : IPlaybackScheduleService
@@ -223,6 +226,72 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         return true;
     }
 
+    public async Task<PlaybackScheduleActionResult> AddItemAsync(int userId, int scheduleId, int mediaId)
+    {
+        var schedule = await _playbackScheduleRepository.Query()
+            .Include(s => s.Items)
+            .FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
+
+        if (schedule == null)
+            return new PlaybackScheduleActionResult { Success = false, Message = "Schedule not found." };
+
+        var media = await _medias.Query().FirstOrDefaultAsync(m => m.Id == mediaId && m.UserId == userId);
+        if (media == null)
+            return new PlaybackScheduleActionResult { Success = false, Message = "Selected video is invalid." };
+
+        var nextOrder = schedule.Items.Select(i => i.OrderIndex).DefaultIfEmpty(-1).Max() + 1;
+        await _scheduleItems.AddAsync(new PlaybackScheduleItem
+        {
+            PlaybackScheduleId = scheduleId,
+            MediaId = mediaId,
+            OrderIndex = nextOrder
+        });
+
+        await _playbackScheduleRepository.SaveChangesAsync();
+        return new PlaybackScheduleActionResult { Success = true, Message = "Video added to schedule." };
+    }
+
+    public async Task<bool> RemoveItemAsync(int userId, int scheduleItemId)
+    {
+        var item = await _scheduleItems.Query()
+            .Include(i => i.PlaybackSchedule)
+            .FirstOrDefaultAsync(i => i.Id == scheduleItemId && i.PlaybackSchedule.UserId == userId);
+
+        if (item == null)
+            return false;
+
+        var scheduleId = item.PlaybackScheduleId;
+        _scheduleItems.Delete(item);
+        await _scheduleItems.SaveChangesAsync();
+
+        await NormalizeScheduleItemOrderAsync(scheduleId);
+        return true;
+    }
+
+    public async Task<bool> UpdateItemOrderAsync(int userId, int scheduleId, List<PlaybackScheduleItemOrderUpdate> updates)
+    {
+        var schedule = await _playbackScheduleRepository.Query()
+            .FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
+
+        if (schedule == null)
+            return false;
+
+        var items = await _scheduleItems.Query()
+            .Where(i => i.PlaybackScheduleId == scheduleId)
+            .ToListAsync();
+
+        foreach (var update in updates)
+        {
+            var item = items.FirstOrDefault(i => i.Id == update.ScheduleItemId);
+            if (item != null)
+                item.OrderIndex = update.OrderIndex;
+        }
+
+        await _scheduleItems.SaveChangesAsync();
+        await NormalizeScheduleItemOrderAsync(scheduleId);
+        return true;
+    }
+
     private async Task<PlaybackScheduleActionResult> ValidateRequestAsync(int userId, PlaybackScheduleRequest request, int? currentId, bool isImmediate = false)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -301,5 +370,19 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
+    }
+
+    private async Task NormalizeScheduleItemOrderAsync(int scheduleId)
+    {
+        var items = await _scheduleItems.Query()
+            .Where(i => i.PlaybackScheduleId == scheduleId)
+            .OrderBy(i => i.OrderIndex)
+            .ThenBy(i => i.Id)
+            .ToListAsync();
+
+        for (var i = 0; i < items.Count; i++)
+            items[i].OrderIndex = i;
+
+        await _scheduleItems.SaveChangesAsync();
     }
 }

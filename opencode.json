@@ -10,7 +10,9 @@
       },
       "models": {
         "gpt-5.4": {"name": "GPT-5.4"},
+
         "gpt-5.3-codex": {"name": "GPT-5.3 Codex"},
+
         "minimax-m2": {"name": "MiniMax M2"},
         "minimax-m2.1": {"name": "MiniMax M2.1"},
         "claude-sonnet-4.6": {"name": "Claude Sonnet 4.6"},
@@ -49,6 +51,5 @@
         "claude-opus-4.7": {"name": "Claude Opus 4.7"}
       }
     }
-  },
-  "model": "APIPRO/hy3-preview"
+  }
 }

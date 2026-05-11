@@ -16,15 +16,17 @@ public interface IMediaUploadService
 public class MediaUploadService : IMediaUploadService
 {
     private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _configuration;
     private readonly IMediaService _mediaService;
     private readonly ITimeService _timeService;
     private readonly IPlaylistManagementService _playlistManagementService;
     private readonly IRepository<PlaylistItem> _playlistItems;
     private readonly IRepository<PlaybackScheduleItem> _scheduleItems;
 
-    public MediaUploadService(IWebHostEnvironment env, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems)
+    public MediaUploadService(IWebHostEnvironment env, IConfiguration configuration, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems)
     {
         _env = env;
+        _configuration = configuration;
         _mediaService = mediaService;
         _timeService = timeService;
         _playlistManagementService = playlistManagementService;
@@ -40,7 +42,7 @@ public class MediaUploadService : IMediaUploadService
         if (request.File.Length > 50 * 1024 * 1024)
             return new UploadVideoResult { Success = false, Message = "File size must be less than 50MB" };
 
-        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads");
+        var uploadsPath = GetUploadsPath();
         Directory.CreateDirectory(uploadsPath);
 
         var uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(request.File.FileName)}";
@@ -66,7 +68,7 @@ public class MediaUploadService : IMediaUploadService
             return new UploadVideoResult
             {
                 Success = true,
-                Message = "Video uploaded successfully",
+                Message = "Đã tải lên video",
                 FileName = media.FileName,
                 FileUrl = media.FileUrl
             };
@@ -119,9 +121,13 @@ public class MediaUploadService : IMediaUploadService
                 .FirstOrDefaultAsync(m => m.Id == videoId && m.UserId == userId);
 
             if (video == null)
-                return new PlaylistActionResult { Success = false, Message = "Video not found." };
+                return new PlaylistActionResult { Success = false, Message = "Không tìm thấy video" };
 
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", video.FileUrl.TrimStart('/'));
+            var filePathPart = Uri.TryCreate(video.FileUrl, UriKind.Absolute, out var fileUri)
+                ? fileUri.LocalPath
+                : video.FileUrl;
+            var fileName = Path.GetFileName(filePathPart);
+            var filePath = Path.Combine(GetUploadsPath(), fileName);
             if (File.Exists(filePath))
                 File.Delete(filePath);
 
@@ -129,7 +135,7 @@ public class MediaUploadService : IMediaUploadService
         }
 
         await _mediaService.SaveChangesAsync();
-        return new PlaylistActionResult { Success = true, Message = ids.Count == 1 ? "Video deleted successfully." : "Videos deleted successfully." };
+        return new PlaylistActionResult { Success = true, Message = ids.Count == 1 ? "Đã xóa video" : "Đã xóa các video" };
     }
 
     public async Task<UploadVideoResult> UploadToPlaylistAsync(int playlistId, int userId, IFormFile? file, string scheme, HostString host)
@@ -142,9 +148,9 @@ public class MediaUploadService : IMediaUploadService
 
         var playlist = await _playlistManagementService.GetPlaylistForUserAsync(playlistId, userId);
         if (playlist == null)
-            return new UploadVideoResult { Success = false, Message = "Playlist not found." };
+            return new UploadVideoResult { Success = false, Message = "Không tìm thấy danh sách phát" };
 
-        var uploadsPath = Path.Combine(_env.WebRootPath, "uploads");
+        var uploadsPath = GetUploadsPath();
         Directory.CreateDirectory(uploadsPath);
 
         var uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
@@ -172,7 +178,7 @@ public class MediaUploadService : IMediaUploadService
             return new UploadVideoResult
             {
                 Success = true,
-                Message = "Video added to playlist successfully",
+                Message = "Đã thêm video vào danh sách phát",
                 FileName = media.FileName,
                 FileUrl = media.FileUrl,
                 PlaylistId = playlist.Id,
@@ -187,5 +193,13 @@ public class MediaUploadService : IMediaUploadService
 
             throw;
         }
+    }
+
+    private string GetUploadsPath()
+    {
+        var configuredPath = _configuration["UploadsPath"];
+        return string.IsNullOrWhiteSpace(configuredPath)
+            ? Path.Combine(_env.WebRootPath, "uploads")
+            : configuredPath;
     }
 }

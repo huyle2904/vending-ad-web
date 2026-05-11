@@ -9,12 +9,12 @@
 </div>
 
 <div class="card" style="margin-bottom: 1rem;">
-  <div class="card-header">
+    <div class="card-header">
     <h3 class="card-title">Tạo tài khoản mới</h3>
   </div>
   <form method="post" action="/admin/users/create" class="grid grid-cols-3" style="gap: 1rem; align-items: end;">
     <div class="form-group">
-      <label class="form-label">Username</label>
+      <label class="form-label">Tên đăng nhập</label>
       <input type="text" name="username" class="form-input" required />
     </div>
     <div class="form-group">
@@ -29,17 +29,8 @@
       <button type="submit" class="btn btn-primary">Tạo mới</button>
     </div>
   </form>
-  <p class="text-sm text-muted" style="margin-top: 0.75rem;">Mật khẩu mặc định: <strong>TD@12345</strong></p>
+    <p class="text-sm text-muted" style="margin-top: 0.75rem;">Mật khẩu mặc định: <strong>TD@12345</strong></p>
 </div>
-
-@if (TempData["Success"] != null)
-{ 
-  <div class="alert alert-success">@TempData["Success"]</div> 
-}
-@if (TempData["Error"] != null) 
-{ 
-  <div class="alert alert-danger">@TempData["Error"]</div> 
-}
 
 @if (!Model.Any())
 {
@@ -54,11 +45,11 @@ else
     <table class="table">
       <thead>
         <tr>
-          <th>Username</th>
+      <th>Tên đăng nhập</th>
           <th>Email</th>
           <th>Tên</th>
           <th>Vai trò</th>
-          <th>Ngày tạo</th>
+      <th>Ngày tạo</th>
           <th>Hành động</th>
         </tr>
       </thead>
@@ -78,7 +69,7 @@ else
                 <button class="action-btn" onclick="showEditModal(@user.Id, '@user.Username', '@user.Email', '@user.FullName')">✏️</button>
                 <form method="post" action="/admin/users/reset-password">
                   <input type="hidden" name="userId" value="@user.Id" />
-                  <button type="submit" class="action-btn" onclick="return confirm('Reset mật khẩu cho @user.Username về TD@12345?')">🔑</button>
+                  <button type="submit" class="action-btn" onclick="return confirm('Đặt lại mật khẩu cho @user.Username về TD@12345?')">🔑</button>
                 </form>
                 <form method="post" action="/admin/users/toggle-active">
                   <input type="hidden" name="userId" value="@user.Id" />
@@ -102,7 +93,7 @@ else
     <form method="post" action="/admin/users/update">
       <input type="hidden" name="userId" id="editUserId" />
       <div class="form-group">
-        <label class="form-label">Username</label>
+        <label class="form-label">Tên đăng nhập</label>
         <input type="text" name="username" id="editUsername" class="form-input" required />
       </div>
       <div class="form-group">

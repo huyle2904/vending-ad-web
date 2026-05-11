@@ -3,8 +3,16 @@
     var displayName = Context.Session.GetString("UserDisplayName") ?? Context.Session.GetString("UserEmail") ?? (adminEmail ?? "User");
     var isPortalUser = Context.Session.GetInt32("UserId") != null && Context.Session.GetInt32("UserId") > 0;
     var isAdmin = !string.IsNullOrEmpty(adminEmail);
-    var roleLabel = isAdmin ? "Admin" : "User";
+    var roleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
     var currentUrl = Context.Request.Path.ToString().ToLower();
+    var toastMessages = new List<Dictionary<string, string>>();
+
+    if (TempData["Success"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+        toastMessages.Add(new Dictionary<string, string> { ["type"] = "success", ["message"] = successMessage });
+    if (TempData["Error"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
+        toastMessages.Add(new Dictionary<string, string> { ["type"] = "error", ["message"] = errorMessage });
+    if (TempData["Warning"] is string warningMessage && !string.IsNullOrWhiteSpace(warningMessage))
+        toastMessages.Add(new Dictionary<string, string> { ["type"] = "warning", ["message"] = warningMessage });
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -36,7 +44,19 @@
       align-items: center;
       gap: 8px;
     }
-    .sidebar-logo span { color: var(--foreground); }
+    .sidebar-logo-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .sidebar-logo span { color: var(--foreground); font-size: 1rem; }
     .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
     .nav-section { margin-bottom: 20px; }
     .nav-section-title {
@@ -129,38 +149,38 @@
 </head>
 <body>
   <aside class="sidebar">
-    <div class="sidebar-logo">📺 <span>VendingAds</span></div>
+    <div class="sidebar-logo"><span class="sidebar-logo-badge">VA</span> <span>VendingAds</span></div>
     <nav class="sidebar-nav">
       @if (isPortalUser)
       {
         <div class="nav-section">
-          <div class="nav-section-title">Menu</div>
+          <div class="nav-section-title">Danh mục</div>
           <a href="/portal/dashboard" class="nav-item @(currentUrl.Contains("dashboard") ? "active" : "")">
-            <span class="nav-icon">📊</span> Dashboard
+            <span class="nav-icon">📊</span> Bảng điều khiển
           </a>
           <a href="/portal/videos" class="nav-item @(currentUrl.Contains("videos") ? "active" : "")">
-            <span class="nav-icon">🎬</span> Videos
+            <span class="nav-icon">🎬</span> Video
           </a>
           <a href="/portal/playlist" class="nav-item @(currentUrl.Contains("playlist") ? "active" : "")">
-            <span class="nav-icon">📋</span> Playlist
+            <span class="nav-icon">📋</span> Danh sách phát
           </a>
           <a href="/portal/schedules" class="nav-item @(currentUrl.Contains("schedules") ? "active" : "")">
-            <span class="nav-icon">🗓️</span> Schedules
+            <span class="nav-icon">🗓️</span> Lịch phát
           </a>
           <a href="/portal/devices" class="nav-item @(currentUrl.Contains("devices") ? "active" : "")">
-            <span class="nav-icon">📱</span> Devices
+            <span class="nav-icon">📱</span> Thiết bị
           </a>
           <a href="/portal/device-wall" class="nav-item @(currentUrl.Contains("device-wall") ? "active" : "")">
-            <span class="nav-icon">🖥️</span> Device Wall
+            <span class="nav-icon">🖥️</span> Màn hình thiết bị
           </a>
         </div>
         <div class="nav-section">
           <div class="nav-section-title">Hệ thống</div>
           <a href="/profile" class="nav-item @(currentUrl.Contains("profile") ? "active" : "")">
-            <span class="nav-icon">👤</span> Account
+            <span class="nav-icon">👤</span> Tài khoản
           </a>
           <a href="/settings" class="nav-item @(currentUrl.Contains("settings") ? "active" : "")">
-            <span class="nav-icon">⚙️</span> Settings
+            <span class="nav-icon">⚙️</span> Cài đặt
           </a>
         </div>
       }
@@ -172,19 +192,19 @@
             <span class="nav-icon">🔧</span> Quản lý
           </a>
           <a href="/admin/users" class="nav-item @(currentUrl.Contains("/admin/users") ? "active" : "")">
-            <span class="nav-icon">👥</span> Users
+            <span class="nav-icon">👥</span> Tài khoản
           </a>
           <a href="/admin/devices" class="nav-item @(currentUrl.Contains("/admin/devices") ? "active" : "")">
-            <span class="nav-icon">📱</span> Devices
+            <span class="nav-icon">📱</span> Thiết bị
           </a>
           <a href="/admin/videos" class="nav-item @(currentUrl.Contains("/admin/videos") ? "active" : "")">
-            <span class="nav-icon">🎬</span> Videos
+            <span class="nav-icon">🎬</span> Video
           </a>
           <a href="/admin/playlists" class="nav-item @(currentUrl.Contains("/admin/playlists") ? "active" : "")">
-            <span class="nav-icon">📋</span> Playlists
+            <span class="nav-icon">📋</span> Danh sách phát
           </a>
           <a href="/admin/schedules" class="nav-item @(currentUrl.Contains("/admin/schedules") ? "active" : "")">
-            <span class="nav-icon">🗓️</span> Schedules
+            <span class="nav-icon">🗓️</span> Lịch phát
           </a>
         </div>
       }
@@ -205,5 +225,37 @@
       @RenderBody()
     </div>
   </main>
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+  <script>
+    (function () {
+      const messages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(toastMessages));
+      const container = document.getElementById('toastContainer');
+
+      window.showToast = function (message, type) {
+        if (!message || !container) return;
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-' + (type || 'success');
+        toast.innerHTML = '<div class="toast-body"><div class="toast-title">' + toastTitle(type) + '</div><div class="toast-message"></div></div><button type="button" class="toast-close" aria-label="Đóng">&times;</button>';
+        toast.querySelector('.toast-message').textContent = message;
+        toast.querySelector('.toast-close').addEventListener('click', function () { dismissToast(toast); });
+        container.appendChild(toast);
+        requestAnimationFrame(function () { toast.classList.add('toast-show'); });
+        setTimeout(function () { dismissToast(toast); }, 4500);
+      };
+
+      function toastTitle(type) {
+        if (type === 'error') return 'Có lỗi xảy ra';
+        if (type === 'warning') return 'Cần chú ý';
+        return 'Thành công';
+      }
+
+      function dismissToast(toast) {
+        toast.classList.remove('toast-show');
+        setTimeout(function () { toast.remove(); }, 180);
+      }
+
+      messages.forEach(function (item) { window.showToast(item.message, item.type); });
+    })();
+  </script>
 </body>
 </html>

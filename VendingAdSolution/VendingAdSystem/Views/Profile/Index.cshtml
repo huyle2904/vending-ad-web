@@ -8,54 +8,50 @@
   <h1 class="page-title">Account Profile</h1>
 </div>
 
-@if (TempData["Success"] != null) 
-{ 
-  <div class="alert alert-success">@TempData["Success"]</div> 
-}
-@if (TempData["Error"] != null) 
-{ 
-  <div class="alert alert-danger">@TempData["Error"]</div> 
-}
-
-<div class="card" style="max-width: 600px;">
-  <div class="card-header">
-    <h3 class="card-title">Thông tin tài khoản</h3>
+<div class="grid grid-cols-2" style="align-items:start;">
+  <div class="card surface">
+    <div class="card-header">
+      <h3 class="card-title">Thông tin tài khoản</h3>
+      <div class="card-description">Chi tiết hồ sơ đăng nhập hiện tại.</div>
+    </div>
+    <div class="profile-info">
+      <div class="profile-row">
+        <span class="profile-label">Email</span>
+        <span class="profile-value">@email</span>
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Vai trò</span>
+        <span class="profile-value">@(role == "User" ? "Người dùng" : "Quản trị viên")</span>
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Ngày tạo</span>
+        <span class="profile-value">2026-01-01</span>
+      </div>
+    </div>
   </div>
-  <div class="profile-info">
-    <div class="profile-row">
-      <span class="profile-label">Email:</span>
-      <span class="profile-value">@email</span>
+
+  <div class="card surface">
+    <div class="card-header">
+      <h3 class="card-title">Đổi mật khẩu</h3>
+      <div class="card-description">Cập nhật mật khẩu để tăng bảo mật tài khoản.</div>
     </div>
-    <div class="profile-row">
-      <span class="profile-label">Vai trò:</span>
-      <span class="profile-value">@(role == "User" ? "Người dùng" : "Quản trị viên")</span>
-    </div>
-    <div class="profile-row">
-      <span class="profile-label">Ngày tạo:</span>
-      <span class="profile-value">2026-01-01</span>
-    </div>
+    <form method="post" action="/account/profile/change-password">
+      <div class="form-group">
+        <label class="form-label">Mật khẩu hiện tại</label>
+        <input type="password" name="currentPassword" class="form-input" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mật khẩu mới</label>
+        <input type="password" name="newPassword" class="form-input" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Xác nhận mật khẩu mới</label>
+        <input type="password" name="confirmPassword" class="form-input" required />
+      </div>
+      <div class="page-actions">
+        <button type="submit" class="btn btn-primary">Đổi mật khẩu</button>
+        <a href="/account/logout" class="btn btn-danger">Đăng xuất</a>
+      </div>
+    </form>
   </div>
 </div>
-
-<div class="card" style="max-width: 600px;">
-  <div class="card-header">
-    <h3 class="card-title">Đổi mật khẩu</h3>
-  </div>
-  <form method="post" action="/account/profile/change-password">
-    <div class="form-group">
-      <label class="form-label">Mật khẩu hiện tại</label>
-      <input type="password" name="currentPassword" class="form-input" required />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Mật khẩu mới</label>
-      <input type="password" name="newPassword" class="form-input" required />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Xác nhận mật khẩu mới</label>
-      <input type="password" name="confirmPassword" class="form-input" required />
-    </div>
-    <button type="submit" class="btn btn-primary">Đổi mật khẩu</button>
-  </form>
-</div>
-
-<a href="/account/logout" class="btn btn-danger btn-block" style="max-width: 600px; margin-top: 1rem; text-align: center; text-decoration: none;">Đăng xuất</a>

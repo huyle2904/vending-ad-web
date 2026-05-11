@@ -69,7 +69,7 @@ public class PortalApiController : ControllerBase
         var items = await _playlistService.GetPlaylistAsync(deviceCode);
 
         if (items == null || !items.Any())
-            return NotFound(new { message = $"No active schedule assigned to device '{deviceCode}'." });
+            return NotFound(new { message = $"Không có lịch phát đang hoạt động cho thiết bị '{deviceCode}'." });
 
         return Ok(items);
     }
@@ -78,13 +78,13 @@ public class PortalApiController : ControllerBase
     public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.DeviceCode))
-            return BadRequest(new { message = "DeviceCode is required." });
+            return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
 
         var device = await _deviceService.Query()
             .FirstOrDefaultAsync(d => d.DeviceCode == req.DeviceCode);
 
         if (device == null)
-            return NotFound(new { message = "Device not found." });
+            return NotFound(new { message = "Không tìm thấy thiết bị." });
 
         device.LastSeen = _timeService.UtcNow;
         await _deviceService.SaveChangesAsync();
@@ -96,7 +96,7 @@ public class PortalApiController : ControllerBase
     public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.DeviceCode))
-            return BadRequest(new { message = "DeviceCode is required." });
+            return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
 
         var deviceCode = request.DeviceCode.Trim();
         var existing = await _deviceService.GetByCodeAsync(deviceCode);
@@ -106,6 +106,8 @@ public class PortalApiController : ControllerBase
         var device = new Device
         {
             DeviceCode = deviceCode,
+            Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location.Trim(),
+            ClaimCode = await _deviceService.GenerateClaimCodeAsync(),
             UserId = null,
             IsActive = true,
             LastSeen = _timeService.UtcNow
@@ -119,6 +121,8 @@ public class PortalApiController : ControllerBase
             message = "registered",
             device.Id,
             device.DeviceCode,
+            device.Location,
+            device.ClaimCode,
             device.IsActive,
             device.LastSeen
         });
@@ -126,4 +130,4 @@ public class PortalApiController : ControllerBase
 }
 
 public record HeartbeatRequest(string DeviceCode);
-public record RegisterDeviceRequest(string DeviceCode);
+public record RegisterDeviceRequest(string DeviceCode, string? Location);

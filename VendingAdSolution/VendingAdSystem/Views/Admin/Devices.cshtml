@@ -9,15 +9,6 @@
   <button class="btn btn-primary" onclick="showCreateModal()">+ Thêm Thiết bị</button>
 </div>
 
-@if (TempData["Success"] != null)
-{
-  <div class="alert alert-success">@TempData["Success"]</div>
-}
-@if (TempData["Error"] != null)
-{
-  <div class="alert alert-danger">@TempData["Error"]</div>
-}
-
 <div class="flex gap-2" style="margin-bottom: 1.25rem; flex-wrap: wrap;">
   <select id="userFilter" class="form-input" style="width: auto;" onchange="filterDevices()">
     <option value="">Tất cả tài khoản</option>
@@ -42,6 +33,7 @@
       <thead>
         <tr>
           <th>Mã thiết bị</th>
+          <th>Mã liên kết</th>
           <th>Vị trí</th>
           <th>Tài khoản</th>
           <th>Trạng thái</th>
@@ -55,6 +47,16 @@
           var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
           <tr data-user-id="@(device.UserId?.ToString() ?? string.Empty)">
             <td><strong style="color: var(--primary); font-family: monospace;">@device.DeviceCode</strong></td>
+            <td>
+              @if (!string.IsNullOrWhiteSpace(device.ClaimCode))
+              {
+                <span class="badge badge-secondary" style="font-family: monospace;">@device.ClaimCode</span>
+              }
+              else
+              {
+                <span class="text-muted text-sm">Đã sử dụng</span>
+              }
+            </td>
             <td class="text-muted">@device.Location</td>
             <td>
               <span class="badge badge-primary">@(device.User?.Username ?? "Chưa gán")</span>
@@ -62,11 +64,11 @@
             <td>
               @if (isOnline)
               {
-                <span class="badge badge-success"><span class="status-dot status-online"></span>Online</span>
+                <span class="badge badge-success"><span class="status-dot status-online"></span>Đang online</span>
               }
               else
               {
-                <span class="badge badge-danger"><span class="status-dot status-offline"></span>Offline</span>
+                <span class="badge badge-danger"><span class="status-dot status-offline"></span>Ngoại tuyến</span>
               }
             </td>
             <td class="text-muted text-sm">

@@ -48,7 +48,7 @@ public static class DatabaseSeeder
         }
 
         var users = db.Users.OrderBy(u => u.Id).ToList();
-        if (users.Any())
+        if (users.Any() && db.Database.IsSqlite())
         {
             db.Database.ExecuteSqlRaw("UPDATE Medias SET UserId = {0} WHERE UserId IS NULL", users[0].Id);
         }

@@ -1,16 +1,16 @@
 @model List<Device>
 @{
-    ViewData["Title"] = "Device Wall";
+    ViewData["Title"] = "Màn hình thiết bị";
 }
 
 <div class="page-header device-wall-page-header" style="align-items: flex-start; gap: 1rem;">
   <div>
-    <h1 class="page-title">Device Wall</h1>
-    <p class="page-subtitle">Trang giả lập nhiều device. Device nào có lịch sẽ tự phát video.</p>
+    <h1 class="page-title">Màn Hình Thiết Bị</h1>
+    <p class="page-subtitle">Trang hiển thị màn hình hiện tại của các thiết bị.</p>
   </div>
   <div class="flex gap-2" style="flex-wrap: wrap;">
-    <button class="btn btn-secondary" type="button" onclick="reloadAllDevices()">Reload all</button>
-    <button class="btn btn-secondary" type="button" onclick="toggleMutedAll()">Toggle sound</button>
+    <button class="btn btn-secondary" type="button" onclick="reloadAllDevices()">Tải lại tất cả</button>
+    <button class="btn btn-secondary" type="button" onclick="toggleMutedAll()">Bật/tắt âm thanh</button>
   </div>
 </div>
 
@@ -21,7 +21,7 @@
   </div>
   <div class="stat-card">
     <div class="stat-value stat-success">@ViewBag.OnlineCount</div>
-    <div class="stat-label">Online</div>
+    <div class="stat-label">Đang online</div>
   </div>
   <div class="stat-card">
     <div class="stat-value stat-primary" id="wallPlayingCount">0</div>
@@ -33,7 +33,7 @@
 {
   <div class="empty-state">
     <div class="empty-state-icon">🖥️</div>
-    <p>Chưa có device nào</p>
+      <p>Chưa có thiết bị nào</p>
   </div>
 }
 else
@@ -55,14 +55,14 @@ else
           <div class="device-placeholder" id="devicePlaceholder-@device.Id">
             <div class="device-placeholder-icon">📺</div>
             <div class="device-placeholder-title">Chưa có video</div>
-            <div class="device-placeholder-text">Chờ schedule active hoặc playlist mới.</div>
+            <div class="device-placeholder-text">Chờ lịch phát đang hoạt động hoặc danh sách phát mới.</div>
           </div>
         </div>
 
         <div class="device-wall-meta">
-          <div>Now: <strong id="deviceNow-@device.Id">--</strong></div>
+          <div>Hiện tại: <strong id="deviceNow-@device.Id">--</strong></div>
           <div>Video: <strong id="deviceVideoName-@device.Id">--</strong></div>
-          <div class="text-muted text-sm" id="deviceInfo-@device.Id">Khởi tạo...</div>
+          <div class="text-muted text-sm" id="deviceInfo-@device.Id">Đang khởi tạo...</div>
         </div>
       </div>
     }

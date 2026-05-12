@@ -40,7 +40,7 @@ public class PlaylistManagementService : IPlaylistManagementService
     public async Task<PlaylistActionResult> CreateTemplateAsync(string name, int userId)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return new PlaylistActionResult { Success = false, Message = "Playlist name is required." };
+            return new PlaylistActionResult { Success = false, Message = "Tên danh sách phát là bắt buộc" };
 
         var now = _timeService.UtcNow;
         await _playlists.AddAsync(new Playlist
@@ -52,7 +52,7 @@ public class PlaylistManagementService : IPlaylistManagementService
         });
 
         await _playlists.SaveChangesAsync();
-        return new PlaylistActionResult { Success = true, Message = "Playlist created successfully." };
+        return new PlaylistActionResult { Success = true, Message = "Đã tạo danh sách phát" };
     }
 
     public Task<Playlist?> GetPlaylistForUserAsync(int playlistId, int userId)
@@ -83,7 +83,7 @@ public class PlaylistManagementService : IPlaylistManagementService
     {
         var playlist = await _playlists.Query().FirstOrDefaultAsync(p => p.Id == playlistId && p.UserId == userId);
         if (playlist == null)
-            return new PlaylistActionResult { Success = false, Message = "Playlist not found." };
+            return new PlaylistActionResult { Success = false, Message = "Không tìm thấy danh sách phát" };
 
         var ids = mediaIds.Distinct().ToList();
         if (!ids.Any())
@@ -95,7 +95,7 @@ public class PlaylistManagementService : IPlaylistManagementService
             .ToListAsync();
 
         if (validMediaIds.Count != ids.Count)
-            return new PlaylistActionResult { Success = false, Message = "Selected video is invalid." };
+            return new PlaylistActionResult { Success = false, Message = "Video đã chọn không hợp lệ" };
 
         var nextOrder = await _playlistItems.Query()
             .Where(i => i.PlaylistId == playlistId)
@@ -144,16 +144,16 @@ public class PlaylistManagementService : IPlaylistManagementService
             .FirstOrDefaultAsync(p => p.Id == request.PlaylistId && p.UserId == userId);
 
         if (playlist == null)
-            return new PlaylistActionResult { Success = false, Message = "Playlist not found." };
+            return new PlaylistActionResult { Success = false, Message = "Không tìm thấy danh sách phát" };
 
         if (string.IsNullOrWhiteSpace(request.Name))
-            return new PlaylistActionResult { Success = false, Message = "Playlist name is required." };
+            return new PlaylistActionResult { Success = false, Message = "Tên danh sách phát là bắt buộc" };
 
         playlist.Name = request.Name.Trim();
         playlist.IsActive = request.IsActive;
 
         await _playlists.SaveChangesAsync();
-        return new PlaylistActionResult { Success = true, Message = "Playlist updated successfully." };
+        return new PlaylistActionResult { Success = true, Message = "Đã cập nhật danh sách phát" };
     }
 
     public async Task<bool> DeletePlaylistAsync(int playlistId, int userId)

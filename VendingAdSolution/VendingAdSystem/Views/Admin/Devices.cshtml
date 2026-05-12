@@ -5,13 +5,16 @@
 }
 
 <div class="page-header">
-  <h1 class="page-title">Quản lý Thiết bị</h1>
-  <button class="btn btn-primary" onclick="showCreateModal()">+ Thêm Thiết bị</button>
+  <div>
+    <h1 class="page-title">Quản lý Thiết bị</h1>
+    <p class="page-subtitle">Thiết bị được đăng ký từ app. Admin chỉ gán thiết bị chưa có chủ cho tài khoản.</p>
+  </div>
 </div>
 
 <div class="flex gap-2" style="margin-bottom: 1.25rem; flex-wrap: wrap;">
   <select id="userFilter" class="form-input" style="width: auto;" onchange="filterDevices()">
     <option value="">Tất cả tài khoản</option>
+    <option value="unassigned">Chưa gán</option>
     @foreach (var user in users)
     {
       <option value="@user.Id">@user.Username</option>
@@ -59,7 +62,7 @@
             </td>
             <td class="text-muted">@device.Location</td>
             <td>
-              <span class="badge badge-primary">@(device.User?.Username ?? "Chưa gán")</span>
+              <span class="badge @(device.UserId.HasValue ? "badge-primary" : "badge-secondary")">@(device.User?.Username ?? "Chưa gán")</span>
             </td>
             <td>
               @if (isOnline)
@@ -76,7 +79,15 @@
             </td>
             <td>
               <div class="action-buttons">
-                <button class="btn btn-sm btn-secondary" onclick="showEditModal(@device.Id, '@device.DeviceCode', '@device.Location', @(device.UserId?.ToString() ?? "0"))">Sửa</button>
+                @if (!device.UserId.HasValue)
+                {
+                  <button type="button"
+                          class="btn btn-sm btn-secondary assign-device-btn"
+                          data-device-id="@device.Id"
+                          data-device-code="@device.DeviceCode"
+                          data-location="@(device.Location ?? "Chưa có vị trí")"
+                          data-claim-code="@(device.ClaimCode ?? "Đã sử dụng")">Gán user</button>
+                }
                 <form method="post" action="/admin/devices/delete" onsubmit="return confirm('Xóa thiết bị @device.DeviceCode?')">
                   <input type="hidden" name="deviceId" value="@device.Id" />
                   <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
@@ -90,24 +101,26 @@
   }
 </div>
 
-<div class="modal-overlay" id="createModal" style="display: none;">
+<div class="modal-overlay" id="assignModal" style="display: none;">
   <div class="modal">
     <div class="modal-header">
-      <h3 class="modal-title">Thêm Thiết bị mới</h3>
-      <button class="modal-close" onclick="hideCreateModal()">&times;</button>
-    </div>
-    <form method="post" action="/admin/devices/create">
-      <div class="form-group">
-        <label class="form-label">Mã thiết bị</label>
-        <input type="text" name="deviceCode" class="form-input" placeholder="VD: TAB-MALL-03" required />
+      <div>
+        <h3 class="modal-title">Gán thiết bị cho tài khoản</h3>
+        <p class="text-sm text-muted">Thiết bị và vị trí lấy từ app đăng ký, admin không chỉnh sửa tại đây.</p>
       </div>
-      <div class="form-group">
-        <label class="form-label">Vị trí</label>
-        <input type="text" name="location" class="form-input" placeholder="VD: Vincom Center" />
+      <button class="modal-close" onclick="hideAssignModal()">&times;</button>
+    </div>
+    <form method="post" action="/admin/devices/assign">
+      <input type="hidden" name="deviceId" id="assignDeviceId" />
+      <div class="card" style="margin-bottom: 1rem;">
+        <div class="text-sm">Mã thiết bị: <strong id="assignDeviceCode"></strong></div>
+        <div class="text-sm text-muted" style="margin-top:.35rem;">Vị trí: <span id="assignLocation"></span></div>
+        <div class="text-sm text-muted" style="margin-top:.35rem;">Mã liên kết: <span id="assignClaimCode" style="font-family: monospace;"></span></div>
       </div>
       <div class="form-group">
         <label class="form-label">Gán cho tài khoản</label>
-        <select name="userId" class="form-input" required>
+        <select name="userId" id="assignUserId" class="form-input" required>
+          <option value="">Chọn tài khoản</option>
           @foreach (var user in users)
           {
             <option value="@user.Id">@user.Username</option>
@@ -115,64 +128,35 @@
         </select>
       </div>
       <div class="flex gap-2" style="margin-top: 1.25rem;">
-        <button type="button" class="btn btn-secondary flex-1" onclick="hideCreateModal()">Hủy</button>
-        <button type="submit" class="btn btn-primary flex-1">Tạo Thiết bị</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="modal-overlay" id="editModal" style="display: none;">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 class="modal-title">Sửa Thiết bị</h3>
-      <button class="modal-close" onclick="hideEditModal()">&times;</button>
-    </div>
-    <form method="post" action="/admin/devices/update">
-      <input type="hidden" name="deviceId" id="editDeviceId" />
-      <div class="form-group">
-        <label class="form-label">Mã thiết bị</label>
-        <input type="text" name="deviceCode" id="editDeviceCode" class="form-input" required />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Vị trí</label>
-        <input type="text" name="location" id="editLocation" class="form-input" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Gán cho tài khoản</label>
-        <select name="userId" id="editUserId" class="form-input" required>
-          @foreach (var user in users)
-          {
-            <option value="@user.Id">@user.Username</option>
-          }
-        </select>
-      </div>
-      <div class="flex gap-2" style="margin-top: 1.25rem;">
-        <button type="button" class="btn btn-secondary flex-1" onclick="hideEditModal()">Hủy</button>
-        <button type="submit" class="btn btn-primary flex-1">Lưu thay đổi</button>
+        <button type="button" class="btn btn-secondary flex-1" onclick="hideAssignModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary flex-1">Gán thiết bị</button>
       </div>
     </form>
   </div>
 </div>
 
 <script>
-  function showCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
-  function hideCreateModal() { document.getElementById('createModal').style.display = 'none'; }
-  
-  function showEditModal(id, code, location, userId) {
-    document.getElementById('editDeviceId').value = id;
-    document.getElementById('editDeviceCode').value = code;
-    document.getElementById('editLocation').value = location || '';
-    document.getElementById('editUserId').value = userId || '';
-    document.getElementById('editModal').style.display = 'flex';
+  function showAssignModal(id, code, location, claimCode) {
+    document.getElementById('assignDeviceId').value = id;
+    document.getElementById('assignDeviceCode').textContent = code;
+    document.getElementById('assignLocation').textContent = location || 'Chưa có vị trí';
+    document.getElementById('assignClaimCode').textContent = claimCode || 'Đã sử dụng';
+    document.getElementById('assignUserId').value = '';
+    document.getElementById('assignModal').style.display = 'flex';
   }
-  function hideEditModal() { document.getElementById('editModal').style.display = 'none'; }
+  function hideAssignModal() { document.getElementById('assignModal').style.display = 'none'; }
+
+  document.querySelectorAll('.assign-device-btn').forEach(function(button) {
+    button.addEventListener('click', function() {
+      showAssignModal(this.dataset.deviceId, this.dataset.deviceCode, this.dataset.location, this.dataset.claimCode);
+    });
+  });
 
   function filterDevices() {
     var userId = document.getElementById('userFilter').value;
     var rows = document.querySelectorAll('#deviceTable tbody tr');
     rows.forEach(function(row) {
-      if (userId === '' || row.dataset.userId === userId) {
+      if (userId === '' || row.dataset.userId === userId || (userId === 'unassigned' && row.dataset.userId === '')) {
         row.style.display = '';
       } else {
         row.style.display = 'none';

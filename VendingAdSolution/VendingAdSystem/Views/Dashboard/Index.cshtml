@@ -22,11 +22,11 @@
   </div>
   <div class="stat-card">
     <div class="stat-value stat-success">@online</div>
-    <div class="stat-label">Online</div>
+    <div class="stat-label">Đang online</div>
   </div>
   <div class="stat-card">
     <div class="stat-value stat-danger">@offline</div>
-    <div class="stat-label">Offline</div>
+    <div class="stat-label">Ngoại tuyến</div>
   </div>
 </div>
 
@@ -60,13 +60,13 @@
               @if (isOnline)
               {
                 <span class="badge badge-success">
-                  <span class="status-dot status-online" style="animation: blink 1.8s ease-in-out infinite;"></span>Online
+                  <span class="status-dot status-online" style="animation: blink 1.8s ease-in-out infinite;"></span>Đang online
                 </span>
               }
               else
               {
                 <span class="badge badge-danger">
-                  <span class="status-dot status-offline"></span>Offline
+                  <span class="status-dot status-offline"></span>Ngoại tuyến
                 </span>
               }
             </td>
@@ -85,7 +85,7 @@
 </div>
 
 <p class="text-sm text-muted" style="margin-top: 1rem; text-align: right;">
-  🟢 Online = heartbeat trong vòng 5 phút · Tự động cập nhật mỗi 30s
+  🟢 Đang online = có heartbeat trong vòng 5 phút · Tự động cập nhật mỗi 30 giây
 </p>
 
 <style>

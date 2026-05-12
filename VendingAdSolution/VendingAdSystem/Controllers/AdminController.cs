@@ -419,46 +419,18 @@ public class AdminController : Controller
         return RedirectToAction("Users");
     }
 
-    [HttpPost("/admin/devices/create")]
-    public async Task<IActionResult> CreateDevice([FromForm] string deviceCode, [FromForm] string? location, [FromForm] int userId)
+    [HttpPost("/admin/devices/assign")]
+    public async Task<IActionResult> AssignDevice([FromForm] int deviceId, [FromForm] int userId)
     {
         if (!_currentSession.IsAdminLoggedIn)
             return Unauthorized();
 
-        if (string.IsNullOrWhiteSpace(deviceCode))
+        var user = await _userService.GetByIdAsync(userId);
+        if (user == null || !user.IsActive)
         {
-            TempData["Error"] = "Mã thiết bị là bắt buộc.";
+            TempData["Error"] = "Tài khoản gán không hợp lệ.";
             return RedirectToAction("Devices");
         }
-
-        var existing = await _deviceService.GetByCodeAsync(deviceCode);
-        if (existing != null)
-        {
-            TempData["Error"] = "Device code already exists.";
-            return RedirectToAction("Devices");
-        }
-
-        var device = new Device
-        {
-            DeviceCode = deviceCode,
-            Location = location,
-            UserId = userId,
-            IsActive = true,
-            LastSeen = null
-        };
-
-        await _deviceService.AddAsync(device);
-        await _deviceService.SaveChangesAsync();
-
-        TempData["Success"] = $"Đã tạo thiết bị '{deviceCode}'.";
-        return RedirectToAction("Devices");
-    }
-
-    [HttpPost("/admin/devices/update")]
-    public async Task<IActionResult> UpdateDevice([FromForm] int deviceId, [FromForm] string deviceCode, [FromForm] string? location, [FromForm] int userId)
-    {
-        if (!_currentSession.IsAdminLoggedIn)
-            return Unauthorized();
 
         var device = await _deviceService.GetByIdAsync(deviceId);
         if (device == null)
@@ -467,12 +439,18 @@ public class AdminController : Controller
             return RedirectToAction("Devices");
         }
 
-        device.DeviceCode = deviceCode;
-        device.Location = location;
+        if (device.UserId.HasValue)
+        {
+            TempData["Error"] = "Thiết bị đã được gán cho tài khoản.";
+            return RedirectToAction("Devices");
+        }
+
         device.UserId = userId;
+        device.ClaimCode = null;
+        device.ClaimedAt = _timeService.UtcNow;
 
         await _deviceService.SaveChangesAsync();
-        TempData["Success"] = "Đã cập nhật thiết bị.";
+        TempData["Success"] = $"Đã gán thiết bị '{device.DeviceCode}' cho {user.Username}.";
         return RedirectToAction("Devices");
     }
 

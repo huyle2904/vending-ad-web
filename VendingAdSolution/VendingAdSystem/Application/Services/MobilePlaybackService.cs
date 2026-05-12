@@ -32,6 +32,7 @@ public class MobilePlaybackService : IMobilePlaybackService
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
         var device = await _devices.Query()
+            .AsNoTracking()
             .Include(d => d.User)
             .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
 
@@ -63,6 +64,7 @@ public class MobilePlaybackService : IMobilePlaybackService
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
         var device = await _devices.Query()
+            .AsNoTracking()
             .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
 
         if (device == null)
@@ -77,6 +79,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         var vietnamNow = _timeService.ToVietnamTime(utcNow);
         var currentTime = vietnamNow.TimeOfDay;
         var candidates = await _playbackSchedules.Query()
+            .AsNoTracking()
             .Include(s => s.Devices).ThenInclude(d => d.Device)
             .Include(s => s.Items).ThenInclude(i => i.Media)
             .Where(s => s.IsActive)

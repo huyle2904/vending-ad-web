@@ -10,8 +10,10 @@
     var utcNow = ViewBag.UtcNow as DateTime? ?? DateTime.UtcNow;
     var vietnamNow = ViewBag.VietnamNow as DateTime? ?? DateTime.UtcNow.AddHours(7);
 
-    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("yyyy-MM-dd");
-    string LastSeenText(Device device) => device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ";
+    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
+    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
+    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
+    string LastSeenText(Device device) => device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa bao giờ";
 }
 
 <script>
@@ -67,7 +69,7 @@
           <div class="dashboard-schedule-item active">
             <div>
               <strong>@schedule.Name</strong>
-              <div class="text-sm text-muted">@VietnamDate(schedule.StartDate) - @VietnamDate(schedule.EndDate) · @schedule.StartTime - @schedule.EndTime</div>
+              <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(schedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(schedule)</span></div>
               <div class="dashboard-badges">
                 @foreach (var device in schedule.Devices.OrderBy(d => d.Device.DeviceCode))
                 {
@@ -99,7 +101,7 @@
           <div class="dashboard-schedule-item">
             <div>
               <strong>@schedule.Name</strong>
-              <div class="text-sm text-muted">@VietnamDate(schedule.StartDate) - @VietnamDate(schedule.EndDate) · @schedule.StartTime - @schedule.EndTime</div>
+              <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(schedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(schedule)</span></div>
               <div class="dashboard-badges">
                 @foreach (var device in schedule.Devices.OrderBy(d => d.Device.DeviceCode))
                 {

@@ -6,6 +6,10 @@
     int? selectedDeviceId = ViewBag.SelectedDeviceId;
     string? keyword = ViewBag.Keyword;
     ViewData["Title"] = "Quản lý lịch phát";
+    var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+    string VietnamDate(DateTime utcDate) => TimeZoneInfo.ConvertTimeFromUtc(utcDate, vietnamTimeZone).ToString("dd/MM/yyyy");
+    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
+    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
 }
 
 <div class="page-header">
@@ -76,7 +80,7 @@
               }
             </td>
             <td>@s.Items.Count video</td>
-            <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(s.StartDate, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd") - @TimeZoneInfo.ConvertTimeFromUtc(s.EndDate, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd") | @s.StartTime - @s.EndTime</td>
+            <td><div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div></td>
             <td><span class="badge @(s.IsActive ? "badge-success" : "badge-danger")">@(s.IsActive ? "Đang hoạt động" : "Đã tắt")</span></td>
             <td>
               <div class="action-buttons">

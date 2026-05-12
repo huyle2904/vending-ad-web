@@ -22,6 +22,19 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Device>()
+            .HasIndex(d => d.DeviceCode)
+            .IsUnique();
+
+        modelBuilder.Entity<Device>()
+            .HasIndex(d => d.UserId);
+
+        modelBuilder.Entity<Device>()
+            .HasIndex(d => d.IsActive);
+
+        modelBuilder.Entity<Device>()
+            .HasIndex(d => d.ClaimCode);
+
+        modelBuilder.Entity<Device>()
             .HasOne(d => d.User)
             .WithMany(u => u.Devices)
             .HasForeignKey(d => d.UserId)
@@ -31,6 +44,12 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Username)
             .IsUnique();
+
+        modelBuilder.Entity<Media>()
+            .HasIndex(m => m.UserId);
+
+        modelBuilder.Entity<Media>()
+            .HasIndex(m => m.UploadedAt);
 
         modelBuilder.Entity<Media>()
             .HasOne(m => m.User)
@@ -58,10 +77,40 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => ps.UserId);
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => ps.IsActive);
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => ps.StartDate);
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => ps.EndDate);
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => ps.CreatedAt);
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => new { ps.IsActive, ps.StartDate, ps.EndDate });
+
+        modelBuilder.Entity<PlaybackSchedule>()
+            .HasIndex(ps => new { ps.UserId, ps.IsActive, ps.CreatedAt });
+
+        modelBuilder.Entity<PlaybackSchedule>()
             .HasOne(ps => ps.User)
             .WithMany(u => u.PlaybackSchedules)
             .HasForeignKey(ps => ps.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackScheduleDevice>()
+            .HasIndex(psd => psd.DeviceId);
+
+        modelBuilder.Entity<PlaybackScheduleDevice>()
+            .HasIndex(psd => psd.PlaybackScheduleId);
+
+        modelBuilder.Entity<PlaybackScheduleDevice>()
+            .HasIndex(psd => new { psd.DeviceId, psd.PlaybackScheduleId });
 
         modelBuilder.Entity<PlaybackScheduleDevice>()
             .HasOne(psd => psd.PlaybackSchedule)
@@ -74,6 +123,12 @@ public class AppDbContext : DbContext
             .WithMany(d => d.PlaybackScheduleDevices)
             .HasForeignKey(psd => psd.DeviceId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlaybackScheduleItem>()
+            .HasIndex(psi => psi.PlaybackScheduleId);
+
+        modelBuilder.Entity<PlaybackScheduleItem>()
+            .HasIndex(psi => new { psi.PlaybackScheduleId, psi.OrderIndex });
 
         modelBuilder.Entity<PlaybackScheduleItem>()
             .HasOne(psi => psi.PlaybackSchedule)

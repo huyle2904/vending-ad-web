@@ -322,6 +322,48 @@ p { color: var(--muted-foreground); font-size: 0.875rem; }
   color: var(--secondary-foreground);
 }
 
+.schedule-time-row,
+.schedule-time-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+.schedule-time-stack {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.time-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.38rem 0.62rem;
+  white-space: nowrap;
+}
+
+.time-chip-date {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.18);
+  color: var(--primary);
+}
+
+.time-chip-clock {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Stats */
 .stats-grid {
   display: grid;

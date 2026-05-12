@@ -6,7 +6,9 @@
     var scheduleDraftJson = ViewBag.ScheduleDraftJson as string ?? string.Empty;
     ViewData["Title"] = "Lịch phát";
 
-    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("yyyy-MM-dd");
+    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
+    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
+    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
 }
 
 <div class="page-header" style="align-items: flex-start; gap: 1rem;">
@@ -204,7 +206,7 @@ else
         <div class="flex items-center justify-between" style="gap: 1rem; align-items: flex-start;">
           <div>
             <div class="schedule-name">@s.Name</div>
-            <div class="text-sm text-muted">@VietnamDate(s.StartDate) - @VietnamDate(s.EndDate) | @s.StartTime - @s.EndTime</div>
+            <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
             <div class="schedule-badges">
               @if (s.IsImmediate)
               {
@@ -242,8 +244,7 @@ else
                 <div class="card-title">Thông tin</div>
                 <div class="text-sm" style="margin-top: .5rem;">Trạng thái: @(s.IsActive ? "Đang hoạt động" : "Đã tắt")</div>
                 <div class="text-sm">Loại: @(s.IsImmediate ? "Phát ngay" : "Lịch thường")</div>
-                <div class="text-sm">Thời gian: @VietnamDate(s.StartDate) - @VietnamDate(s.EndDate)</div>
-                <div class="text-sm">Khung giờ: @s.StartTime - @s.EndTime</div>
+                <div class="schedule-time-stack" style="margin-top: .5rem;"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
               </div>
               <div class="card">
                 <div class="card-title">Thiết bị</div>

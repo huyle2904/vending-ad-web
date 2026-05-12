@@ -11,7 +11,9 @@
     var vietnamNow = ViewBag.VietnamNow as DateTime? ?? DateTime.UtcNow;
     ViewData["Title"] = "Thiết bị";
 
-    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("yyyy-MM-dd");
+    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
+    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
+    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
 }
 
 <div class="page-header">
@@ -82,7 +84,7 @@ else
   var currentSchedule = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
   var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
   var isOnline = device.LastSeen.HasValue && (utcNow - device.LastSeen.Value).TotalMinutes < 5;
-  var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("yyyy-MM-dd HH:mm") : "Chưa có";
+  var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
   <div class="modal-overlay" id="deviceDetail-@device.Id" style="display: none;">
     <div class="modal modal-wide">
       <div class="modal-header">
@@ -98,7 +100,7 @@ else
           <div class="text-sm" style="margin-top: .5rem;">Mã: @device.DeviceCode</div>
           <div class="text-sm">Vị trí: @(device.Location ?? "Chưa có")</div>
           <div class="text-sm">Trạng thái: @(isOnline ? "Đang online" : "Ngoại tuyến")</div>
-          <div class="text-sm">Lần hoạt động cuối: @lastSeenVietnam</div>
+          <div class="text-sm">Lần hoạt động cuối: <span class="time-chip time-chip-date">@lastSeenVietnam</span></div>
         </div>
         <div class="card">
           <div class="card-title">Đang phát</div>
@@ -109,7 +111,7 @@ else
           else
           {
             <div class="text-sm" style="margin-top: .5rem;">@currentSchedule.Name</div>
-            <div class="text-sm text-muted">@VietnamDate(currentSchedule.StartDate) - @VietnamDate(currentSchedule.EndDate) | @currentSchedule.StartTime - @currentSchedule.EndTime</div>
+            <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(currentSchedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(currentSchedule)</span></div>
             <div class="flex flex-wrap gap-2" style="margin-top: .75rem;">
               @foreach (var item in currentSchedule.Items.OrderBy(i => i.OrderIndex))
               {
@@ -128,7 +130,7 @@ else
         else
         {
           <div class="text-sm" style="margin-top: .5rem;">@upcomingSchedule.Name</div>
-          <div class="text-sm text-muted">@VietnamDate(upcomingSchedule.StartDate) - @VietnamDate(upcomingSchedule.EndDate) | @upcomingSchedule.StartTime - @upcomingSchedule.EndTime</div>
+          <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(upcomingSchedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(upcomingSchedule)</span></div>
           <div class="flex flex-wrap gap-2" style="margin-top: .75rem;">
             @foreach (var item in upcomingSchedule.Items.OrderBy(i => i.OrderIndex))
             {

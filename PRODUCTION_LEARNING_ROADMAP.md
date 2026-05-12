@@ -38,6 +38,7 @@ ASP.NET Core Web API
 |---|-----------|-----------|--------|
 | 1 | Database indexing | EF Core, PostgreSQL | Done |
 | 2 | Mobile query optimization | EF Core | Done |
+| 2B | Portal/admin read query optimization | EF Core | Done |
 | 3 | Redis playback cache | Redis, StackExchange.Redis | Planned |
 | 4 | Redis device presence | Redis TTL | Planned |
 | 5 | Mobile API rate limiting | ASP.NET Core RateLimiter | Planned |
@@ -142,7 +143,46 @@ Done
 
 - Added `AsNoTracking()` to read-only mobile queries in `Application/Services/MobilePlaybackService.cs`.
 - Kept `HeartbeatAsync` tracked because it updates `Device.LastSeen` and calls `SaveChangesAsync()`.
-- This milestone covers mobile API read paths first because device polling is the highest-frequency workload. A later web/admin read optimization pass can apply the same idea to CMS list/dashboard pages.
+- This milestone covers mobile API read paths first because device polling is the highest-frequency workload.
+
+---
+
+## Milestone 2B: Portal/Admin Read Query Optimization
+
+### Problem
+
+CMS and admin list/dashboard pages load many entities only to render views. EF Core tracking is unnecessary for these read-only queries and adds avoidable memory/CPU overhead.
+
+### Solution
+
+Apply `AsNoTracking()` to portal/admin/API/service queries that only read data for display or response generation. Keep tracking enabled for update/delete flows.
+
+### Implementation Scope
+
+- Portal dashboard, video, device, playlist, and schedule list queries.
+- Admin dashboard, devices, videos, playlists, schedules, and users list queries.
+- Portal API device list query.
+- Read-only schedule and playlist service methods.
+- Avoid POST update/delete/assign flows because those need tracked entities for `SaveChangesAsync()`.
+
+### Learning Outcome
+
+- Practice classifying queries as read-only or write-flow queries.
+- Understand why no-tracking is safe for view rendering but unsafe before entity updates/deletes.
+- Learn to optimize EF Core gradually without changing business behavior.
+
+### CV Highlight
+
+> Optimized portal and admin read-only EF Core queries with no-tracking behavior to reduce request memory overhead.
+
+### Status
+
+Done
+
+### Implementation Notes
+
+- Added `AsNoTracking()` to safe read-only queries in `PortalController`, `AdminController`, `PortalApiController`, `PlaybackScheduleService`, and `PlaylistManagementService`.
+- Intentionally kept tracking for heartbeat, delete, update, toggle, assign, and reorder flows.
 
 ---
 

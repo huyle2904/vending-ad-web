@@ -57,6 +57,7 @@ public class PortalController : Controller
             return RedirectToAction("Login", "Account");
 
         var devices = await _deviceService.Query()
+            .AsNoTracking()
             .OrderByDescending(d => d.LastSeen)
             .ToListAsync();
 
@@ -83,6 +84,7 @@ public class PortalController : Controller
             return RedirectToAction("Login", "Account");
 
         var devices = await _deviceService.Query()
+            .AsNoTracking()
             .Where(d => d.UserId == userId && d.IsActive)
             .OrderBy(d => d.DeviceCode)
             .ToListAsync();
@@ -134,6 +136,7 @@ public class PortalController : Controller
         var onlineDevices = devices.Count(d => d.LastSeen.HasValue && (now - d.LastSeen.Value).TotalMinutes < 5);
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
         var medias = await _mediaService.Query()
+            .AsNoTracking()
             .Where(m => m.UserId == userId)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync();
@@ -164,6 +167,7 @@ public class PortalController : Controller
             return RedirectToAction("Login", "Account");
 
         var videos = await _mediaService.Query()
+            .AsNoTracking()
             .Where(m => m.UserId == userId)
             .Include(m => m.PlaylistItems)
             .ThenInclude(pi => pi.Playlist)
@@ -182,6 +186,7 @@ public class PortalController : Controller
         var userId = _currentSession.UserId ?? 0;
 
         var devices = await _deviceService.Query()
+            .AsNoTracking()
             .Where(d => d.UserId == userId && d.IsActive)
             .OrderBy(d => d.DeviceCode)
             .ToListAsync();
@@ -223,6 +228,7 @@ public class PortalController : Controller
         var onlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId);
         var medias = await _mediaService.Query()
+            .AsNoTracking()
             .Where(m => m.UserId == userId)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync();
@@ -248,6 +254,7 @@ public class PortalController : Controller
 
         var userId = _currentSession.UserId ?? 0;
         var devices = await _deviceService.Query()
+            .AsNoTracking()
             .Where(d => d.UserId == userId)
             .OrderBy(d => d.DeviceCode)
             .ToListAsync();
@@ -308,6 +315,7 @@ public class PortalController : Controller
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
         ViewBag.PlaylistDraftName = TempData["PlaylistDraftName"] as string ?? string.Empty;
         ViewBag.Medias = await _mediaService.Query()
+            .AsNoTracking()
             .Where(m => m.UserId == userId)
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync();
@@ -415,9 +423,9 @@ public class PortalController : Controller
         if (userId == null || userId <= 0)
             return RedirectToAction("Login", "Account");
 
-        ViewBag.Devices = await _deviceService.Query().Where(d => d.UserId == userId && d.IsActive).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Devices = await _deviceService.Query().AsNoTracking().Where(d => d.UserId == userId && d.IsActive).OrderBy(d => d.DeviceCode).ToListAsync();
         ViewBag.Playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
-        ViewBag.Medias = await _mediaService.Query().Where(m => m.UserId == userId).OrderByDescending(m => m.UploadedAt).ToListAsync();
+        ViewBag.Medias = await _mediaService.Query().AsNoTracking().Where(m => m.UserId == userId).OrderByDescending(m => m.UploadedAt).ToListAsync();
         ViewBag.ScheduleDraftJson = TempData["ScheduleDraftJson"] as string ?? string.Empty;
         var schedules = await _playbackScheduleService.GetForUserAsync(userId.Value);
         var sortedSchedules = schedules

@@ -58,6 +58,7 @@ public class PlaylistManagementService : IPlaylistManagementService
     public Task<Playlist?> GetPlaylistForUserAsync(int playlistId, int userId)
     {
         return _playlists.Query()
+            .AsNoTracking()
             .Include(p => p.Items)
                 .ThenInclude(pi => pi.Media)
             .FirstOrDefaultAsync(p => p.Id == playlistId && p.UserId == userId);
@@ -66,6 +67,7 @@ public class PlaylistManagementService : IPlaylistManagementService
     public Task<List<Playlist>> GetPlaylistsForUserAsync(int userId)
     {
         return _playlists.Query()
+            .AsNoTracking()
             .Include(p => p.Items)
                 .ThenInclude(pi => pi.Media)
             .Where(p => p.UserId == userId)

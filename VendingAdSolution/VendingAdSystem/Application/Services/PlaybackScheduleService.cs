@@ -112,7 +112,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
-        return new PlaybackScheduleActionResult { Success = true, Message = "Schedule created successfully." };
+        return new PlaybackScheduleActionResult { Success = true, Message = "Đã tạo lịch phát" };
     }
 
     public async Task<PlaybackScheduleActionResult> CreateImmediateAsync(int userId, PlaybackScheduleRequest request)
@@ -150,7 +150,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
             .FirstOrDefaultAsync(s => s.Id == request.Id && s.UserId == userId);
 
         if (schedule == null)
-            return new PlaybackScheduleActionResult { Success = false, Message = "Schedule not found." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Không tìm thấy lịch phát" };
 
         var validation = await ValidateRequestAsync(userId, request, schedule.Id);
         if (!validation.Success)
@@ -187,7 +187,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
-        return new PlaybackScheduleActionResult { Success = true, Message = "Schedule updated successfully." };
+        return new PlaybackScheduleActionResult { Success = true, Message = "Đã cập nhật lịch phát" };
     }
 
     public async Task<bool> DeleteAsync(int userId, int scheduleId)
@@ -233,11 +233,11 @@ public class PlaybackScheduleService : IPlaybackScheduleService
             .FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
 
         if (schedule == null)
-            return new PlaybackScheduleActionResult { Success = false, Message = "Schedule not found." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Không tìm thấy lịch phát" };
 
         var media = await _medias.Query().FirstOrDefaultAsync(m => m.Id == mediaId && m.UserId == userId);
         if (media == null)
-            return new PlaybackScheduleActionResult { Success = false, Message = "Selected video is invalid." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Video đã chọn không hợp lệ" };
 
         var nextOrder = schedule.Items.Select(i => i.OrderIndex).DefaultIfEmpty(-1).Max() + 1;
         await _scheduleItems.AddAsync(new PlaybackScheduleItem
@@ -248,7 +248,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         });
 
         await _playbackScheduleRepository.SaveChangesAsync();
-        return new PlaybackScheduleActionResult { Success = true, Message = "Video added to schedule." };
+        return new PlaybackScheduleActionResult { Success = true, Message = "Đã thêm video vào lịch phát" };
     }
 
     public async Task<bool> RemoveItemAsync(int userId, int scheduleItemId)
@@ -295,21 +295,21 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     private async Task<PlaybackScheduleActionResult> ValidateRequestAsync(int userId, PlaybackScheduleRequest request, int? currentId, bool isImmediate = false)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return new PlaybackScheduleActionResult { Success = false, Message = "Name is required." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Tên là bắt buộc" };
         if (request.EndDate < request.StartDate)
             return new PlaybackScheduleActionResult { Success = false, Message = "End date must be after start date." };
         if (request.EndTime <= request.StartTime)
             return new PlaybackScheduleActionResult { Success = false, Message = "No cross-midnight time range." };
         if (!request.DeviceIds.Any())
-            return new PlaybackScheduleActionResult { Success = false, Message = "Select at least one device." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Chọn ít nhất một thiết bị" };
         if (request.PlaylistId == null && !request.MediaIds.Any())
-            return new PlaybackScheduleActionResult { Success = false, Message = "Select playlist or media list." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Chọn danh sách phát hoặc danh sách video" };
         if (request.PlaylistId.HasValue && request.MediaIds.Any())
-            return new PlaybackScheduleActionResult { Success = false, Message = "Select either playlist or media list, not both." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Chỉ chọn danh sách phát hoặc danh sách video, không chọn cả hai" };
 
         var validDevices = await _devices.Query().CountAsync(d => request.DeviceIds.Contains(d.Id) && d.UserId == userId && d.IsActive);
         if (validDevices != request.DeviceIds.Distinct().Count())
-            return new PlaybackScheduleActionResult { Success = false, Message = "Device invalid." };
+            return new PlaybackScheduleActionResult { Success = false, Message = "Thiết bị không hợp lệ" };
 
         var startUtc = _timeService.ToUtc(request.StartDate.Date);
         var endUtc = _timeService.ToUtc(request.EndDate.Date.AddDays(1).AddTicks(-1));
@@ -324,7 +324,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
             s.StartTime < request.EndTime &&
             request.StartTime < s.EndTime);
         if (overlap)
-            return new PlaybackScheduleActionResult { Success = false, Message = isImmediate ? "Thiết bị đang có lịch phát active. Vui lòng dừng hoặc xóa schedule trước khi phát ngay." : "Device already has active schedule in this range." };
+            return new PlaybackScheduleActionResult { Success = false, Message = isImmediate ? "Thiết bị đang có lịch phát active. Vui lòng dừng hoặc xóa lịch trước khi phát ngay." : "Thiết bị đã có lịch phát hoạt động trong khoảng thời gian này." };
 
         if (request.PlaylistId.HasValue)
         {
@@ -333,11 +333,11 @@ public class PlaybackScheduleService : IPlaybackScheduleService
                     .ThenInclude(i => i.Media)
                 .FirstOrDefaultAsync(p => p.Id == request.PlaylistId.Value && p.UserId == userId && p.IsActive);
             if (playlist == null)
-                return new PlaybackScheduleActionResult { Success = false, Message = "Playlist not found." };
+                return new PlaybackScheduleActionResult { Success = false, Message = "Không tìm thấy danh sách phát" };
             if (!playlist.Items.Any())
-                return new PlaybackScheduleActionResult { Success = false, Message = "Playlist has no videos." };
+                return new PlaybackScheduleActionResult { Success = false, Message = "Danh sách phát chưa có video" };
             if (playlist.Items.Any(i => i.Media.UserId != userId))
-                return new PlaybackScheduleActionResult { Success = false, Message = "Playlist contains invalid videos." };
+                return new PlaybackScheduleActionResult { Success = false, Message = "Danh sách phát có video không hợp lệ" };
         }
 
         if (request.MediaIds.Any())
@@ -345,7 +345,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
             var mediaIds = request.MediaIds.Distinct().ToList();
             var validMediaCount = await _medias.Query().CountAsync(m => mediaIds.Contains(m.Id) && m.UserId == userId);
             if (validMediaCount != mediaIds.Count)
-                return new PlaybackScheduleActionResult { Success = false, Message = "Selected video is invalid." };
+                return new PlaybackScheduleActionResult { Success = false, Message = "Video đã chọn không hợp lệ" };
         }
 
         return new PlaybackScheduleActionResult { Success = true };

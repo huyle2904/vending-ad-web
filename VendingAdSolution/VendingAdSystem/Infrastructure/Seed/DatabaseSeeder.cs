@@ -48,7 +48,7 @@ public static class DatabaseSeeder
         }
 
         var users = db.Users.OrderBy(u => u.Id).ToList();
-        if (users.Any())
+        if (users.Any() && db.Database.IsSqlite())
         {
             db.Database.ExecuteSqlRaw("UPDATE Medias SET UserId = {0} WHERE UserId IS NULL", users[0].Id);
         }
@@ -61,6 +61,26 @@ public static class DatabaseSeeder
             );
             db.SaveChanges();
         }
+
+        SeedClaimDevice(db, "CLAIM-TEST-290403", "Máy vending test 290403", "290403");
+        SeedClaimDevice(db, "CLAIM-TEST-210603", "Máy vending test 210603", "210603");
+    }
+
+    private static void SeedClaimDevice(AppDbContext db, string deviceCode, string location, string claimCode)
+    {
+        if (db.Devices.Any(d => d.DeviceCode == deviceCode))
+            return;
+
+        db.Devices.Add(new Device
+        {
+            DeviceCode = deviceCode,
+            Location = location,
+            ClaimCode = claimCode,
+            UserId = null,
+            IsActive = true,
+            LastSeen = DateTime.UtcNow
+        });
+        db.SaveChanges();
     }
 
     private static string HashPassword(string password)

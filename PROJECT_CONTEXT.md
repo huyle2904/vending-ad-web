@@ -21,6 +21,8 @@
 - `Playlist` = reusable template only.
 - `PlaybackSchedule` = real playback plan.
 - Device playback reads from active schedules.
+- `Device Wall` is only a web simulator for quick testing, not the real production player.
+- Real production playback target is a future mobile/TV box app installed on vending machines.
 
 ## UI Direction
 - Keep CMS UI simple, direct, and consistent.
@@ -75,6 +77,14 @@
 - Real playback plan.
 - Has devices, date range, time range, ordered media snapshot.
 - Playback API reads from this model.
+
+### Mobile / TV Box App Direction
+- No mobile code exists in this repo yet.
+- Mobile app will run fullscreen on TV box/vending machine.
+- App must play according to schedules created by end user on web.
+- App must download videos to local storage before playback; do not stream directly.
+- App should keep playing cached content if network is temporarily unavailable where possible.
+- App should use server-provided UTC time/anchor instead of guessing local time.
 
 ## Current Architecture
 - `Controllers/*`
@@ -132,6 +142,119 @@
 - Installed `find-skills`, `frontend-design`, and `web-design-guidelines` skills for OpenCode.
 - Added Render Docker deploy config with Render PostgreSQL support.
 - Added DB provider switch via `DatabaseProvider` (`Sqlite`, `Postgres`, `SqlServer`).
+- Added device claim flow: app/device registers first, receives 6-digit `ClaimCode`; user/admin can claim/assign device later.
+- Admin device page should not create devices manually; devices come from app registration. Admin can assign only unassigned devices to users and must not edit device location.
+- Added admin statistics dashboard plan/implementation work in progress: `/admin` should be a chart/statistics page, sidebar item label `Thống kê`.
+
+## Mobile API Plan (Next Session Priority)
+Implement backend APIs for future mobile/TV box app. Keep existing portal APIs for compatibility.
+
+### API Namespace
+- Use new namespace: `/api/mobile/...`
+- Do not remove existing `/api/portal/playlist/{deviceCode}` yet.
+
+### Needed Endpoints
+1. `GET /api/mobile/devices/{deviceCode}`
+   - Returns device info and claim status.
+   - If unclaimed, return `claimRequired = true` and current `claimCode`.
+   - If claimed, return assigned user info.
+
+2. `POST /api/mobile/heartbeat`
+   - Phase 1 request can be `{ "deviceCode": "..." }`.
+   - Response should include `serverTimeUtc`.
+   - Later can include app version, current schedule/media, storage free, error state.
+
+3. `GET /api/mobile/playback-state/{deviceCode}`
+   - Main API for mobile playback.
+   - If device does not exist: 404.
+   - If device exists but is unclaimed: return 200 with `claimRequired = true`, `hasActiveSchedule = false`, `claimCode`.
+   - If no active schedule: return 200 with `hasActiveSchedule = false`.
+   - If active schedule: return schedule metadata + ordered video items.
+
+### Playback State Response Shape
+```json
+{
+  "success": true,
+  "deviceCode": "TVBOX-001",
+  "serverTimeUtc": "2026-05-12T08:30:00Z",
+  "hasActiveSchedule": true,
+  "claimRequired": false,
+  "claimCode": null,
+  "schedule": {
+    "id": 12,
+    "name": "Lịch sáng",
+    "version": "12-638826354000000000-5-8",
+    "isImmediate": false,
+    "startDateUtc": "2026-05-12T00:00:00Z",
+    "endDateUtc": "2026-05-20T23:59:59Z",
+    "startTime": "08:00:00",
+    "endTime": "11:30:00",
+    "playbackAnchorUtc": "2026-05-12T01:00:00Z"
+  },
+  "items": [
+    {
+      "mediaId": 5,
+      "fileName": "promo-1.mp4",
+      "fileUrl": "https://domain/uploads/promo-1.mp4",
+      "orderIndex": 0,
+      "fileSize": 12345678,
+      "checksum": null,
+      "durationSeconds": null
+    }
+  ]
+}
+```
+
+### Active Schedule Rules
+- Device must exist, be active, and be assigned (`UserId != null`) for normal playback.
+- Find schedule where:
+  - `IsActive == true`
+  - schedule contains the device
+  - `StartDate <= serverTimeUtc <= EndDate`
+  - current Vietnam local time is between `StartTime` and `EndTime`
+- Priority:
+  - immediate schedule first
+  - then newest `CreatedAt`
+  - then newest `StartDate`
+
+### Schedule Version Rule
+- Phase 1 has no `UpdatedAt`, so version should be derived from schedule and item list.
+- Suggested version:
+  - `schedule.Id`
+  - `schedule.CreatedAt.Ticks`
+  - ordered media IDs / item IDs / order indexes
+- App will use this version later to know whether it must re-sync/download.
+
+### Playback Anchor Rule
+- Normal schedule:
+  - Anchor = current Vietnam date + schedule `StartTime`, converted to UTC.
+- Immediate schedule:
+  - Anchor = `ImmediateStartedAt` if present.
+  - Fallback to normal schedule anchor.
+
+### Duration / Download Rule
+- Phase 1 API returns `durationSeconds = null`.
+- Mobile app must download video from `fileUrl` to local storage before playback.
+- Mobile app reads duration metadata from downloaded local file and caches it locally.
+- Do not stream directly from `fileUrl`; `fileUrl` is only the download source.
+- Later phase can add `Media.DurationSeconds` and checksum.
+
+### Suggested Files To Add/Modify
+- Add `Application/DTOs/MobilePlaybackDtos.cs`
+- Add `Application/Services/MobilePlaybackService.cs`
+- Add `Controllers/MobileApiController.cs`
+- Register service in `Infrastructure/DependencyInjection.cs`
+- Keep `PlaylistService` and existing portal playlist endpoint stable.
+
+### Mobile Behavior To Remember
+- Future mobile app should:
+  - register device and display claim code until claimed
+  - heartbeat periodically
+  - poll playback-state periodically
+  - download missing videos
+  - play fullscreen from local file only
+  - if schedule version changes, re-sync immediately in Phase 1
+  - if network is lost, continue cached playlist when possible
 
 ## Database Provider / Deploy Notes
 - Current Render target uses PostgreSQL from `render.yaml`:

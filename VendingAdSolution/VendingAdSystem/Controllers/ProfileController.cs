@@ -53,7 +53,7 @@ public class ProfileController : Controller
 
         if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword))
         {
-            TempData["Error"] = "All fields are required";
+            TempData["Error"] = "Tất cả trường là bắt buộc";
             return RedirectToAction("Index");
         }
 
@@ -79,7 +79,7 @@ public class ProfileController : Controller
             var admin = await _admins.GetByIdAsync(adminId.Value);
             if (admin == null)
             {
-                TempData["Error"] = "Admin not found";
+                TempData["Error"] = "Không tìm thấy quản trị viên";
                 return RedirectToAction("Index");
             }
 
@@ -92,14 +92,14 @@ public class ProfileController : Controller
 
             admin.PasswordHash = hashedNewPassword;
             await _admins.SaveChangesAsync();
-            TempData["Success"] = "Password changed successfully";
+            TempData["Success"] = "Đã đổi mật khẩu";
         }
         else if (userId != null)
         {
             var user = await _users.GetByIdAsync(userId.Value);
             if (user == null)
             {
-                TempData["Error"] = "User not found";
+                TempData["Error"] = "Không tìm thấy người dùng";
                 return RedirectToAction("Index");
             }
 
@@ -112,7 +112,7 @@ public class ProfileController : Controller
 
             user.PasswordHash = hashedNewPassword;
             await _users.SaveChangesAsync();
-            TempData["Success"] = "Password changed successfully";
+            TempData["Success"] = "Đã đổi mật khẩu";
         }
 
         return RedirectToAction("Index");

@@ -28,7 +28,7 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> RegisterUserAsync(RegisterRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-            return new AuthResponse { Success = false, Message = "Username and password are required." };
+            return new AuthResponse { Success = false, Message = "Tên đăng nhập và mật khẩu là bắt buộc." };
 
         if (request.Password != request.ConfirmPassword)
             return new AuthResponse { Success = false, Message = "Passwords do not match." };
@@ -57,7 +57,7 @@ public class AuthService : IAuthService
         return new AuthResponse
         {
             Success = true,
-            Message = "User registered successfully.",
+            Message = "Đăng ký người dùng thành công.",
             User = ToUserInfo(user)
         };
     }
@@ -66,7 +66,7 @@ public class AuthService : IAuthService
     {
         var login = GetLoginValue(request);
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(request.Password))
-            return new AuthResponse { Success = false, Message = "Username and password are required." };
+            return new AuthResponse { Success = false, Message = "Tên đăng nhập và mật khẩu là bắt buộc." };
 
         var user = await _users.Query().FirstOrDefaultAsync(u => u.Username == login || u.Email == login);
         if (user == null || !VerifyPassword(request.Password, user.PasswordHash) || !user.IsActive)
@@ -85,7 +85,7 @@ public class AuthService : IAuthService
     {
         var login = GetLoginValue(request);
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(request.Password))
-            return new AuthResponse { Success = false, Message = "Username and password are required." };
+            return new AuthResponse { Success = false, Message = "Tên đăng nhập và mật khẩu là bắt buộc." };
 
         var admin = await _admins.Query().FirstOrDefaultAsync(a => a.Email == login);
         if (admin == null || !VerifyPassword(request.Password, admin.PasswordHash) || !admin.IsActive)

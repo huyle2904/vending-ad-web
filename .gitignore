@@ -7,5 +7,6 @@ obj/
 *.db-wal
 .vs/
 .vscode/
+opencode.json
 VendingAdSolution/VendingAdSystem/wwwroot/uploads/*
 !VendingAdSolution/VendingAdSystem/wwwroot/uploads/.gitkeep

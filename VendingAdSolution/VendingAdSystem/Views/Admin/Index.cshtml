@@ -1,51 +1,210 @@
+@model AdminDashboardViewModel
 @{
-    ViewData["Title"] = "Bảng điều khiển Admin";
+    ViewData["Title"] = "Thống kê hệ thống";
+
+    var deviceTotal = Math.Max(Model.DeviceCount, 1);
+    var scheduleTotal = Math.Max(Model.ScheduleCount, 1);
+    var contentTotal = Math.Max(Model.VideoCount + Model.PlaylistCount + Model.ScheduleCount, 1);
+    var maxUploadCount = Math.Max(Model.UploadsLast7Days.Any() ? Model.UploadsLast7Days.Max(x => x.Count) : 0, 1);
+
+    var onlinePercent = Math.Round(Model.OnlineDeviceCount * 100m / deviceTotal, 1);
+    var offlinePercent = Math.Round(Model.OfflineDeviceCount * 100m / deviceTotal, 1);
+    var activeSchedulePercent = Math.Round(Model.ActiveScheduleCount * 100m / scheduleTotal, 1);
+    var inactiveSchedulePercent = Math.Round(Model.InactiveScheduleCount * 100m / scheduleTotal, 1);
+
+    string FormatBytes(long bytes)
+    {
+        if (bytes >= 1024L * 1024 * 1024)
+            return $"{bytes / 1024m / 1024m / 1024m:0.0} GB";
+        if (bytes >= 1024L * 1024)
+            return $"{bytes / 1024m / 1024m:0.0} MB";
+        return $"{bytes / 1024m:0.0} KB";
+    }
 }
 
-<div class="page-header">
+<div class="page-header" style="align-items:flex-start; gap:1rem;">
   <div>
-    <h1 class="page-title">Bảng điều khiển Admin</h1>
-    <p class="text-muted">Tổng quan hệ thống và quản lý</p>
+    <h1 class="page-title">Thống kê hệ thống</h1>
+    <p class="page-subtitle">Tổng quan nhanh về thiết bị, nội dung và lịch phát trong CMS.</p>
   </div>
 </div>
 
-<div class="stats-grid">
+<div class="stats-grid admin-kpi-grid">
   <div class="stat-card">
-    <div class="stat-value">@ViewBag.UserCount</div>
+    <div class="stat-value">@Model.UserCount</div>
     <div class="stat-label">Tài khoản</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">@ViewBag.DeviceCount</div>
-    <div class="stat-label">Tổng thiết bị</div>
+    <div class="stat-value">@Model.DeviceCount</div>
+    <div class="stat-label">Thiết bị</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value stat-success">@ViewBag.OnlineCount</div>
-    <div class="stat-label">Online</div>
+    <div class="stat-value stat-success">@Model.OnlineDeviceCount</div>
+    <div class="stat-label">Đang online</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value stat-danger">@ViewBag.OfflineCount</div>
-    <div class="stat-label">Offline</div>
+    <div class="stat-value">@Model.VideoCount</div>
+    <div class="stat-label">Video</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">@Model.ScheduleCount</div>
+    <div class="stat-label">Lịch phát</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">@FormatBytes(Model.TotalStorageBytes)</div>
+    <div class="stat-label">Dung lượng video</div>
   </div>
 </div>
 
-<div class="grid grid-cols-3">
-  <a href="/admin/devices" class="card" style="text-decoration: none; transition: border-color 0.15s, transform 0.15s;">
-    <div style="font-size: 2rem; margin-bottom: 0.75rem;">📱</div>
-    <h3 class="card-title">Quản lý Thiết bị</h3>
-    <p class="card-description">Tạo thiết bị và gán cho tài khoản</p>
-  </a>
-  <a href="/dashboard" class="card" style="text-decoration: none; transition: border-color 0.15s, transform 0.15s;">
-    <div style="font-size: 2rem; margin-bottom: 0.75rem;">📊</div>
-    <h3 class="card-title">Xem Bảng điều khiển</h3>
-    <p class="card-description">Xem trạng thái thiết bị và lịch phát</p>
-  </a>
-  <a href="/admin/schedules" class="card" style="text-decoration: none; transition: border-color 0.15s, transform 0.15s;">
-    <div style="font-size: 2rem; margin-bottom: 0.75rem;">🗓️</div>
-    <h3 class="card-title">Quản lý Lịch phát</h3>
-    <p class="card-description">Xem, tắt và xóa schedule</p>
-  </a>
+<div class="admin-chart-grid">
+  <section class="card surface admin-chart-card">
+    <div class="admin-chart-header">
+      <div>
+        <h2 class="card-title">Tình trạng thiết bị</h2>
+        <p class="card-description">Theo dõi nhanh thiết bị online/offline và thiết bị chưa gán.</p>
+      </div>
+      <span class="badge badge-secondary">@Model.DeviceCount thiết bị</span>
+    </div>
+
+    <div class="admin-donut-row">
+      <div class="admin-donut" style="--first:@onlinePercent%; --second:@(onlinePercent + offlinePercent)%;">
+        <div>
+          <strong>@onlinePercent%</strong>
+          <span>online</span>
+        </div>
+      </div>
+      <div class="admin-legend-list">
+        <div class="admin-legend-item"><span class="admin-dot dot-success"></span><strong>@Model.OnlineDeviceCount</strong><span>Đang online</span></div>
+        <div class="admin-legend-item"><span class="admin-dot dot-danger"></span><strong>@Model.OfflineDeviceCount</strong><span>Ngoại tuyến</span></div>
+        <div class="admin-legend-item"><span class="admin-dot dot-muted"></span><strong>@Model.UnassignedDeviceCount</strong><span>Chưa gán tài khoản</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card surface admin-chart-card">
+    <div class="admin-chart-header">
+      <div>
+        <h2 class="card-title">Lịch phát</h2>
+        <p class="card-description">Số lịch đang bật, đang chạy và phát ngay.</p>
+      </div>
+      <span class="badge badge-secondary">@Model.RunningScheduleCount đang chạy</span>
+    </div>
+
+    <div class="admin-progress-list">
+      <div class="admin-progress-row">
+        <div><strong>Đang hoạt động</strong><span>@Model.ActiveScheduleCount lịch</span></div>
+        <div class="admin-progress-track"><span style="width:@activeSchedulePercent%"></span></div>
+      </div>
+      <div class="admin-progress-row">
+        <div><strong>Đang tắt</strong><span>@Model.InactiveScheduleCount lịch</span></div>
+        <div class="admin-progress-track muted"><span style="width:@inactiveSchedulePercent%"></span></div>
+      </div>
+      <div class="admin-mini-grid">
+        <div><span>Phát ngay</span><strong>@Model.ImmediateScheduleCount</strong></div>
+        <div><span>Đã lên lịch</span><strong>@Model.ScheduledScheduleCount</strong></div>
+      </div>
+    </div>
+  </section>
 </div>
+
+<div class="admin-chart-grid admin-chart-grid-wide">
+  <section class="card surface admin-chart-card">
+    <div class="admin-chart-header">
+      <div>
+        <h2 class="card-title">Nội dung trong hệ thống</h2>
+        <p class="card-description">So sánh nhanh video, playlist và lịch phát.</p>
+      </div>
+    </div>
+    <div class="admin-horizontal-bars">
+      <div class="admin-bar-row"><span>Video</span><div><i style="width:@(Math.Round(Model.VideoCount * 100m / contentTotal, 1))%"></i></div><strong>@Model.VideoCount</strong></div>
+      <div class="admin-bar-row"><span>Playlist</span><div><i style="width:@(Math.Round(Model.PlaylistCount * 100m / contentTotal, 1))%"></i></div><strong>@Model.PlaylistCount</strong></div>
+      <div class="admin-bar-row"><span>Lịch phát</span><div><i style="width:@(Math.Round(Model.ScheduleCount * 100m / contentTotal, 1))%"></i></div><strong>@Model.ScheduleCount</strong></div>
+    </div>
+  </section>
+
+  <section class="card surface admin-chart-card">
+    <div class="admin-chart-header">
+      <div>
+        <h2 class="card-title">Video tải lên 7 ngày gần nhất</h2>
+        <p class="card-description">Giúp kiểm tra nhanh mức độ cập nhật nội dung.</p>
+      </div>
+    </div>
+    <div class="admin-upload-chart">
+      @foreach (var day in Model.UploadsLast7Days)
+      {
+        var height = Math.Max(8, Math.Round(day.Count * 100m / maxUploadCount, 0));
+        <div class="admin-upload-day">
+          <div class="admin-upload-bar"><span style="height:@height%"></span></div>
+          <strong>@day.Count</strong>
+          <small>@day.Label</small>
+        </div>
+      }
+    </div>
+  </section>
+</div>
+
+@if (Model.DeviceCount == 0 || Model.UnassignedDeviceCount > 0 || Model.OfflineDeviceCount > 0)
+{
+  <section class="card surface admin-insight-card">
+    <div>
+      <h2 class="card-title">Gợi ý vận hành</h2>
+      <p class="card-description">Các mục nên kiểm tra để hệ thống chạy ổn định.</p>
+    </div>
+    <div class="admin-insight-list">
+      @if (Model.DeviceCount == 0)
+      {
+        <div>Chưa có thiết bị nào trong hệ thống.</div>
+      }
+      @if (Model.UnassignedDeviceCount > 0)
+      {
+        <div>Có @Model.UnassignedDeviceCount thiết bị chưa được gán tài khoản.</div>
+      }
+      @if (Model.OfflineDeviceCount > 0)
+      {
+        <div>Có @Model.OfflineDeviceCount thiết bị đang ngoại tuyến.</div>
+      }
+    </div>
+  </section>
+}
 
 <style>
-  .card:hover { border-color: var(--primary); transform: translateY(-2px); }
+  .admin-kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .admin-chart-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; margin-top:1rem; }
+  .admin-chart-card { padding:1.25rem; }
+  .admin-chart-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+  .admin-donut-row { display:flex; align-items:center; gap:1.5rem; }
+  .admin-donut { width:160px; height:160px; border-radius:50%; background: conic-gradient(var(--success) 0 var(--first), var(--destructive) var(--first) var(--second), var(--border) var(--second) 100%); display:grid; place-items:center; flex:0 0 auto; }
+  .admin-donut > div { width:104px; height:104px; border-radius:50%; background:var(--background); display:grid; place-items:center; align-content:center; box-shadow: inset 0 0 0 1px var(--border); }
+  .admin-donut strong { font-size:1.35rem; color:var(--foreground); }
+  .admin-donut span { font-size:.78rem; color:var(--muted-foreground); }
+  .admin-legend-list { display:grid; gap:.7rem; width:100%; }
+  .admin-legend-item { display:grid; grid-template-columns:auto auto 1fr; align-items:center; gap:.55rem; color:var(--muted-foreground); font-size:.88rem; }
+  .admin-legend-item strong { color:var(--foreground); }
+  .admin-dot { width:.7rem; height:.7rem; border-radius:999px; display:inline-block; }
+  .dot-success { background:var(--success); } .dot-danger { background:var(--destructive); } .dot-muted { background:var(--border); }
+  .admin-progress-list { display:grid; gap:1rem; }
+  .admin-progress-row > div:first-child { display:flex; justify-content:space-between; gap:1rem; font-size:.9rem; margin-bottom:.45rem; }
+  .admin-progress-row span { color:var(--muted-foreground); }
+  .admin-progress-track { height:.65rem; background:var(--muted); border-radius:999px; overflow:hidden; }
+  .admin-progress-track span { display:block; height:100%; background:var(--primary); border-radius:999px; }
+  .admin-progress-track.muted span { background:var(--muted-foreground); }
+  .admin-mini-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:.75rem; }
+  .admin-mini-grid div { border:1px solid var(--border); border-radius:var(--radius); padding:.8rem; background:var(--muted); }
+  .admin-mini-grid span { display:block; font-size:.78rem; color:var(--muted-foreground); }
+  .admin-mini-grid strong { display:block; margin-top:.25rem; font-size:1.25rem; color:var(--foreground); }
+  .admin-horizontal-bars { display:grid; gap:.85rem; }
+  .admin-bar-row { display:grid; grid-template-columns:90px 1fr 44px; align-items:center; gap:.75rem; font-size:.88rem; }
+  .admin-bar-row div { height:.7rem; background:var(--muted); border-radius:999px; overflow:hidden; }
+  .admin-bar-row i { display:block; height:100%; min-width:6px; background:var(--primary); border-radius:999px; }
+  .admin-upload-chart { height:220px; display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); align-items:end; gap:.65rem; }
+  .admin-upload-day { display:grid; grid-template-rows:1fr auto auto; gap:.35rem; min-height:100%; text-align:center; color:var(--muted-foreground); }
+  .admin-upload-bar { min-height:130px; display:flex; align-items:end; justify-content:center; background:var(--muted); border-radius:999px; padding:.25rem; }
+  .admin-upload-bar span { width:100%; border-radius:999px; background:var(--primary); display:block; }
+  .admin-upload-day strong { color:var(--foreground); font-size:.85rem; }
+  .admin-upload-day small { font-size:.72rem; }
+  .admin-insight-card { margin-top:1rem; display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; }
+  .admin-insight-list { display:grid; gap:.5rem; min-width:min(420px, 100%); color:var(--muted-foreground); font-size:.9rem; }
+  .admin-insight-list div { border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .85rem; background:var(--muted); }
+  @@media (max-width: 1100px) { .admin-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .admin-chart-grid { grid-template-columns:1fr; } }
+  @@media (max-width: 720px) { .admin-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-donut-row, .admin-insight-card { flex-direction:column; align-items:stretch; } .admin-bar-row { grid-template-columns:74px 1fr 32px; } }
 </style>

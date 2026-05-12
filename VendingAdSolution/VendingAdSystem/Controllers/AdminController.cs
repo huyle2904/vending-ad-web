@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
@@ -45,16 +46,41 @@ public class AdminController : Controller
             return RedirectToAction("Login", "Account");
 
         var devices = await _deviceService.Query().ToListAsync();
-        var userCount = await _userService.Query().CountAsync();
-        var deviceCount = devices.Count;
-        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var medias = await _mediaService.Query().ToListAsync();
+        var playlists = await _playlists.Query().ToListAsync();
+        var schedules = await _playbackScheduleService.GetAllAsync();
+        var now = _timeService.UtcNow;
+        var vietnamToday = _timeService.ToVietnamTime(now).Date;
+        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (now - d.LastSeen.Value).TotalMinutes < 5);
 
-        ViewBag.UserCount = userCount;
-        ViewBag.DeviceCount = deviceCount;
-        ViewBag.OnlineCount = onlineCount;
-        ViewBag.OfflineCount = deviceCount - onlineCount;
+        var model = new AdminDashboardViewModel
+        {
+            UserCount = await _userService.Query().CountAsync(),
+            DeviceCount = devices.Count,
+            OnlineDeviceCount = onlineCount,
+            OfflineDeviceCount = devices.Count - onlineCount,
+            UnassignedDeviceCount = devices.Count(d => d.UserId == null),
+            VideoCount = medias.Count,
+            TotalStorageBytes = medias.Sum(m => m.FileSize),
+            PlaylistCount = playlists.Count,
+            ScheduleCount = schedules.Count(),
+            ActiveScheduleCount = schedules.Count(s => s.IsActive),
+            InactiveScheduleCount = schedules.Count(s => !s.IsActive),
+            ImmediateScheduleCount = schedules.Count(s => s.IsImmediate),
+            ScheduledScheduleCount = schedules.Count(s => !s.IsImmediate),
+            RunningScheduleCount = schedules.Count(s => IsScheduleRunningNow(s, now))
+        };
 
-        return View();
+        model.UploadsLast7Days = Enumerable.Range(0, 7)
+            .Select(offset => vietnamToday.AddDays(offset - 6))
+            .Select(date => new DailyUploadStat
+            {
+                Label = date.ToString("dd/MM"),
+                Count = medias.Count(m => _timeService.ToVietnamTime(m.UploadedAt).Date == date)
+            })
+            .ToList();
+
+        return View(model);
     }
 
     [HttpGet("/admin/devices")]
@@ -113,7 +139,7 @@ public class AdminController : Controller
 
         if (media == null)
         {
-            TempData["Error"] = "Video not found.";
+            TempData["Error"] = "Không tìm thấy video.";
             return RedirectToAction("Videos");
         }
 
@@ -127,7 +153,7 @@ public class AdminController : Controller
         _mediaService.Remove(media);
         await _mediaService.SaveChangesAsync();
 
-        TempData["Success"] = "Video deleted successfully.";
+        TempData["Success"] = "Đã xóa video.";
         return RedirectToAction("Videos");
     }
 
@@ -198,7 +224,7 @@ public class AdminController : Controller
             return Unauthorized();
 
         var updated = await _playbackScheduleService.ToggleByIdAsync(scheduleId);
-        TempData[updated ? "Success" : "Error"] = updated ? "Schedule updated." : "Schedule not found.";
+        TempData[updated ? "Success" : "Error"] = updated ? "Đã cập nhật lịch phát." : "Không tìm thấy lịch phát.";
         return RedirectToAction("Schedules");
     }
 
@@ -209,7 +235,7 @@ public class AdminController : Controller
             return Unauthorized();
 
         var deleted = await _playbackScheduleService.DeleteByIdAsync(scheduleId);
-        TempData[deleted ? "Success" : "Error"] = deleted ? "Schedule deleted successfully." : "Delete schedule failed.";
+        TempData[deleted ? "Success" : "Error"] = deleted ? "Đã xóa lịch phát." : "Xóa lịch phát thất bại.";
         return RedirectToAction("Schedules");
     }
 
@@ -224,13 +250,13 @@ public class AdminController : Controller
 
         if (playlist == null)
         {
-            TempData["Error"] = "Playlist not found.";
+            TempData["Error"] = "Không tìm thấy danh sách phát.";
             return RedirectToAction("Playlists");
         }
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            TempData["Error"] = "Playlist name is required.";
+            TempData["Error"] = "Tên danh sách phát là bắt buộc.";
             return RedirectToAction("Playlists");
         }
 
@@ -238,7 +264,7 @@ public class AdminController : Controller
         playlist.IsActive = isActive;
 
         await _playlists.SaveChangesAsync();
-        TempData["Success"] = "Playlist updated successfully.";
+        TempData["Success"] = "Đã cập nhật danh sách phát.";
         return RedirectToAction("Playlists");
     }
 
@@ -251,13 +277,13 @@ public class AdminController : Controller
         var playlist = await _playlists.Query().FirstOrDefaultAsync(p => p.Id == playlistId);
         if (playlist == null)
         {
-            TempData["Error"] = "Playlist not found.";
+            TempData["Error"] = "Không tìm thấy danh sách phát.";
             return RedirectToAction("Playlists");
         }
 
         _playlists.Delete(playlist);
         await _playlists.SaveChangesAsync();
-        TempData["Success"] = "Playlist deleted successfully.";
+        TempData["Success"] = "Đã xóa danh sách phát.";
         return RedirectToAction("Playlists");
     }
 
@@ -283,7 +309,7 @@ public class AdminController : Controller
         var user = await _userService.GetByIdAsync(userId);
         if (user == null)
         {
-            TempData["Error"] = "User not found";
+            TempData["Error"] = "Không tìm thấy người dùng";
             return RedirectToAction("Users");
         }
 
@@ -293,7 +319,7 @@ public class AdminController : Controller
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email))
         {
-            TempData["Error"] = "Username and email are required";
+            TempData["Error"] = "Tên đăng nhập và email là bắt buộc";
             return RedirectToAction("Users");
         }
 
@@ -322,7 +348,7 @@ public class AdminController : Controller
         var user = await _userService.GetByIdAsync(userId);
         if (user == null)
         {
-            TempData["Error"] = "User not found";
+            TempData["Error"] = "Không tìm thấy người dùng";
             return RedirectToAction("Users");
         }
 
@@ -345,7 +371,7 @@ public class AdminController : Controller
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(email))
         {
-            TempData["Error"] = "Username and email are required";
+            TempData["Error"] = "Tên đăng nhập và email là bắt buộc";
             return RedirectToAction("Users");
         }
 
@@ -382,7 +408,7 @@ public class AdminController : Controller
         var user = await _userService.GetByIdAsync(userId);
         if (user == null)
         {
-            TempData["Error"] = "User not found";
+            TempData["Error"] = "Không tìm thấy người dùng";
             return RedirectToAction("Users");
         }
 
@@ -401,7 +427,7 @@ public class AdminController : Controller
 
         if (string.IsNullOrWhiteSpace(deviceCode))
         {
-            TempData["Error"] = "Device code is required.";
+            TempData["Error"] = "Mã thiết bị là bắt buộc.";
             return RedirectToAction("Devices");
         }
 
@@ -424,7 +450,7 @@ public class AdminController : Controller
         await _deviceService.AddAsync(device);
         await _deviceService.SaveChangesAsync();
 
-        TempData["Success"] = $"Device '{deviceCode}' created successfully.";
+        TempData["Success"] = $"Đã tạo thiết bị '{deviceCode}'.";
         return RedirectToAction("Devices");
     }
 
@@ -437,7 +463,7 @@ public class AdminController : Controller
         var device = await _deviceService.GetByIdAsync(deviceId);
         if (device == null)
         {
-            TempData["Error"] = "Device not found.";
+            TempData["Error"] = "Không tìm thấy thiết bị.";
             return RedirectToAction("Devices");
         }
 
@@ -446,7 +472,7 @@ public class AdminController : Controller
         device.UserId = userId;
 
         await _deviceService.SaveChangesAsync();
-        TempData["Success"] = "Device updated successfully.";
+        TempData["Success"] = "Đã cập nhật thiết bị.";
         return RedirectToAction("Devices");
     }
 
@@ -461,15 +487,24 @@ public class AdminController : Controller
 
         if (device == null)
         {
-            TempData["Error"] = "Device not found.";
+            TempData["Error"] = "Không tìm thấy thiết bị.";
             return RedirectToAction("Devices");
         }
 
         _deviceService.Remove(device);
         await _deviceService.SaveChangesAsync();
 
-        TempData["Success"] = "Device deleted successfully.";
+        TempData["Success"] = "Đã xóa thiết bị.";
         return RedirectToAction("Devices");
+    }
+
+    private bool IsScheduleRunningNow(PlaybackSchedule schedule, DateTime utcNow)
+    {
+        if (!schedule.IsActive || schedule.StartDate > utcNow || schedule.EndDate < utcNow)
+            return false;
+
+        var currentTime = _timeService.ToVietnamTime(utcNow).TimeOfDay;
+        return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
     }
 
     private static string HashPassword(string password)

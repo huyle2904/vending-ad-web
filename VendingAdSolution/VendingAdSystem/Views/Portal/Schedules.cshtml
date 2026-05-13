@@ -11,32 +11,41 @@
     string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
 }
 
-<div class="page-header" style="align-items: flex-start; gap: 1rem;">
-  <div>
-    <h1 class="page-title">Lịch Phát Video</h1>
-    <p class="page-subtitle">Danh sách phát đang chạy. Phát nội dung mới ngay bây giờ hoặc lên lịch cho tương lai</p>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+
+<div class="schedules-page">
+  <header class="schedules-topbar">
+    <div>
+      <nav class="dashboard-breadcrumb" aria-label="breadcrumb">
+        <span>Danh mục</span><i class="bi bi-chevron-right"></i><span class="active">Lịch phát</span>
+      </nav>
+      <h1 class="dashboard-title">Lịch phát video</h1>
+      <p class="dashboard-subtitle">Danh sách phát đang chạy. Phát nội dung mới ngay bây giờ hoặc lên lịch cho tương lai.</p>
+    </div>
+    <div class="video-stat-actions">
+      <article class="video-stat-card fx-card"><i class="bi bi-calendar3"></i><div><strong>@Model.Count</strong><span>Tổng lịch phát</span></div></article>
+    </div>
+  </header>
+
+  <div class="schedule-mode-grid schedule-mode-grid-modern u-mb-15">
+    <button type="button" class="schedule-mode-card card surface fx-card" onclick="openCreateSchedule('immediate')">
+      <span class="schedule-mode-icon"><i class="bi bi-play-fill"></i></span>
+      <span>
+        <strong>Phát nội dung ngay bây giờ</strong>
+        <small>Chọn nội dung, thiết bị và bắt đầu phát ngay lập tức.</small>
+      </span>
+    </button>
+    <button type="button" class="schedule-mode-card card surface fx-card" onclick="openCreateSchedule('schedule')">
+      <span class="schedule-mode-icon"><i class="bi bi-calendar-event"></i></span>
+      <span>
+        <strong>Tạo lịch phát mới</strong>
+        <small>Đặt ngày giờ và nội dung để tự động phát theo lịch.</small>
+      </span>
+    </button>
   </div>
-</div>
-
-<div class="schedule-mode-grid" style="margin-bottom: 1.5rem;">
-  <button type="button" class="schedule-mode-card card surface" onclick="openCreateSchedule('immediate')">
-    <span class="schedule-mode-icon">▶</span>
-    <span>
-      <strong>Phát nội dung mới ngay bây giờ</strong>
-      <small>Chọn nội dung, thiết bị và bấm phát.</small>
-    </span>
-  </button>
-  <button type="button" class="schedule-mode-card card surface" onclick="openCreateSchedule('schedule')">
-    <span class="schedule-mode-icon">🗓</span>
-    <span>
-      <strong>Tạo lịch phát nội dung mới</strong>
-      <small>Đặt ngày giờ rồi lên lịch phát.</small>
-    </span>
-  </button>
-</div>
-
-<div class="schedule-create-panel card surface" id="createSchedulePanel" style="display:none; margin-bottom: 1.5rem;">
-  <div class="card-header" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
+<div class="schedule-create-panel card surface u-hidden u-mb-15" id="createSchedulePanel">
+  <div class="card-header u-flex-head">
     <div>
       <h3 class="card-title" id="createPanelTitle">Tạo schedule</h3>
       <div class="card-description" id="createPanelDescription">Chọn nội dung, thiết bị và khung giờ.</div>
@@ -51,7 +60,7 @@
     <div class="schedule-form-grid">
       <div class="card schedule-form-card">
         <div class="card-title">Thông tin</div>
-        <div class="form-group" style="margin-top: .75rem;">
+        <div class="form-group u-mt-075">
           <label class="form-label">Tên schedule</label>
           <input class="form-input" name="Name" placeholder="VD: Thứ 2 - 6 / Quầy A" required />
         </div>
@@ -98,7 +107,7 @@
 
       <div class="card schedule-form-card">
         <div class="card-title">Thiết bị phát</div>
-        <div class="schedule-select-panel" style="margin-top: .75rem;">
+        <div class="schedule-select-panel u-mt-075">
           @foreach (var d in devices)
           {
             <label class="schedule-select-item">
@@ -114,7 +123,7 @@
 
       <div class="card schedule-form-card schedule-source-card">
         <div class="card-title">Nguồn video</div>
-        <div class="source-tabs" style="margin-top: .75rem;">
+        <div class="source-tabs u-mt-075">
           <button type="button" class="source-tab active" id="mediaTabBtn" onclick="switchSourceTab('media')">Video từ kho</button>
           <button type="button" class="source-tab" id="playlistTabBtn" onclick="switchSourceTab('playlist')">Danh sách phát</button>
         </div>
@@ -134,7 +143,7 @@
           </div>
         </div>
 
-        <div id="playlistSourcePanel" class="source-panel" style="display:none;">
+        <div id="playlistSourcePanel" class="source-panel u-hidden">
           <input type="hidden" id="playlistSelect" />
           <div class="playlist-choice-grid">
             @foreach (var p in playlists)
@@ -154,7 +163,7 @@
           @foreach (var p in playlists)
           {
             var items = p.Items.OrderBy(i => i.OrderIndex).ToList();
-            <div class="playlist-preview-list" id="playlistPreview-@p.Id" data-playlist-id="@p.Id" style="display:none;">
+            <div class="playlist-preview-list u-hidden" id="playlistPreview-@p.Id" data-playlist-id="@p.Id">
               @foreach (var item in items)
               {
                 <div class="playlist-preview-item" draggable="true" data-media-id="@item.MediaId">
@@ -173,19 +182,24 @@
     </div>
 
     <div class="page-actions">
-      <button class="btn btn-primary" type="submit" id="scheduleSubmitBtn">Lên lịch</button>
+      <button class="btn btn-primary fx-btn" type="submit" id="scheduleSubmitBtn">Lên lịch</button>
     </div>
   </form>
 </div>
 
 @if (!Model.Any())
 {
-  <div class="empty-state">
-    <div class="empty-state-icon">🗓️</div>
-    <p>Chưa có schedule nào</p>
-    <div class="flex gap-2" style="justify-content:center; margin-top:1rem; flex-wrap:wrap;">
-      <button class="btn btn-primary" type="button" onclick="openCreateSchedule('immediate')">Phát ngay</button>
-      <button class="btn btn-secondary" type="button" onclick="openCreateSchedule('schedule')">Lên lịch</button>
+  <div class="schedule-empty-state">
+    <div class="schedule-empty-icon"><i class="bi bi-calendar3"></i><span>31</span></div>
+    <h2>Chưa có lịch phát nào</h2>
+    <p>Tạo lịch phát để lên lịch phát nội dung cho thiết bị.</p>
+    <div class="schedule-empty-actions">
+      <button class="btn btn-primary fx-btn" type="button" onclick="openCreateSchedule('immediate')">Phát ngay</button>
+      <button class="btn btn-secondary fx-soft" type="button" onclick="openCreateSchedule('schedule')">Tạo lịch phát</button>
+    </div>
+    <div class="schedule-tip-box">
+      <strong>Bạn có biết?</strong>
+      <span>Lịch phát có thể lặp lại theo ngày, tuần, tháng hoặc theo khung giờ cố định.</span>
     </div>
   </div>
 }
@@ -193,7 +207,7 @@ else
 {
   <div class="schedule-list-header">
     <div>
-      <h2 class="section-title" style="margin-bottom: .25rem;">Lịch phát hiện có</h2>
+      <h2 class="section-title u-mb-025">Lịch phát hiện có</h2>
       <p class="text-sm text-muted">Ưu tiên các lịch đang có để kiểm tra và chỉnh live.</p>
     </div>
     <div class="schedule-count">@Model.Count schedule</div>
@@ -203,7 +217,7 @@ else
     @foreach (var s in Model)
     {
       <div class="schedule-summary card @(s.IsActive ? "schedule-active" : "schedule-inactive")">
-        <div class="flex items-center justify-between" style="gap: 1rem; align-items: flex-start;">
+        <div class="flex items-center justify-between u-flex-between-start">
           <div>
             <div class="schedule-name">@s.Name</div>
             <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
@@ -221,7 +235,7 @@ else
               <span class="badge badge-secondary">@s.Items.Count video(s)</span>
             </div>
           </div>
-          <div class="flex gap-2" style="flex-wrap: wrap; justify-content: flex-end;">
+          <div class="flex gap-2 u-actions-wrap-end">
             <button type="button" class="btn btn-sm btn-secondary" onclick="openScheduleDetail(@s.Id)">Chi tiết / Sửa</button>
             <form method="post" action="/portal/schedules/toggle"><input type="hidden" name="scheduleId" value="@s.Id" /><button class="btn btn-sm btn-secondary" type="submit">@(s.IsActive ? "Tắt" : "Bật")</button></form>
             <form method="post" action="/portal/schedules/delete" onsubmit="return confirm('Xóa schedule?')"><input type="hidden" name="scheduleId" value="@s.Id" /><button class="btn btn-sm" type="submit">Xóa</button></form>
@@ -229,7 +243,7 @@ else
         </div>
       </div>
 
-      <div class="modal-overlay" id="scheduleDetail-@s.Id" style="display:none;">
+      <div class="modal-overlay u-hidden" id="scheduleDetail-@s.Id">
         <div class="modal modal-wide schedule-detail-modal">
           <div class="modal-header">
             <div>
@@ -239,16 +253,16 @@ else
             <button class="modal-close" type="button" onclick="closeScheduleDetail(@s.Id)">×</button>
           </div>
           <div class="modal-body">
-            <div class="grid grid-cols-2" style="gap: 1rem;">
+            <div class="grid grid-cols-2 u-gap-1">
               <div class="card">
                 <div class="card-title">Thông tin</div>
-                <div class="text-sm" style="margin-top: .5rem;">Trạng thái: @(s.IsActive ? "Đang hoạt động" : "Đã tắt")</div>
+                <div class="text-sm u-mt-05">Trạng thái: @(s.IsActive ? "Đang hoạt động" : "Đã tắt")</div>
                 <div class="text-sm">Loại: @(s.IsImmediate ? "Phát ngay" : "Lịch thường")</div>
-                <div class="schedule-time-stack" style="margin-top: .5rem;"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
+                <div class="schedule-time-stack u-mt-05"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
               </div>
               <div class="card">
                 <div class="card-title">Thiết bị</div>
-                <div class="flex flex-wrap gap-2" style="margin-top:.5rem;">
+                <div class="flex flex-wrap gap-2 u-mt-05">
                   @foreach (var d in s.Devices.OrderBy(x => x.Device.DeviceCode))
                   {
                     <span class="badge badge-secondary">@d.Device.DeviceCode</span>
@@ -257,8 +271,8 @@ else
               </div>
             </div>
 
-            <div class="card" style="margin-top: 1rem;">
-              <div class="card-header" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem;">
+            <div class="card u-mt-1">
+              <div class="card-header u-flex-head">
                 <div>
                   <div class="card-title">Video phát</div>
                   <div class="card-description">Thêm, xóa, đổi thứ tự ngay khi schedule đang chạy.</div>
@@ -276,14 +290,14 @@ else
                       <option value="@media.Id">@media.FileName</option>
                     }
                   </select>
-                  <button type="submit" class="btn btn-primary">Thêm</button>
+                  <button type="submit" class="btn btn-primary fx-btn">Thêm</button>
                 </form>
               </div>
 
-              <div class="table-wrapper" style="margin-top: .75rem;">
+              <div class="table-wrapper u-mt-075">
                 <table class="table schedule-item-table">
                   <thead>
-                    <tr><th>Thứ tự</th><th>Tên video</th><th>Dung lượng</th><th>Thao tác</th></tr>
+                    <tr class="fx-list-row"><th>Thứ tự</th><th>Tên video</th><th>Dung lượng</th><th>Thao tác</th></tr>
                   </thead>
                   <tbody>
                     @foreach (var item in s.Items.OrderBy(i => i.OrderIndex))
@@ -702,3 +716,5 @@ else
   }
 
 </script>
+
+</div>

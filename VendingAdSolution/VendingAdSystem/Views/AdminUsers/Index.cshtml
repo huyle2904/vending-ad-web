@@ -8,11 +8,11 @@
   <h1 class="page-title">Quản lý Tài khoản</h1>
 </div>
 
-<div class="card" style="margin-bottom: 1rem;">
+<div class="card u-mb-1">
     <div class="card-header">
     <h3 class="card-title">Tạo tài khoản mới</h3>
   </div>
-  <form method="post" action="/admin/users/create" class="grid grid-cols-3" style="gap: 1rem; align-items: end;">
+  <form method="post" action="/admin/users/create" class="grid grid-cols-3 u-gap-1 u-items-end">
     <div class="form-group">
       <label class="form-label">Tên đăng nhập</label>
       <input type="text" name="username" class="form-input" required />
@@ -29,13 +29,13 @@
       <button type="submit" class="btn btn-primary">Tạo mới</button>
     </div>
   </form>
-    <p class="text-sm text-muted" style="margin-top: 0.75rem;">Mật khẩu mặc định: <strong>TD@12345</strong></p>
+    <p class="text-sm text-muted u-mt-075">Mật khẩu mặc định: <strong>TD@12345</strong></p>
 </div>
 
 @if (!Model.Any())
 {
   <div class="empty-state">
-    <div style="font-size: 3rem; margin-bottom: 0.75rem;">👥</div>
+    <div class="u-empty-icon-lg">👥</div>
     <p>Chưa có tài khoản nào</p>
   </div>
 }
@@ -84,7 +84,7 @@ else
   </div>
 }
 
-<div class="modal-overlay" id="editModal" style="display: none;">
+<div class="modal-overlay u-hidden" id="editModal">
   <div class="modal">
     <div class="modal-header">
       <h3 class="modal-title">Sửa tài khoản</h3>
@@ -104,7 +104,7 @@ else
         <label class="form-label">Tên hiển thị</label>
         <input type="text" name="fullName" id="editFullName" class="form-input" />
       </div>
-      <div class="flex gap-2" style="margin-top: 1.25rem;">
+      <div class="flex gap-2 u-mt-125">
         <button type="button" class="btn btn-secondary flex-1" onclick="hideEditModal()">Hủy</button>
         <button type="submit" class="btn btn-primary flex-1">Lưu thay đổi</button>
       </div>

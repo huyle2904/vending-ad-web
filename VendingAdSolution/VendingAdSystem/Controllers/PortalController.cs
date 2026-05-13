@@ -38,6 +38,25 @@ public class PortalController : Controller
         _playbackScheduleService = playbackScheduleService;
     }
 
+    private static string DateRangeText(PlaybackSchedule schedule)
+    {
+        var start = schedule.StartDate.AddHours(7).ToString("dd/MM/yyyy");
+        var end = schedule.EndDate.AddHours(7).ToString("dd/MM/yyyy");
+        return start == end ? start : $"{start} - {end}";
+    }
+
+    private static string TimeRangeText(PlaybackSchedule schedule)
+    {
+        return $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
+    }
+
+    private static string LastSeenText(Device device)
+    {
+        return device.LastSeen.HasValue
+            ? device.LastSeen.Value.AddHours(7).ToString("dd/MM/yyyy HH:mm")
+            : "Chưa bao giờ";
+    }
+
     private bool IsPortalLoggedIn()
     {
         return _currentSession.IsPortalLoggedIn;
@@ -141,22 +160,64 @@ public class PortalController : Controller
             .OrderByDescending(m => m.UploadedAt)
             .ToListAsync();
 
-        ViewBag.TotalDevices = devices.Count;
-        ViewBag.OnlineDevices = onlineDevices;
-        ViewBag.OfflineDevices = devices.Count - onlineDevices;
-        ViewBag.TotalSchedules = schedules.Count;
-        ViewBag.ActiveSchedules = currentSchedules.Count;
-        ViewBag.UpcomingSchedules = upcomingSchedules.Count;
-        ViewBag.CurrentSchedules = currentSchedules;
-        ViewBag.UpcomingScheduleList = upcomingSchedules;
-        ViewBag.CurrentScheduleByDevice = currentByDevice;
-        ViewBag.UpcomingScheduleByDevice = upcomingByDevice;
-        ViewBag.Playlists = playlists;
-        ViewBag.Medias = medias;
-        ViewBag.UtcNow = now;
-        ViewBag.VietnamNow = vietnamNow;
+        var nowPlaying = currentSchedules.FirstOrDefault();
+        var upcomingScheduleCard = upcomingSchedules.FirstOrDefault();
 
-        return View(devices);
+        var vm = new DashboardViewModel
+        {
+            DateFilterLabel = $"Hôm nay, {vietnamNow:dd/MM/yyyy}",
+            Kpis = new List<KpiViewModel>
+            {
+                new() { Key = "total", Label = "Tổng thiết bị", Value = devices.Count.ToString(), Description = "2 so với tuần trước", Icon = "bi-pc-display", Tone = "primary" },
+                new() { Key = "online", Label = "Trực tuyến", Value = onlineDevices.ToString(), Description = "", Icon = "bi-wifi", Tone = "success" },
+                new() { Key = "offline", Label = "Ngoại tuyến", Value = (devices.Count - onlineDevices).ToString(), Description = "", Icon = "bi-power", Tone = "danger" },
+                new() { Key = "playing", Label = "Đang phát", Value = currentSchedules.Count.ToString(), Description = "", Icon = "bi-play-circle", Tone = "warning" },
+                new() { Key = "upcoming", Label = "Sắp phát", Value = upcomingSchedules.Count.ToString(), Description = "", Icon = "bi-list-task", Tone = "info" },
+                new() { Key = "videos", Label = "Tổng video", Value = medias.Count.ToString(), Description = "", Icon = "bi-collection-play", Tone = "primary" }
+            },
+            NowPlaying = nowPlaying == null ? new PlaylistViewModel { IsEmpty = true } : new PlaylistViewModel
+            {
+                Name = nowPlaying.Name,
+                DateText = DateRangeText(nowPlaying),
+                TimeText = TimeRangeText(nowPlaying),
+                DeviceCode = nowPlaying.Devices.OrderBy(d => d.Device.DeviceCode).Select(d => d.Device.DeviceCode).FirstOrDefault() ?? "N/A",
+                VideoCount = nowPlaying.Items.Count,
+                CtaUrl = "/portal/schedules"
+            },
+            Upcoming = upcomingScheduleCard == null ? new PlaylistViewModel { IsEmpty = true } : new PlaylistViewModel
+            {
+                Name = upcomingScheduleCard.Name,
+                DateText = DateRangeText(upcomingScheduleCard),
+                TimeText = TimeRangeText(upcomingScheduleCard),
+                DeviceCode = upcomingScheduleCard.Devices.OrderBy(d => d.Device.DeviceCode).Select(d => d.Device.DeviceCode).FirstOrDefault() ?? "N/A",
+                VideoCount = upcomingScheduleCard.Items.Count,
+                CtaUrl = "/portal/schedules"
+            },
+            Devices = devices
+                .Select(device =>
+            {
+                var current = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
+                var next = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
+                var isOnline = device.LastSeen.HasValue && (now - device.LastSeen.Value).TotalMinutes < 5;
+                return new DeviceViewModel
+                {
+                    Id = device.Id,
+                    DeviceCode = device.DeviceCode,
+                    Location = string.IsNullOrWhiteSpace(device.Location) ? "Chưa có vị trí" : device.Location,
+                    IsOnline = isOnline,
+                    CurrentPlaylist = current?.Name ?? "Chưa có",
+                    UpcomingPlaylist = next?.Name ?? "Chưa có",
+                    ContentCount = current?.Items.Count ?? 0,
+                    LastActiveText = LastSeenText(device)
+                };
+            })
+            .OrderByDescending(d => d.IsOnline)
+            .ThenBy(d => d.DeviceCode)
+            .Take(3)
+            .ToList()
+        };
+
+        return View(vm);
     }
 
     [HttpGet("/portal/videos")]

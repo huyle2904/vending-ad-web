@@ -11,8 +11,8 @@
   </div>
 </div>
 
-<div class="flex gap-2" style="margin-bottom: 1.25rem; flex-wrap: wrap;">
-  <select id="userFilter" class="form-input" style="width: auto;" onchange="filterDevices()">
+<div class="flex gap-2 u-mb-125 u-wrap">
+  <select id="userFilter" class="form-input u-w-auto" onchange="filterDevices()">
     <option value="">Tất cả tài khoản</option>
     <option value="unassigned">Chưa gán</option>
     @foreach (var user in users)
@@ -26,7 +26,7 @@
   @if (!Model.Any())
   {
     <div class="empty-state">
-      <div style="font-size: 2.5rem; margin-bottom: 0.75rem;">📱</div>
+      <div class="u-empty-icon-md">📱</div>
       <p>Chưa có thiết bị nào.</p>
     </div>
   }
@@ -34,7 +34,7 @@
   {
     <table class="table" id="deviceTable">
       <thead>
-        <tr>
+        <tr class="fx-list-row">
           <th>Mã thiết bị</th>
           <th>Mã liên kết</th>
           <th>Vị trí</th>
@@ -49,11 +49,11 @@
         {
           var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
           <tr data-user-id="@(device.UserId?.ToString() ?? string.Empty)">
-            <td><strong style="color: var(--primary); font-family: monospace;">@device.DeviceCode</strong></td>
+            <td><strong class="u-primary-mono">@device.DeviceCode</strong></td>
             <td>
               @if (!string.IsNullOrWhiteSpace(device.ClaimCode))
               {
-                <span class="badge badge-secondary" style="font-family: monospace;">@device.ClaimCode</span>
+                <span class="badge badge-secondary u-mono">@device.ClaimCode</span>
               }
               else
               {
@@ -90,7 +90,7 @@
                 }
                 <form method="post" action="/admin/devices/delete" onsubmit="return confirm('Xóa thiết bị @device.DeviceCode?')">
                   <input type="hidden" name="deviceId" value="@device.Id" />
-                  <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
+                  <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>
               </div>
             </td>
@@ -101,7 +101,7 @@
   }
 </div>
 
-<div class="modal-overlay" id="assignModal" style="display: none;">
+<div class="modal-overlay u-hidden" id="assignModal">
   <div class="modal">
     <div class="modal-header">
       <div>
@@ -112,10 +112,10 @@
     </div>
     <form method="post" action="/admin/devices/assign">
       <input type="hidden" name="deviceId" id="assignDeviceId" />
-      <div class="card" style="margin-bottom: 1rem;">
+      <div class="card u-mb-1">
         <div class="text-sm">Mã thiết bị: <strong id="assignDeviceCode"></strong></div>
-        <div class="text-sm text-muted" style="margin-top:.35rem;">Vị trí: <span id="assignLocation"></span></div>
-        <div class="text-sm text-muted" style="margin-top:.35rem;">Mã liên kết: <span id="assignClaimCode" style="font-family: monospace;"></span></div>
+        <div class="text-sm text-muted u-mt-035">Vị trí: <span id="assignLocation"></span></div>
+        <div class="text-sm text-muted u-mt-035">Mã liên kết: <span id="assignClaimCode" class="u-mono"></span></div>
       </div>
       <div class="form-group">
         <label class="form-label">Gán cho tài khoản</label>
@@ -127,7 +127,7 @@
           }
         </select>
       </div>
-      <div class="flex gap-2" style="margin-top: 1.25rem;">
+      <div class="flex gap-2 u-mt-125">
         <button type="button" class="btn btn-secondary flex-1" onclick="hideAssignModal()">Hủy</button>
         <button type="submit" class="btn btn-primary flex-1">Gán thiết bị</button>
       </div>

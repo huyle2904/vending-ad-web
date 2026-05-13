@@ -1,0 +1,24 @@
+@using VendingAdSystem.Application.DTOs
+@model DeviceViewModel
+
+<article class="device-card">
+  <header>
+    <div class="device-name"><i class="bi bi-phone"></i><strong>@Model.DeviceCode</strong></div>
+    <span class="status-pill @(Model.IsOnline ? "online" : "offline")">@(Model.IsOnline ? "Đang online" : "Ngoại tuyến")</span>
+  </header>
+
+  <div class="device-body">
+    <p><i class="bi bi-geo-alt"></i>@Model.Location</p>
+    <p><span class="label">Đang phát</span><span class="soft-badge">@Model.CurrentPlaylist</span></p>
+    <p><span class="label">Sắp phát</span><span class="soft-badge">@Model.UpcomingPlaylist</span></p>
+    <p><span class="label">Nội dung</span><strong>@Model.ContentCount video</strong></p>
+  </div>
+
+  <footer>
+    <span class="last-active">Hoạt động cuối: @Model.LastActiveText</span>
+    <div class="device-actions">
+      <a class="btn-outline" href="/portal/devices">Chi tiết</a>
+      <a class="btn-primary" href="/portal/devices"><i class="bi bi-play-fill"></i>Phát nhanh</a>
+    </div>
+  </footer>
+</article>

@@ -1,0 +1,70 @@
+/* Shared hover/motion effects */
+.fx-card {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.fx-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(10, 35, 90, .10);
+}
+
+.fx-btn {
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.fx-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.fx-soft {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.fx-soft:hover {
+  background: #eef4ff;
+  border-color: #cfe0ff;
+}
+
+.fx-list-row {
+  transition: background-color .14s ease;
+}
+.fx-list-row:hover {
+  background: #f8fbff;
+}
+
+/* Global button hover */
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-danger,
+.btn-soft,
+.btn-outline,
+.video-upload-btn,
+.login-btn-submit {
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease, background-color .15s ease, border-color .15s ease;
+}
+
+.btn:hover,
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-ghost:hover,
+.btn-danger:hover,
+.btn-soft:hover,
+.btn-outline:hover,
+.video-upload-btn:hover,
+.login-btn-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
+.btn:active,
+.btn-primary:active,
+.btn-secondary:active,
+.btn-ghost:active,
+.btn-danger:active,
+.btn-soft:active,
+.btn-outline:active,
+.video-upload-btn:active,
+.login-btn-submit:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.10);
+}

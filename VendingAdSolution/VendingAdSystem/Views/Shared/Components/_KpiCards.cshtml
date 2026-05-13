@@ -1,0 +1,15 @@
+@using VendingAdSystem.Application.DTOs
+@model List<KpiViewModel>
+
+<section class="kpi-grid">
+@foreach (var kpi in Model)
+{
+    <article class="kpi-card">
+        <div class="kpi-icon tone-@kpi.Tone"><i class="bi @kpi.Icon"></i></div>
+        <div>
+            <h3 class="kpi-value">@kpi.Value</h3>
+            <p class="kpi-label">@kpi.Label</p>
+        </div>
+    </article>
+}
+</section>

@@ -1,0 +1,30 @@
+@using VendingAdSystem.Application.DTOs
+@model PlaylistViewModel?
+
+<article class="surface-card">
+  <header class="surface-head">
+    <div>
+      <h2><span class="status-dot tone-warning"></span>Sắp phát</h2>
+      <p>Danh sách phát sắp tới trên các thiết bị</p>
+    </div>
+  </header>
+
+@if (Model == null || Model.IsEmpty)
+{
+  <div class="empty-box"><i class="bi bi-calendar-event"></i><span>Chưa có danh sách phát sắp tới.</span></div>
+}
+else
+{
+  <div class="playlist-item">
+    <img src="@(string.IsNullOrWhiteSpace(Model.ThumbnailUrl) ? "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&q=60" : Model.ThumbnailUrl)" alt="preview" />
+    <div>
+      <h3>@Model.Name</h3>
+      <div class="meta-row"><span><i class="bi bi-calendar3"></i>@Model.DateText</span><span><i class="bi bi-clock"></i>@Model.TimeText</span></div>
+      <span class="mini-badge">@Model.DeviceCode</span>
+    </div>
+    <span class="count-badge">@Model.VideoCount video</span>
+  </div>
+}
+
+  <a class="cta-link" href="@(Model?.CtaUrl ?? "/portal/schedules")">Xem tất cả sắp phát <i class="bi bi-arrow-right"></i></a>
+</article>

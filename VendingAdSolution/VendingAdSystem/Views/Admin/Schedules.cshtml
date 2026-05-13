@@ -17,7 +17,7 @@
 </div>
 
 <form method="get" action="/admin/schedules" class="card" style="margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
-  <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
+  <div class="form-group u-fg-inline-220">
     <label class="form-label">Người dùng</label>
     <select name="userId" class="form-input">
       <option value="">Tất cả người dùng</option>
@@ -27,7 +27,7 @@
       }
     </select>
   </div>
-  <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
+  <div class="form-group u-fg-inline-220">
     <label class="form-label">Thiết bị</label>
     <select name="deviceId" class="form-input">
       <option value="">Tất cả thiết bị</option>
@@ -37,19 +37,19 @@
       }
     </select>
   </div>
-  <div class="form-group" style="margin-bottom: 0; min-width: 260px;">
+  <div class="form-group u-fg-inline-260">
     <label class="form-label">Tìm kiếm</label>
     <input type="text" name="keyword" value="@keyword" class="form-input" placeholder="Tên lịch phát, người dùng, video" />
   </div>
-  <button type="submit" class="btn btn-primary">Lọc</button>
-  <a href="/admin/schedules" class="btn btn-secondary">Xóa bộ lọc</a>
+  <button type="submit" class="btn btn-primary fx-btn">Lọc</button>
+  <a href="/admin/schedules" class="btn btn-secondary fx-soft">Xóa bộ lọc</a>
 </form>
 
 <div class="table-wrapper">
   @if (!Model.Any())
   {
     <div class="empty-state">
-      <div style="font-size: 3rem; margin-bottom: 0.75rem;">🗓️</div>
+      <div class="u-empty-icon-lg">🗓️</div>
       <p>Chưa có lịch phát nào.</p>
     </div>
   }
@@ -57,7 +57,7 @@
   {
     <table class="table">
       <thead>
-        <tr>
+        <tr class="fx-list-row">
           <th>Tên</th>
           <th>Người dùng</th>
           <th>Thiết bị</th>
@@ -70,13 +70,13 @@
       <tbody>
         @foreach (var s in Model)
         {
-          <tr>
+          <tr class="fx-list-row">
             <td><strong style="color: var(--primary);">@s.Name</strong></td>
             <td><span class="badge badge-primary">@(s.User?.Username ?? "-")</span></td>
             <td>
               @foreach (var d in s.Devices.OrderBy(x => x.Device.DeviceCode))
               {
-                <span class="badge badge-secondary" style="margin-right: 0.35rem;">@d.Device.DeviceCode</span>
+                <span class="badge badge-secondary u-mr-035">@d.Device.DeviceCode</span>
               }
             </td>
             <td>@s.Items.Count video</td>
@@ -90,7 +90,7 @@
                 </form>
                 <form method="post" action="/admin/schedules/delete" onsubmit="return confirm('Xóa schedule @s.Name?')">
                   <input type="hidden" name="scheduleId" value="@s.Id" />
-                  <button type="submit" class="btn btn-sm" style="background: rgba(220,38,38,0.1); color: var(--destructive);">Xóa</button>
+                  <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>
               </div>
             </td>

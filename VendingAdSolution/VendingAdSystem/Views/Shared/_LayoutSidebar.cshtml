@@ -21,6 +21,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>@ViewData["Title"] | VendAD</title>
   <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+  <link rel="stylesheet" href="~/css/ui-components.css" asp-append-version="true" />
+  <link rel="stylesheet" href="~/css/ui-effects.css" asp-append-version="true" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <style>
     .sidebar {
       width: 256px;
@@ -156,31 +159,31 @@
         <div class="nav-section">
           <div class="nav-section-title">Danh mục</div>
           <a href="/portal/dashboard" class="nav-item @(currentUrl.Contains("dashboard") ? "active" : "")">
-            <span class="nav-icon">📊</span> Bảng điều khiển
+            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span> Bảng điều khiển
           </a>
           <a href="/portal/videos" class="nav-item @(currentUrl.Contains("videos") ? "active" : "")">
-            <span class="nav-icon">🎬</span> Video
+            <span class="nav-icon"><i class="bi bi-film"></i></span> Video
           </a>
           <a href="/portal/playlist" class="nav-item @(currentUrl.Contains("playlist") ? "active" : "")">
-            <span class="nav-icon">📋</span> Danh sách phát
+            <span class="nav-icon"><i class="bi bi-card-checklist"></i></span> Danh sách phát
           </a>
           <a href="/portal/schedules" class="nav-item @(currentUrl.Contains("schedules") ? "active" : "")">
-            <span class="nav-icon">🗓️</span> Lịch phát
+            <span class="nav-icon"><i class="bi bi-calendar3"></i></span> Lịch phát
           </a>
           <a href="/portal/devices" class="nav-item @(currentUrl.Contains("devices") ? "active" : "")">
-            <span class="nav-icon">📱</span> Thiết bị
+            <span class="nav-icon"><i class="bi bi-phone"></i></span> Thiết bị
           </a>
           <a href="/portal/device-wall" class="nav-item @(currentUrl.Contains("device-wall") ? "active" : "")">
-            <span class="nav-icon">🖥️</span> Màn hình thiết bị
+            <span class="nav-icon"><i class="bi bi-display"></i></span> Màn hình thiết bị
           </a>
         </div>
         <div class="nav-section">
           <div class="nav-section-title">Hệ thống</div>
           <a href="/profile" class="nav-item @(currentUrl.Contains("profile") ? "active" : "")">
-            <span class="nav-icon">👤</span> Tài khoản
+            <span class="nav-icon"><i class="bi bi-person"></i></span> Tài khoản
           </a>
           <a href="/settings" class="nav-item @(currentUrl.Contains("settings") ? "active" : "")">
-            <span class="nav-icon">⚙️</span> Cài đặt
+            <span class="nav-icon"><i class="bi bi-gear"></i></span> Cài đặt
           </a>
         </div>
       }
@@ -189,22 +192,22 @@
         <div class="nav-section">
           <div class="nav-section-title">Admin</div>
           <a href="/admin" class="nav-item @(currentUrl == "/admin" ? "active" : "")">
-            <span class="nav-icon">📊</span> Thống kê
+            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span> Thống kê
           </a>
           <a href="/admin/users" class="nav-item @(currentUrl.Contains("/admin/users") ? "active" : "")">
-            <span class="nav-icon">👥</span> Tài khoản
+            <span class="nav-icon"><i class="bi bi-people"></i></span> Tài khoản
           </a>
           <a href="/admin/devices" class="nav-item @(currentUrl.Contains("/admin/devices") ? "active" : "")">
-            <span class="nav-icon">📱</span> Thiết bị
+            <span class="nav-icon"><i class="bi bi-phone"></i></span> Thiết bị
           </a>
           <a href="/admin/videos" class="nav-item @(currentUrl.Contains("/admin/videos") ? "active" : "")">
-            <span class="nav-icon">🎬</span> Video
+            <span class="nav-icon"><i class="bi bi-film"></i></span> Video
           </a>
           <a href="/admin/playlists" class="nav-item @(currentUrl.Contains("/admin/playlists") ? "active" : "")">
-            <span class="nav-icon">📋</span> Danh sách phát
+            <span class="nav-icon"><i class="bi bi-card-checklist"></i></span> Danh sách phát
           </a>
           <a href="/admin/schedules" class="nav-item @(currentUrl.Contains("/admin/schedules") ? "active" : "")">
-            <span class="nav-icon">🗓️</span> Lịch phát
+            <span class="nav-icon"><i class="bi bi-calendar3"></i></span> Lịch phát
           </a>
         </div>
       }

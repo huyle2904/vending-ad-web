@@ -16,24 +16,23 @@
     string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
 }
 
-<div class="page-header">
-  <h1 class="page-title">Quản lý Thiết bị</h1>
-  <button class="btn btn-primary" onclick="showAddModal()">+ Thêm thiết bị</button>
-</div>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-value">@totalDevices</div>
-    <div class="stat-label">Tổng thiết bị</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value stat-success">@onlineCount</div>
-    <div class="stat-label">Đang online</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-value stat-danger">@offlineCount</div>
-    <div class="stat-label">Ngoại tuyến</div>
-  </div>
+<div class="devices-page">
+  <header class="devices-topbar">
+    <div>
+      <nav class="dashboard-breadcrumb" aria-label="breadcrumb"><span>Danh mục</span><i class="bi bi-chevron-right"></i><span class="active">Thiết bị</span></nav>
+      <h1 class="dashboard-title">Quản lý Thiết bị</h1>
+      <p class="dashboard-subtitle">Theo dõi trạng thái thiết bị và thao tác phát nhanh theo thời gian thực.</p>
+    </div>
+    <button type="button" class="video-upload-btn playlist-create-top" onclick="showAddModal()"><i class="bi bi-plus-lg"></i>Thêm thiết bị</button>
+  </header>
+
+<div class="kpi-grid devices-kpi">
+  <div class="kpi-card"><div class="kpi-icon tone-primary"><i class="bi bi-pc-display"></i></div><div><h3 class="kpi-value">@totalDevices</h3><p class="kpi-label">Tổng thiết bị</p></div></div>
+  <div class="kpi-card"><div class="kpi-icon tone-success"><i class="bi bi-wifi"></i></div><div><h3 class="kpi-value">@onlineCount</h3><p class="kpi-label">Đang online</p></div></div>
+  <div class="kpi-card"><div class="kpi-icon tone-danger"><i class="bi bi-power"></i></div><div><h3 class="kpi-value">@offlineCount</h3><p class="kpi-label">Ngoại tuyến</p></div></div>
 </div>
 
 @if (!Model.Any())
@@ -41,42 +40,42 @@
     <div class="empty-state">
     <div class="empty-state-icon">📱</div>
     <p>Chưa có thiết bị nào</p>
-    <button class="btn btn-primary" style="margin-top: 1rem;" onclick="showAddModal()">+ Thêm thiết bị</button>
+    <button class="btn btn-primary u-mt-1" onclick="showAddModal()">+ Thêm thiết bị</button>
   </div>
 }
 else
 {
-  <div class="grid grid-cols-3">
+  <section class="surface-card device-section u-padding-1">
+  <div class="device-grid">
     @foreach (var device in Model)
     {
       var isOnline = device.LastSeen.HasValue && (utcNow - device.LastSeen.Value).TotalMinutes < 5;
       var currentSchedule = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
       var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
-      <div class="card">
-        <div class="flex items-center justify-between" style="margin-bottom: 0.75rem;">
-          <div class="flex items-center gap-2" style="font-weight: 600;">
-            <span>📱</span>
-            <span>@device.DeviceCode</span>
+      <div class="device-card fx-card">
+        <header>
+          <div class="device-name"><i class="bi bi-phone"></i><strong>@device.DeviceCode</strong></div>
+          <span class="status-pill @(isOnline ? "online" : "offline")">@(isOnline ? "Đang online" : "Ngoại tuyến")</span>
+        </header>
+        <div class="device-body">
+          <p><i class="bi bi-geo-alt"></i>@(device.Location ?? "Chưa có")</p>
+          <p><span class="label">Đang phát</span><span class="soft-badge">@(currentSchedule?.Name ?? "Chưa có")</span></p>
+          <p><span class="label">Sắp phát</span><span class="soft-badge">@(upcomingSchedule?.Name ?? "Chưa có")</span></p>
+        </div>
+        <footer>
+          <div class="device-actions">
+            <button type="button" class="btn-primary" onclick="openQuickPlay(@device.Id); return false;">Phát nhanh</button>
+            <button type="button" class="btn-outline" onclick="openDeviceDetail(@device.Id); return false;">Chi tiết</button>
+            <form method="post" action="/portal/devices/delete" class="u-inline">
+              <input type="hidden" name="deviceId" value="@device.Id" />
+              <button type="submit" class="btn-outline u-danger-text" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')">Xóa</button>
+            </form>
           </div>
-          <span class="badge @(isOnline ? "badge-success" : "badge-danger")">
-            <span class="status-dot @(isOnline ? "status-online" : "status-offline")"></span>
-            @(isOnline ? "Đang online" : "Ngoại tuyến")
-          </span>
-        </div>
-        <div class="flex items-center gap-2 text-muted text-sm">📍 @device.Location</div>
-        <div class="text-muted text-sm" style="margin-top: 0.5rem;">Đang phát: <strong>@(currentSchedule?.Name ?? "Chưa có")</strong></div>
-        <div class="text-muted text-sm">Sắp phát: <strong>@(upcomingSchedule?.Name ?? "Chưa có")</strong></div>
-        <div class="device-card-actions">
-          <button type="button" class="btn btn-primary btn-sm" onclick="openQuickPlay(@device.Id)">Phát nhanh</button>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="openDeviceDetail(@device.Id)">Chi tiết</button>
-          <form method="post" action="/portal/devices/delete">
-            <input type="hidden" name="deviceId" value="@device.Id" />
-            <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--destructive); width: 100%;" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')">Xóa</button>
-          </form>
-        </div>
+        </footer>
       </div>
     }
   </div>
+</section>
 }
 
 @foreach (var device in Model)
@@ -85,7 +84,7 @@ else
   var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
   var isOnline = device.LastSeen.HasValue && (utcNow - device.LastSeen.Value).TotalMinutes < 5;
   var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
-  <div class="modal-overlay" id="deviceDetail-@device.Id" style="display: none;">
+  <div class="modal-overlay u-hidden" id="deviceDetail-@device.Id">
     <div class="modal modal-wide">
       <div class="modal-header">
         <div>
@@ -97,7 +96,7 @@ else
       <div class="grid grid-cols-2" style="gap: 1rem;">
         <div class="card">
           <div class="card-title">Thiết bị</div>
-          <div class="text-sm" style="margin-top: .5rem;">Mã: @device.DeviceCode</div>
+          <div class="text-sm u-mt-05">Mã: @device.DeviceCode</div>
           <div class="text-sm">Vị trí: @(device.Location ?? "Chưa có")</div>
           <div class="text-sm">Trạng thái: @(isOnline ? "Đang online" : "Ngoại tuyến")</div>
           <div class="text-sm">Lần hoạt động cuối: <span class="time-chip time-chip-date">@lastSeenVietnam</span></div>
@@ -106,13 +105,13 @@ else
           <div class="card-title">Đang phát</div>
           @if (currentSchedule == null)
           {
-            <div class="text-sm text-muted" style="margin-top: .5rem;">Chưa có schedule đang phát.</div>
+            <div class="text-sm text-muted u-mt-05">Chưa có schedule đang phát.</div>
           }
           else
           {
-            <div class="text-sm" style="margin-top: .5rem;">@currentSchedule.Name</div>
+            <div class="text-sm u-mt-05">@currentSchedule.Name</div>
             <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(currentSchedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(currentSchedule)</span></div>
-            <div class="flex flex-wrap gap-2" style="margin-top: .75rem;">
+            <div class="flex flex-wrap gap-2 u-mt-075">
               @foreach (var item in currentSchedule.Items.OrderBy(i => i.OrderIndex))
               {
                 <span class="badge badge-secondary">#@(item.OrderIndex + 1) @item.Media.FileName</span>
@@ -121,17 +120,17 @@ else
           }
         </div>
       </div>
-      <div class="card" style="margin-top: 1rem;">
+      <div class="card u-mt-1">
         <div class="card-title">Sắp phát</div>
         @if (upcomingSchedule == null)
         {
-          <div class="text-sm text-muted" style="margin-top: .5rem;">Chưa có schedule sắp tới.</div>
+          <div class="text-sm text-muted u-mt-05">Chưa có schedule sắp tới.</div>
         }
         else
         {
-          <div class="text-sm" style="margin-top: .5rem;">@upcomingSchedule.Name</div>
+          <div class="text-sm u-mt-05">@upcomingSchedule.Name</div>
           <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(upcomingSchedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(upcomingSchedule)</span></div>
-          <div class="flex flex-wrap gap-2" style="margin-top: .75rem;">
+          <div class="flex flex-wrap gap-2 u-mt-075">
             @foreach (var item in upcomingSchedule.Items.OrderBy(i => i.OrderIndex))
             {
               <span class="badge badge-secondary">#@(item.OrderIndex + 1) @item.Media.FileName</span>
@@ -143,7 +142,7 @@ else
   </div>
 }
 
-<div class="modal-overlay" id="addModal" style="display: none;">
+<div class="modal-overlay u-hidden" id="addModal">
   <div class="modal">
     <div class="modal-header">
       <h3 class="modal-title">Thêm thiết bị bằng mã liên kết</h3>
@@ -153,9 +152,9 @@ else
       <div class="form-group">
         <label class="form-label">Mã liên kết</label>
         <input type="text" name="claimCode" id="claimCodeInput" class="form-input" placeholder="VD: 483920" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required />
-        <div class="text-sm text-muted" style="margin-top: .45rem;">Mã 6 số hiển thị trên app sau khi đăng ký thiết bị.</div>
+        <div class="text-sm text-muted u-mt-045">Mã 6 số hiển thị trên app sau khi đăng ký thiết bị.</div>
       </div>
-      <div class="flex gap-2" style="margin-top: 1.25rem;">
+      <div class="flex gap-2 u-mt-125">
         <button type="button" class="btn btn-secondary flex-1" onclick="hideAddModal()">Hủy</button>
         <button type="submit" class="btn btn-primary flex-1">Liên kết</button>
       </div>
@@ -163,7 +162,7 @@ else
   </div>
 </div>
 
-<div class="modal-overlay" id="quickPlayModal" style="display: none;">
+<div class="modal-overlay u-hidden" id="quickPlayModal">
   <div class="modal modal-wide">
     <div class="modal-header">
       <div>
@@ -191,7 +190,7 @@ else
       <div id="quickPlayMediaPanel">
         @if (!medias.Any())
         {
-          <div class="empty-state" style="padding: 1rem; margin-top: 1rem;">
+          <div class="empty-state u-padding-1 u-mt-1">
             <p>Chưa có video trong kho.</p>
           </div>
         }
@@ -212,10 +211,10 @@ else
         }
       </div>
 
-      <div id="quickPlayPlaylistPanel" style="display:none;">
+      <div id="quickPlayPlaylistPanel" class="u-hidden">
         @if (!playlists.Any())
         {
-          <div class="empty-state" style="padding: 1rem; margin-top: 1rem;">
+          <div class="empty-state u-padding-1 u-mt-1">
             <p>Chưa có playlist nào.</p>
           </div>
         }
@@ -237,7 +236,7 @@ else
         }
       </div>
 
-      <div class="flex gap-2" style="margin-top: 1.25rem;">
+      <div class="flex gap-2 u-mt-125">
         <button type="button" class="btn btn-secondary flex-1" onclick="hideQuickPlayModal()">Hủy</button>
         <button type="submit" class="btn btn-primary flex-1" id="quickPlaySubmitBtn">Phát ngay</button>
       </div>

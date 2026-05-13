@@ -4,29 +4,38 @@
     Layout = "_LayoutLogin";
 }
 
-<div class="login-container">
-  <div class="login-shell">
-    <section class="login-brand-panel" aria-label="Thông tin hệ thống">
-      <div class="login-brand-mark">VA</div>
-      <div>
-        <h1 class="login-brand-title">VendingAds CMS</h1>
-        <p class="login-brand-text">Quản lý video, playlist, lịch phát và thiết bị quảng cáo từ một portal duy nhất.</p>
-      </div>
-      <div class="login-capability-list">
-        <div class="login-capability-item">Lên lịch phát theo giờ Việt Nam</div>
-        <div class="login-capability-item">Theo dõi thiết bị và nội dung đang chạy</div>
-        <div class="login-capability-item">Đồng bộ video tới device tự động</div>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+
+<div class="login-page">
+  <div class="login-shell-modern">
+    <section class="login-left-panel" aria-label="Thông tin hệ thống">
+      <div class="login-left-overlay"></div>
+      <div class="login-left-content">
+        <div class="login-brand-mark">VA</div>
+        <div class="login-eyebrow">CMS PORTAL</div>
+        <h1>VendingAds CMS</h1>
+        <p>Quản lý video, playlist, lịch phát và thiết bị quảng cáo từ một portal duy nhất.</p>
+
+        <div class="login-feature-list">
+          <div class="login-feature-item"><span class="ficon blue"><i class="bi bi-collection-play"></i></span><div><strong>Quản lý nội dung</strong><small>Upload và quản lý video dễ dàng</small></div></div>
+          <div class="login-feature-item"><span class="ficon violet"><i class="bi bi-calendar-event"></i></span><div><strong>Lịch phát thông minh</strong><small>Tạo lịch phát theo giờ và ngày linh hoạt</small></div></div>
+          <div class="login-feature-item"><span class="ficon green"><i class="bi bi-pc-display"></i></span><div><strong>Quản lý thiết bị</strong><small>Giám sát trạng thái và điều khiển thiết bị từ xa</small></div></div>
+          <div class="login-feature-item"><span class="ficon amber"><i class="bi bi-graph-up-arrow"></i></span><div><strong>Báo cáo & thống kê</strong><small>Theo dõi hiệu suất và hoạt động hệ thống</small></div></div>
+        </div>
+
+        <div class="login-left-footer"><i class="bi bi-shield-check"></i>Bảo mật - Ổn định - Hiệu quả</div>
       </div>
     </section>
 
-    <section class="login-card" aria-label="Đăng nhập">
-      <div class="login-header">
-        <div class="login-eyebrow">CMS Portal</div>
-        <h2 class="login-title">Đăng nhập</h2>
-        <p class="login-subtitle">Truy cập hệ thống quản lý quảng cáo.</p>
+    <section class="login-right-panel" aria-label="Đăng nhập">
+      <div class="login-header-modern">
+        <div class="welcome">Chào mừng trở lại! <span>👋</span></div>
+        <h2>Đăng nhập</h2>
+        <p>Truy cập hệ thống quản lý quảng cáo.</p>
       </div>
 
-      <form class="login-form" method="post" action="/account/login">
+      <form class="login-form-modern" method="post" action="/account/login">
         @if (!ViewData.ModelState.IsValid)
         {
           <div class="alert alert-danger">
@@ -42,21 +51,37 @@
 
         <div class="form-group">
           <label class="form-label" for="loginUsername">Email hoặc username</label>
-          <input id="loginUsername" type="text" name="username" class="form-input login-input" placeholder="test@test" autocomplete="username" required />
+          <div class="input-icon-wrap"><i class="bi bi-person"></i><input id="loginUsername" type="text" name="username" class="form-input" placeholder="test@test" autocomplete="username" required /></div>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="loginPassword">Mật khẩu</label>
-          <input id="loginPassword" type="password" name="password" class="form-input login-input" placeholder="••••••••" autocomplete="current-password" required />
+          <div class="input-icon-wrap"><i class="bi bi-lock"></i><input id="loginPassword" type="password" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required /><button class="eye-btn" type="button" onclick="togglePassword()"><i class="bi bi-eye"></i></button></div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block login-submit">Đăng nhập</button>
+        <div class="login-meta-row">
+          <label><input type="checkbox" checked /> Ghi nhớ đăng nhập</label>
+          <a href="javascript:void(0)">Quên mật khẩu?</a>
+        </div>
+
+        <button type="submit" class="login-btn-submit"><i class="bi bi-box-arrow-in-right"></i>Đăng nhập</button>
       </form>
 
-      <div class="login-demo-box">
-        <div class="login-demo-title">Tài khoản demo</div>
-        <div class="login-demo-row"><span>Người dùng</span><code>test@test / test@test</code></div>
+      <div class="login-or"><span>hoặc</span></div>
+
+      <div class="login-demo-card">
+        <div class="demo-title"><i class="bi bi-people"></i>TÀI KHOẢN DEMO</div>
+        <div class="demo-row"><span>Người dùng</span><code>test@test</code><span>Mật khẩu</span><code>test@test</code></div>
       </div>
     </section>
   </div>
+
+  <p class="login-copyright">© 2026 VendingAds CMS. All rights reserved.</p>
 </div>
+
+<script>
+function togglePassword() {
+  const input = document.getElementById('loginPassword');
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+</script>

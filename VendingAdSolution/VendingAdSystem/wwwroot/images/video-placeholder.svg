@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180" role="img" aria-labelledby="title desc">
+  <title id="title">Video placeholder</title>
+  <desc id="desc">Default placeholder shown when a video thumbnail is unavailable.</desc>
+  <rect width="320" height="180" rx="18" fill="#f8fafc"/>
+  <rect x="0.5" y="0.5" width="319" height="179" rx="17.5" fill="none" stroke="#dbe4ee"/>
+  <path d="M0 138h320v24c0 9.941-8.059 18-18 18H18c-9.941 0-18-8.059-18-18v-24z" fill="#eaf1fb"/>
+  <circle cx="160" cy="82" r="34" fill="#2563eb" fill-opacity="0.12"/>
+  <circle cx="160" cy="82" r="27" fill="#2563eb" fill-opacity="0.16"/>
+  <path d="M153 68.856c0-3.064 3.342-4.954 5.967-3.376l21.236 12.764c2.546 1.53 2.546 5.218 0 6.748l-21.236 12.764c-2.625 1.578-5.967-.312-5.967-3.376V68.856z" fill="#2563eb"/>
+  <rect x="24" y="24" width="54" height="9" rx="4.5" fill="#dbe4ee"/>
+  <rect x="24" y="41" width="86" height="7" rx="3.5" fill="#e2e8f0"/>
+  <text x="24" y="159" fill="#475569" font-family="Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.2">VIDEO</text>
+</svg>

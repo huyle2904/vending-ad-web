@@ -1,0 +1,22 @@
+@using VendingAdSystem.Application.DTOs
+@model List<DeviceViewModel>
+
+<section class="surface-card device-section">
+  <header class="device-section-head">
+    <div>
+      <h2><i class="bi bi-pc-display"></i>Thiết bị</h2>
+      <p>Quản lý và theo dõi trạng thái các thiết bị</p>
+    </div>
+    <div class="device-tools">
+      <div class="search-box"><i class="bi bi-search"></i><input type="text" placeholder="Tìm kiếm thiết bị..." /></div>
+      <a class="btn-soft" href="/portal/devices"><i class="bi bi-hdd-stack"></i>Quản lý device</a>
+    </div>
+  </header>
+
+  <div class="device-grid">
+    @foreach (var device in Model)
+    {
+      @await Html.PartialAsync("~/Views/Shared/Components/_DeviceCard.cshtml", device)
+    }
+  </div>
+</section>

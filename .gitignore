@@ -15,3 +15,6 @@ VendingAdSolution/VendingAdSystem/wwwroot/uploads/*
 .agents/
 .opencode/skills/
 skills-lock.json
+
+# Local architecture notes for future sessions
+VENDING-AD/

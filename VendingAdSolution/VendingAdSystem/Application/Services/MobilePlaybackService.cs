@@ -17,15 +17,18 @@ public class MobilePlaybackService : IMobilePlaybackService
     private readonly IRepository<Device> _devices;
     private readonly IRepository<PlaybackSchedule> _playbackSchedules;
     private readonly ITimeService _timeService;
+    private readonly ICacheService _cacheService;
 
     public MobilePlaybackService(
         IRepository<Device> devices,
         IRepository<PlaybackSchedule> playbackSchedules,
-        ITimeService timeService)
+        ITimeService timeService,
+        ICacheService cacheService)
     {
         _devices = devices;
         _playbackSchedules = playbackSchedules;
         _timeService = timeService;
+        _cacheService = cacheService;
     }
 
     public async Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode)
@@ -60,9 +63,16 @@ public class MobilePlaybackService : IMobilePlaybackService
         };
     }
 
+    private static string BuildPlaybackCacheKey(string deviceCode) => $"mobile:playback-state:{deviceCode}";
+
     public async Task<MobilePlaybackStateResponse?> GetPlaybackStateAsync(string deviceCode)
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
+        var cacheKey = BuildPlaybackCacheKey(normalizedCode);
+        var cached = await _cacheService.GetAsync<MobilePlaybackStateResponse>(cacheKey);
+        if (cached != null)
+            return cached;
+
         var device = await _devices.Query()
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
@@ -74,7 +84,13 @@ public class MobilePlaybackService : IMobilePlaybackService
         var response = CreateEmptyPlaybackState(device, utcNow);
 
         if (!device.IsActive || device.UserId == null)
+        {
+            var unclaimedOrInactiveTtl = device.UserId == null
+                ? TimeSpan.FromSeconds(30)
+                : TimeSpan.FromSeconds(10);
+            await _cacheService.SetAsync(cacheKey, response, unclaimedOrInactiveTtl);
             return response;
+        }
 
         var vietnamNow = _timeService.ToVietnamTime(utcNow);
         var currentTime = vietnamNow.TimeOfDay;
@@ -95,7 +111,10 @@ public class MobilePlaybackService : IMobilePlaybackService
             .FirstOrDefault();
 
         if (schedule == null)
+        {
+            await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromSeconds(10));
             return response;
+        }
 
         var orderedItems = schedule.Items
             .OrderBy(i => i.OrderIndex)
@@ -125,6 +144,8 @@ public class MobilePlaybackService : IMobilePlaybackService
             Checksum = null,
             DurationSeconds = i.Media.DurationSeconds
         }).ToList();
+
+        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromSeconds(5));
 
         return response;
     }

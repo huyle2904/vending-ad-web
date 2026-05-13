@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Repositories.Implementations;
@@ -32,6 +33,21 @@ public static class DependencyInjection
 
             options.UseSqlite(connectionString);
         });
+
+        services.AddMemoryCache();
+
+        var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
+        var redisConnectionString = configuration["Redis:ConnectionString"];
+
+        if (redisEnabled && !string.IsNullOrWhiteSpace(redisConnectionString))
+        {
+            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnectionString));
+            services.AddScoped<ICacheService, RedisCacheService>();
+        }
+        else
+        {
+            services.AddScoped<ICacheService, MemoryCacheService>();
+        }
 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentSession, CurrentSession>();

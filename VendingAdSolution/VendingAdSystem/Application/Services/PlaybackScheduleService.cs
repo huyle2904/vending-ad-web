@@ -53,6 +53,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     public Task<IEnumerable<PlaybackSchedule>> GetAllAsync()
     {
         return _playbackScheduleRepository.Query()
+            .AsNoTracking()
             .Include(s => s.Devices).ThenInclude(d => d.Device)
             .Include(s => s.Items).ThenInclude(i => i.Media)
             .ToListAsync()
@@ -67,6 +68,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     public Task<List<PlaybackSchedule>> GetForUserAsync(int userId)
     {
         return _playbackScheduleRepository.Query()
+            .AsNoTracking()
             .Where(s => s.UserId == userId)
             .Include(s => s.Devices).ThenInclude(d => d.Device)
             .Include(s => s.Items).ThenInclude(i => i.Media)

@@ -55,6 +55,7 @@ public class PortalApiController : ControllerBase
             return Unauthorized();
 
         var devices = await _deviceService.Query()
+            .AsNoTracking()
             .Where(d => d.UserId == userId && d.IsActive)
             .OrderBy(d => d.DeviceCode)
             .Select(d => new { id = d.Id, code = d.DeviceCode, location = d.Location })

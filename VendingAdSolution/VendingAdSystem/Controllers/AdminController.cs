@@ -45,9 +45,9 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return RedirectToAction("Login", "Account");
 
-        var devices = await _deviceService.Query().ToListAsync();
-        var medias = await _mediaService.Query().ToListAsync();
-        var playlists = await _playlists.Query().ToListAsync();
+        var devices = await _deviceService.Query().AsNoTracking().ToListAsync();
+        var medias = await _mediaService.Query().AsNoTracking().ToListAsync();
+        var playlists = await _playlists.Query().AsNoTracking().ToListAsync();
         var schedules = await _playbackScheduleService.GetAllAsync();
         var now = _timeService.UtcNow;
         var vietnamToday = _timeService.ToVietnamTime(now).Date;
@@ -90,11 +90,12 @@ public class AdminController : Controller
             return RedirectToAction("Login", "Account");
 
         var devices = await _deviceService.Query()
+            .AsNoTracking()
             .Include(d => d.User)
             .OrderBy(d => d.DeviceCode)
             .ToListAsync();
 
-        var users = await _userService.Query().Where(u => u.IsActive).OrderBy(u => u.Username).ToListAsync();
+        var users = await _userService.Query().AsNoTracking().Where(u => u.IsActive).OrderBy(u => u.Username).ToListAsync();
         ViewBag.Users = users;
 
         return View(devices);
@@ -107,6 +108,7 @@ public class AdminController : Controller
             return RedirectToAction("Login", "Account");
 
         var query = _mediaService.Query()
+            .AsNoTracking()
             .Include(m => m.User)
             .Include(m => m.PlaylistItems)
                 .ThenInclude(pi => pi.Playlist)
@@ -120,7 +122,7 @@ public class AdminController : Controller
 
         var videos = await query.OrderByDescending(m => m.UploadedAt).ToListAsync();
 
-        ViewBag.Users = await _userService.Query().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.Users = await _userService.Query().AsNoTracking().OrderBy(u => u.Username).ToListAsync();
         ViewBag.SelectedUserId = userId;
         ViewBag.Keyword = keyword;
 
@@ -164,6 +166,7 @@ public class AdminController : Controller
             return RedirectToAction("Login", "Account");
 
         var query = _playlists.Query()
+            .AsNoTracking()
             .Include(p => p.User)
             .Include(p => p.Items)
                 .ThenInclude(pi => pi.Media)
@@ -177,8 +180,8 @@ public class AdminController : Controller
 
         var playlists = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
 
-        ViewBag.Devices = await _deviceService.Query().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
-        ViewBag.Users = await _userService.Query().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.Devices = await _deviceService.Query().AsNoTracking().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Users = await _userService.Query().AsNoTracking().OrderBy(u => u.Username).ToListAsync();
         ViewBag.SelectedUserId = userId;
         ViewBag.Keyword = keyword;
         return View("~/Views/Admin/Playlists.cshtml", playlists);
@@ -209,8 +212,8 @@ public class AdminController : Controller
             .OrderByDescending(s => s.CreatedAt)
             .ToList();
 
-        ViewBag.Users = await _userService.Query().OrderBy(u => u.Username).ToListAsync();
-        ViewBag.Devices = await _deviceService.Query().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Users = await _userService.Query().AsNoTracking().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.Devices = await _deviceService.Query().AsNoTracking().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
         ViewBag.SelectedUserId = userId;
         ViewBag.SelectedDeviceId = deviceId;
         ViewBag.Keyword = keyword;
@@ -294,6 +297,7 @@ public class AdminController : Controller
             return RedirectToAction("Login", "Account");
 
         var users = await _userService.Query()
+            .AsNoTracking()
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
 

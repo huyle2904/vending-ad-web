@@ -18,9 +18,10 @@ public class SettingsController : Controller
     }
 
     [HttpGet("/portal/settings")]
+    [HttpGet("/settings")]
     public IActionResult Index()
     {
-        if (!IsPortalLoggedIn())
+        if (!IsPortalLoggedIn() && !_currentSession.IsAdminLoggedIn)
             return RedirectToAction("Login", "Account");
 
         return View();

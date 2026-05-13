@@ -34,6 +34,7 @@ public class ProfileController : Controller
     }
 
     [HttpGet("/account/profile")]
+    [HttpGet("/profile")]
     public IActionResult Index()
     {
         if (!IsLoggedIn())

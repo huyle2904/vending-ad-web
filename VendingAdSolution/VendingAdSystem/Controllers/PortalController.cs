@@ -105,8 +105,8 @@ public class PortalController : Controller
         var devices = await _deviceService.Query()
             .AsNoTracking()
             .Where(d => d.UserId == userId && d.IsActive)
-            .OrderBy(d => d.DeviceCode)
             .ToListAsync();
+
 
         var schedules = await _playbackScheduleService.GetForUserAsync(userId.Value);
         var now = _timeService.UtcNow;
@@ -221,25 +221,44 @@ public class PortalController : Controller
     }
 
     [HttpGet("/portal/videos")]
-    public async Task<IActionResult> Videos()
+    public async Task<IActionResult> Videos([FromQuery] string? q, [FromQuery] string? sortBy, [FromQuery] string? sortDir)
     {
         var userId = _currentSession.UserId;
         if (userId == null || userId <= 0)
             return RedirectToAction("Login", "Account");
 
-        var videos = await _mediaService.Query()
+        IQueryable<Media> query = _mediaService.Query()
             .AsNoTracking()
             .Where(m => m.UserId == userId)
             .Include(m => m.PlaylistItems)
-            .ThenInclude(pi => pi.Playlist)
-            .OrderByDescending(m => m.UploadedAt)
-            .ToListAsync();
+            .ThenInclude(pi => pi.Playlist);
 
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var keyword = q.Trim();
+            query = query.Where(m => m.FileName.Contains(keyword));
+        }
+
+        var sortByKey = string.IsNullOrWhiteSpace(sortBy) ? "uploadedAt" : sortBy.Trim().ToLowerInvariant();
+        var isAsc = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+
+        query = sortByKey switch
+        {
+            "filename" => isAsc ? query.OrderBy(m => m.FileName) : query.OrderByDescending(m => m.FileName),
+            "filesize" => isAsc ? query.OrderBy(m => m.FileSize) : query.OrderByDescending(m => m.FileSize),
+            _ => isAsc ? query.OrderBy(m => m.UploadedAt) : query.OrderByDescending(m => m.UploadedAt)
+        };
+
+        ViewBag.VideoQuery = q ?? string.Empty;
+        ViewBag.VideoSortBy = sortByKey;
+        ViewBag.VideoSortDir = isAsc ? "asc" : "desc";
+
+        var videos = await query.ToListAsync();
         return View(videos);
     }
 
     [HttpGet("/portal/devices")]
-    public async Task<IActionResult> Devices()
+    public async Task<IActionResult> Devices([FromQuery] string? q, [FromQuery] string? status, [FromQuery] string? sortBy, [FromQuery] string? sortDir)
     {
         if (!IsPortalLoggedIn())
             return RedirectToAction("Login", "Account");
@@ -249,8 +268,8 @@ public class PortalController : Controller
         var devices = await _deviceService.Query()
             .AsNoTracking()
             .Where(d => d.UserId == userId && d.IsActive)
-            .OrderBy(d => d.DeviceCode)
             .ToListAsync();
+
 
         var schedules = await _playbackScheduleService.GetForUserAsync(userId);
         var now = _timeService.UtcNow;
@@ -302,6 +321,10 @@ public class PortalController : Controller
         ViewBag.Playlists = playlists;
         ViewBag.Medias = medias;
         ViewBag.UtcNow = now;
+        ViewBag.DeviceQuery = q ?? string.Empty;
+        ViewBag.DeviceStatus = status ?? string.Empty;
+        ViewBag.DeviceSortBy = sortBy ?? "deviceCode";
+        ViewBag.DeviceSortDir = sortDir ?? "asc";
         ViewBag.VietnamNow = vietnamNow;
 
         return View("~/Views/PortalDevices/Index.cshtml", devices);

@@ -1,7 +1,20 @@
+@using Microsoft.AspNetCore.Http
+@using System.Globalization
 @using VendingAdSystem.Application.DTOs
 @model DashboardViewModel
 @{
     ViewData["Title"] = "Bảng điều khiển";
+    var displayName = Context.Session.GetString("UserDisplayName")
+        ?? Context.Session.GetString("UserEmail")
+        ?? Context.Session.GetString("AdminEmail")
+        ?? "Người dùng";
+    var roleLabel = Context.Session.GetString("AdminEmail") is { Length: > 0 }
+        ? "Quản trị viên"
+        : "Người dùng";
+    var avatarSeed = displayName.Trim();
+    var avatarLetter = avatarSeed.Length > 0
+        ? avatarSeed.Substring(0, 1).ToUpper(CultureInfo.GetCultureInfo("vi-VN"))
+        : "U";
 }
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
@@ -18,17 +31,6 @@
             <h1 class="dashboard-title">@Model.Title</h1>
             <p class="dashboard-subtitle">@Model.Subtitle</p>
         </div>
-
-        <div class="dashboard-actions">
-            <button class="btn-soft"><i class="bi bi-calendar3"></i>@Model.DateFilterLabel</button>
-            <button class="btn-soft" onclick="location.reload()"><i class="bi bi-arrow-clockwise"></i>Làm mới</button>
-            <button class="icon-btn" aria-label="Thông báo"><i class="bi bi-bell"></i><span class="dot">3</span></button>
-            <button class="profile-btn">
-                <span class="avatar">C</span>
-                <span class="profile-meta"><strong>Coca-Cola Manager</strong><small>Quản trị viên</small></span>
-                <i class="bi bi-chevron-down"></i>
-            </button>
-        </div>
     </header>
 
     @await Html.PartialAsync("~/Views/Shared/Components/_KpiCards.cshtml", Model.Kpis)
@@ -43,4 +45,18 @@
 
 <script>
   window.quickPlayDeviceMap = window.quickPlayDeviceMap || {};
+
+  function toggleProfileMenu(event) {
+    event.stopPropagation();
+    document.getElementById('profileDropdown')?.classList.toggle('open');
+  }
+
+  document.addEventListener('click', function (event) {
+    var menu = document.getElementById('profileMenu');
+    var dropdown = document.getElementById('profileDropdown');
+    if (!menu || !dropdown) return;
+    if (!menu.contains(event.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
 </script>

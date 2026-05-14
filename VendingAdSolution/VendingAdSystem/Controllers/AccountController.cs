@@ -42,7 +42,7 @@ public class AccountController : Controller
             var login = !string.IsNullOrWhiteSpace(request.Username) ? request.Username.Trim() : request.Email.Trim();
             var user = await _userService.Query().FirstOrDefaultAsync(u => u.Username == login || u.Email == login);
             if (user != null)
-                HttpContext.Session.SetString("UserDisplayName", string.IsNullOrWhiteSpace(user.FullName) ? user.Username : user.FullName);
+                HttpContext.Session.SetString("UserDisplayName", user.Username);
 
             return RedirectToLocal(returnUrl);
         }

@@ -4,6 +4,9 @@
     var isPortalUser = Context.Session.GetInt32("UserId") != null && Context.Session.GetInt32("UserId") > 0;
     var isAdmin = !string.IsNullOrEmpty(adminEmail);
     var roleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
+    var topDisplayName = Context.Session.GetString("UserDisplayName") ?? Context.Session.GetString("UserEmail") ?? (adminEmail ?? "Người dùng");
+    var topRoleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
+    var topAvatar = string.IsNullOrWhiteSpace(topDisplayName) ? "U" : topDisplayName.Trim().Substring(0,1).ToUpper();
     var currentUrl = Context.Request.Path.ToString().ToLower();
     var toastMessages = new List<Dictionary<string, string>>();
 
@@ -75,10 +78,10 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 10px 12px;
+      padding: 12px 14px;
       color: var(--muted-foreground);
       text-decoration: none;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 500;
       border-radius: var(--radius);
       transition: all 0.15s;
@@ -93,7 +96,7 @@
       background: var(--primary);
       color: var(--primary-foreground);
     }
-    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .nav-icon { font-size: 18px; width: 22px; text-align: center; }
     .sidebar-user {
       padding: 16px;
       border-top: 1px solid var(--border);
@@ -115,7 +118,7 @@
       justify-content: center;
       color: white;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 16px;
     }
     .user-details { flex: 1; min-width: 0; }
     .user-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -143,10 +146,17 @@
       max-width: 1400px;
       margin: 0 auto;
     }
+
+
+    .shared-top-header { display:flex; justify-content:flex-end; align-items:center; padding: 10px 24px; margin: -28px -36px 18px; position: sticky; top: 0; background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 100%); border-bottom: 1px solid #e3ebf7; box-shadow: 0 8px 20px rgba(15, 23, 42, .06); z-index: 120; }
+    .shared-top-header .dashboard-actions { display:flex; gap:.65rem; align-items:center; margin-left:auto; }
+
     @@media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); transition: transform 0.2s; }
       .sidebar.open { transform: translateX(0); }
       .main-content { margin-left: 0; }
+      .shared-top-header { margin: 0 0 12px; border-bottom: 1px solid #e3ebf7; padding: 8px; }
+      .shared-top-header .dashboard-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
     }
   </style>
 </head>
@@ -177,15 +187,7 @@
             <span class="nav-icon"><i class="bi bi-display"></i></span> Màn hình thiết bị
           </a>
         </div>
-        <div class="nav-section">
-          <div class="nav-section-title">Hệ thống</div>
-          <a href="/profile" class="nav-item @(currentUrl.Contains("profile") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-person"></i></span> Tài khoản
-          </a>
-          <a href="/settings" class="nav-item @(currentUrl.Contains("settings") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-gear"></i></span> Cài đặt
-          </a>
-        </div>
+        
       }
       @if (isAdmin)
       {
@@ -212,19 +214,30 @@
         </div>
       }
     </nav>
-    <div class="sidebar-user">
-      <div class="user-info">
-        <div class="user-avatar">@(displayName.FirstOrDefault())</div>
-        <div class="user-details">
-          <div class="user-name">@displayName</div>
-          <div class="user-role">@roleLabel</div>
+    
+  </aside>
+
+  <main class="main-content">
+    <div class="shared-top-header">
+      <div class="dashboard-actions">
+                <button class="icon-btn" aria-label="Thông báo"><i class="bi bi-bell"></i><span class="dot">3</span></button>
+        <div class="profile-menu" id="globalProfileMenu">
+          <button type="button" class="profile-btn" onclick="toggleGlobalProfileMenu(event)">
+            <span class="avatar">@topAvatar</span>
+            <span class="profile-meta"><strong>@topDisplayName</strong><small>@topRoleLabel</small></span>
+            <i class="bi bi-chevron-down"></i>
+          </button>
+          <div class="profile-dropdown" id="globalProfileDropdown">
+            <a href="/profile" class="profile-dropdown-item"><i class="bi bi-person"></i>Tài khoản</a>
+            <a href="/settings" class="profile-dropdown-item"><i class="bi bi-gear"></i>Cài đặt</a>
+            <a href="/account/logout" class="profile-dropdown-item danger"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a>
+          </div>
         </div>
       </div>
-      <a href="/account/logout" class="logout-btn">Đăng xuất</a>
     </div>
-  </aside>
-  <main class="main-content">
     <div class="app-shell">
+
+
       @RenderBody()
     </div>
   </main>
@@ -258,6 +271,16 @@
       }
 
       messages.forEach(function (item) { window.showToast(item.message, item.type); });
+      window.toggleGlobalProfileMenu = function (event) {
+        event.stopPropagation();
+        document.getElementById("globalProfileDropdown")?.classList.toggle("open");
+      };
+      document.addEventListener("click", function(e){
+        var menu=document.getElementById("globalProfileMenu");
+        var drop=document.getElementById("globalProfileDropdown");
+        if(menu && drop && !menu.contains(e.target)) drop.classList.remove("open");
+      });
+
     })();
   </script>
 </body>

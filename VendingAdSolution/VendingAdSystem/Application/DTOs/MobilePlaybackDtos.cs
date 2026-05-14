@@ -69,3 +69,17 @@ public class MobilePlaybackItemResponse
     public string? Checksum { get; set; }
     public int? DurationSeconds { get; set; }
 }
+
+public class MobileScheduleContentCache
+{
+    public MobileScheduleResponse Schedule { get; set; } = new();
+    public List<MobilePlaybackItemResponse> Items { get; set; } = new();
+}
+
+public class MobileDeviceScheduleCache
+{
+    public int ScheduleId { get; set; }
+    public string Version { get; set; } = string.Empty;
+    public bool HasActiveSchedule { get; set; }
+    public DateTime ResolvedAtUtc { get; set; }
+}

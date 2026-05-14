@@ -31,6 +31,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     private readonly IRepository<Playlist> _playlists;
     private readonly IRepository<Media> _medias;
     private readonly ITimeService _timeService;
+    private readonly IMobilePlaybackCacheService _mobilePlaybackCache;
 
     public PlaybackScheduleService(
         IRepository<PlaybackSchedule> playbackScheduleRepository,
@@ -39,7 +40,8 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         IRepository<Device> devices,
         IRepository<Playlist> playlists,
         IRepository<Media> medias,
-        ITimeService timeService)
+        ITimeService timeService,
+        IMobilePlaybackCacheService mobilePlaybackCache)
     {
         _playbackScheduleRepository = playbackScheduleRepository;
         _scheduleDevices = scheduleDevices;
@@ -48,6 +50,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         _playlists = playlists;
         _medias = medias;
         _timeService = timeService;
+        _mobilePlaybackCache = mobilePlaybackCache;
     }
 
     public Task<IEnumerable<PlaybackSchedule>> GetAllAsync()
@@ -114,6 +117,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: true);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã tạo lịch phát" };
     }
 
@@ -141,6 +145,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         await _playbackScheduleRepository.AddAsync(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
         await AddScheduleLinksAsync(schedule.Id, request);
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: true);
         return new PlaybackScheduleActionResult { Success = true, Message = "Immediate playback started." };
     }
 
@@ -189,6 +194,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: true);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã cập nhật lịch phát" };
     }
 
@@ -196,6 +202,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     {
         var schedule = await _playbackScheduleRepository.Query().FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
         if (schedule == null) return false;
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: false);
         _playbackScheduleRepository.Delete(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
         return true;
@@ -207,6 +214,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         if (schedule == null) return false;
         schedule.IsActive = !schedule.IsActive;
         await _playbackScheduleRepository.SaveChangesAsync();
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: schedule.IsActive);
         return true;
     }
 
@@ -214,6 +222,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     {
         var schedule = await _playbackScheduleRepository.Query().FirstOrDefaultAsync(s => s.Id == scheduleId);
         if (schedule == null) return false;
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: false);
         _playbackScheduleRepository.Delete(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
         return true;
@@ -225,6 +234,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         if (schedule == null) return false;
         schedule.IsActive = !schedule.IsActive;
         await _playbackScheduleRepository.SaveChangesAsync();
+        await RefreshScheduleCacheAsync(schedule.Id, warmContent: schedule.IsActive);
         return true;
     }
 
@@ -250,6 +260,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         });
 
         await _playbackScheduleRepository.SaveChangesAsync();
+        await RefreshScheduleCacheAsync(scheduleId, warmContent: true);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã thêm video vào lịch phát" };
     }
 
@@ -267,6 +278,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         await _scheduleItems.SaveChangesAsync();
 
         await NormalizeScheduleItemOrderAsync(scheduleId);
+        await RefreshScheduleCacheAsync(scheduleId, warmContent: true);
         return true;
     }
 
@@ -291,6 +303,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
         await _scheduleItems.SaveChangesAsync();
         await NormalizeScheduleItemOrderAsync(scheduleId);
+        await RefreshScheduleCacheAsync(scheduleId, warmContent: true);
         return true;
     }
 
@@ -386,5 +399,20 @@ public class PlaybackScheduleService : IPlaybackScheduleService
             items[i].OrderIndex = i;
 
         await _scheduleItems.SaveChangesAsync();
+    }
+
+    private async Task RefreshScheduleCacheAsync(int scheduleId, bool warmContent)
+    {
+        // Redis cache is an optimization layer: DB changes must succeed even if cache refresh fails.
+        try
+        {
+            await _mobilePlaybackCache.InvalidateScheduleDevicesAsync(scheduleId);
+            if (warmContent)
+                await _mobilePlaybackCache.WarmScheduleContentAsync(scheduleId);
+        }
+        catch
+        {
+            // Observability milestone will replace this with structured logging.
+        }
     }
 }

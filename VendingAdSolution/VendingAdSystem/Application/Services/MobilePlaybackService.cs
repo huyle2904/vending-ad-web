@@ -18,17 +18,20 @@ public class MobilePlaybackService : IMobilePlaybackService
     private readonly IRepository<PlaybackSchedule> _playbackSchedules;
     private readonly ITimeService _timeService;
     private readonly ICacheService _cacheService;
+    private readonly IMobilePlaybackCacheService _playbackCache;
 
     public MobilePlaybackService(
         IRepository<Device> devices,
         IRepository<PlaybackSchedule> playbackSchedules,
         ITimeService timeService,
-        ICacheService cacheService)
+        ICacheService cacheService,
+        IMobilePlaybackCacheService playbackCache)
     {
         _devices = devices;
         _playbackSchedules = playbackSchedules;
         _timeService = timeService;
         _cacheService = cacheService;
+        _playbackCache = playbackCache;
     }
 
     public async Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode)
@@ -63,12 +66,10 @@ public class MobilePlaybackService : IMobilePlaybackService
         };
     }
 
-    private static string BuildPlaybackCacheKey(string deviceCode) => $"mobile:playback-state:{deviceCode}";
-
     public async Task<MobilePlaybackStateResponse?> GetPlaybackStateAsync(string deviceCode)
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
-        var cacheKey = BuildPlaybackCacheKey(normalizedCode);
+        var cacheKey = _playbackCache.PlaybackStateKey(normalizedCode);
         var cached = await _cacheService.GetAsync<MobilePlaybackStateResponse>(cacheKey);
         if (cached != null)
             return cached;
@@ -94,6 +95,7 @@ public class MobilePlaybackService : IMobilePlaybackService
 
         var vietnamNow = _timeService.ToVietnamTime(utcNow);
         var currentTime = vietnamNow.TimeOfDay;
+        var activeScheduleKey = _playbackCache.DeviceActiveScheduleKey(normalizedCode);
         var candidates = await _playbackSchedules.Query()
             .AsNoTracking()
             .Include(s => s.Devices).ThenInclude(d => d.Device)
@@ -116,34 +118,20 @@ public class MobilePlaybackService : IMobilePlaybackService
             return response;
         }
 
-        var orderedItems = schedule.Items
-            .OrderBy(i => i.OrderIndex)
-            .ThenBy(i => i.Id)
-            .ToList();
+        var scheduleContent = await _playbackCache.GetOrBuildScheduleContentAsync(schedule, vietnamNow);
+        // Store the device -> schedule/version mapping separately. Later requests can
+        // use this lightweight mapping before reading shared schedule content.
+        await _cacheService.SetAsync(activeScheduleKey, new MobileDeviceScheduleCache
+        {
+            ScheduleId = scheduleContent.Schedule.Id,
+            Version = scheduleContent.Schedule.Version,
+            HasActiveSchedule = true,
+            ResolvedAtUtc = utcNow
+        }, TimeSpan.FromSeconds(10));
 
         response.HasActiveSchedule = true;
-        response.Schedule = new MobileScheduleResponse
-        {
-            Id = schedule.Id,
-            Name = schedule.Name,
-            Version = BuildScheduleVersion(schedule, orderedItems),
-            IsImmediate = schedule.IsImmediate,
-            StartDateUtc = schedule.StartDate,
-            EndDateUtc = schedule.EndDate,
-            StartTime = schedule.StartTime.ToString(@"hh\:mm\:ss"),
-            EndTime = schedule.EndTime.ToString(@"hh\:mm\:ss"),
-            PlaybackAnchorUtc = GetPlaybackAnchorUtc(schedule, vietnamNow)
-        };
-        response.Items = orderedItems.Select(i => new MobilePlaybackItemResponse
-        {
-            MediaId = i.MediaId,
-            FileName = i.Media.FileName,
-            FileUrl = i.Media.FileUrl,
-            OrderIndex = i.OrderIndex,
-            FileSize = i.Media.FileSize,
-            Checksum = null,
-            DurationSeconds = i.Media.DurationSeconds
-        }).ToList();
+        response.Schedule = scheduleContent.Schedule;
+        response.Items = scheduleContent.Items;
 
         await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromSeconds(5));
 
@@ -194,21 +182,6 @@ public class MobilePlaybackService : IMobilePlaybackService
             return currentTime <= schedule.EndTime;
 
         return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
-    }
-
-    private DateTime GetPlaybackAnchorUtc(PlaybackSchedule schedule, DateTime vietnamNow)
-    {
-        if (schedule.IsImmediate && schedule.ImmediateStartedAt.HasValue)
-            return schedule.ImmediateStartedAt.Value;
-
-        var vietnamAnchor = vietnamNow.Date.Add(schedule.StartTime);
-        return _timeService.ToUtc(vietnamAnchor);
-    }
-
-    private static string BuildScheduleVersion(PlaybackSchedule schedule, List<PlaybackScheduleItem> orderedItems)
-    {
-        var itemVersion = string.Join("-", orderedItems.Select(i => $"{i.Id}:{i.MediaId}:{i.OrderIndex}"));
-        return $"{schedule.Id}-{schedule.CreatedAt.Ticks}-{itemVersion}";
     }
 
     private static string NormalizeDeviceCode(string deviceCode)

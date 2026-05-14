@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IPlaylistManagementService, PlaylistManagementService>();
         services.AddScoped<IPlaybackScheduleService, PlaybackScheduleService>();
         services.AddScoped<IMobilePlaybackService, MobilePlaybackService>();
+        services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
         return services;

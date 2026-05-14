@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
+using VendingAdSystem.Filters;
 
 namespace VendingAdSystem.Controllers;
 
@@ -29,6 +30,7 @@ public class MobileApiController : ControllerBase
     }
 
     [HttpPost("heartbeat")]
+    [MobileRateLimit(MobileRateLimitPolicy.Heartbeat)]
     public async Task<IActionResult> Heartbeat([FromBody] MobileHeartbeatRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.DeviceCode))
@@ -42,6 +44,7 @@ public class MobileApiController : ControllerBase
     }
 
     [HttpGet("playback-state/{deviceCode}")]
+    [MobileRateLimit(MobileRateLimitPolicy.PlaybackState)]
     public async Task<IActionResult> GetPlaybackState(string deviceCode)
     {
         if (string.IsNullOrWhiteSpace(deviceCode))

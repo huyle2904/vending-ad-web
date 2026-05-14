@@ -3,6 +3,7 @@ using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Seed;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
@@ -37,10 +38,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Auto-create DB schema on startup (idempotent for MVP)
+// Dev startup keeps SQLite simple, while SQL Server uses migrations.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (db.Database.IsSqlServer())
+        db.Database.Migrate();
+    else
+        db.Database.EnsureCreated();
+
     DatabaseSeeder.Seed(db);
 }
 

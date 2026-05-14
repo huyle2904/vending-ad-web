@@ -1,6 +1,7 @@
 @model List<Device>
 @{
     var users = (List<User>)ViewBag.Users;
+    var onlineByDeviceCode = ViewBag.OnlineByDeviceCode as Dictionary<string, bool> ?? new Dictionary<string, bool>();
     ViewData["Title"] = "Quản lý Thiết bị";
 }
 
@@ -47,7 +48,7 @@
       <tbody>
         @foreach (var device in Model)
         {
-          var isOnline = device.LastSeen.HasValue && (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
+          var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
           <tr data-user-id="@(device.UserId?.ToString() ?? string.Empty)">
             <td><strong class="u-primary-mono">@device.DeviceCode</strong></td>
             <td>

@@ -8,6 +8,7 @@ public interface ICacheService
 {
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
     Task SetAsync<T>(string key, T value, TimeSpan ttl, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default);
     Task RemoveAsync(string key, CancellationToken cancellationToken = default);
     Task<bool> TryAcquireLockAsync(string key, string token, TimeSpan ttl, CancellationToken cancellationToken = default);
     Task ReleaseLockAsync(string key, string token, CancellationToken cancellationToken = default);
@@ -17,6 +18,7 @@ public class NullCacheService : ICacheService
 {
     public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) => Task.FromResult<T?>(default);
     public Task SetAsync<T>(string key, T value, TimeSpan ttl, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default) => Task.FromResult(false);
     public Task RemoveAsync(string key, CancellationToken cancellationToken = default) => Task.CompletedTask;
     public Task<bool> TryAcquireLockAsync(string key, string token, TimeSpan ttl, CancellationToken cancellationToken = default) => Task.FromResult(true);
     public Task ReleaseLockAsync(string key, string token, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -41,6 +43,11 @@ public class MemoryCacheService : ICacheService
     {
         _memoryCache.Set(key, value, ttl);
         return Task.CompletedTask;
+    }
+
+    public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_memoryCache.TryGetValue(key, out _));
     }
 
     public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
@@ -90,6 +97,12 @@ public class RedisCacheService : ICacheService
         var db = _connectionMultiplexer.GetDatabase();
         var payload = JsonSerializer.Serialize(value, JsonOptions);
         await db.StringSetAsync(key, payload, ttl).ConfigureAwait(false);
+    }
+
+    public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var db = _connectionMultiplexer.GetDatabase();
+        return await db.KeyExistsAsync(key).ConfigureAwait(false);
     }
 
     public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)

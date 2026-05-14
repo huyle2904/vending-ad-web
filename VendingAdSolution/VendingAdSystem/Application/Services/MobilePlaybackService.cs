@@ -19,19 +19,22 @@ public class MobilePlaybackService : IMobilePlaybackService
     private readonly ITimeService _timeService;
     private readonly ICacheService _cacheService;
     private readonly IMobilePlaybackCacheService _playbackCache;
+    private readonly IDevicePresenceService _devicePresence;
 
     public MobilePlaybackService(
         IRepository<Device> devices,
         IRepository<PlaybackSchedule> playbackSchedules,
         ITimeService timeService,
         ICacheService cacheService,
-        IMobilePlaybackCacheService playbackCache)
+        IMobilePlaybackCacheService playbackCache,
+        IDevicePresenceService devicePresence)
     {
         _devices = devices;
         _playbackSchedules = playbackSchedules;
         _timeService = timeService;
         _cacheService = cacheService;
         _playbackCache = playbackCache;
+        _devicePresence = devicePresence;
     }
 
     public async Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode)
@@ -55,8 +58,13 @@ public class MobilePlaybackService : IMobilePlaybackService
             return null;
 
         var utcNow = _timeService.UtcNow;
-        device.LastSeen = utcNow;
-        await _devices.SaveChangesAsync();
+        await _devicePresence.MarkOnlineAsync(device.DeviceCode, utcNow);
+
+        if (_devicePresence.ShouldUpdateLastSeen(device.LastSeen, utcNow))
+        {
+            device.LastSeen = utcNow;
+            await _devices.SaveChangesAsync();
+        }
 
         return new MobileHeartbeatResponse
         {

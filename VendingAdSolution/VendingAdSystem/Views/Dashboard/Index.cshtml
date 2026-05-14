@@ -1,6 +1,7 @@
 @model List<Device>
 @{
     ViewData["Title"] = "Bảng điều khiển";
+    var onlineByDeviceCode = ViewBag.OnlineByDeviceCode as Dictionary<string, bool> ?? new Dictionary<string, bool>();
 }
 
 <div class="page-header">
@@ -11,7 +12,7 @@
 </div>
 
 @{
-    var online  = Model.Count(d => d.LastSeen.HasValue && (DateTime.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+    var online  = Model.Count(d => onlineByDeviceCode.GetValueOrDefault(d.DeviceCode));
     var offline = Model.Count - online;
 }
 
@@ -53,8 +54,7 @@
       <tbody>
         @foreach (var device in Model)
         {
-          var isOnline = device.LastSeen.HasValue &&
-                         (DateTime.UtcNow - device.LastSeen.Value).TotalMinutes < 5;
+          var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
           <tr>
             <td>
               @if (isOnline)
@@ -85,7 +85,7 @@
 </div>
 
 <p class="text-sm text-muted" style="margin-top: 1rem; text-align: right;">
-  🟢 Đang online = có heartbeat trong vòng 5 phút · Tự động cập nhật mỗi 30 giây
+  Đang online = còn Redis presence TTL hoặc heartbeat gần nhất còn hiệu lực · Tự động cập nhật mỗi 30 giây
 </p>
 
 <style>

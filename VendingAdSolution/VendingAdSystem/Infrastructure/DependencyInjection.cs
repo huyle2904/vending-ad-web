@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
+using VendingAdSystem.Application.Messaging;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Repositories.Implementations;
@@ -35,6 +36,9 @@ public static class DependencyInjection
         });
 
         services.AddMemoryCache();
+        services.Configure<DevicePresenceOptions>(configuration.GetSection("DevicePresence"));
+        services.Configure<MobileRateLimitOptions>(configuration.GetSection("MobileRateLimiting"));
+        services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
 
         var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
         var redisConnectionString = configuration["Redis:ConnectionString"];
@@ -61,6 +65,12 @@ public static class DependencyInjection
         services.AddScoped<IPlaybackScheduleService, PlaybackScheduleService>();
         services.AddScoped<IMobilePlaybackService, MobilePlaybackService>();
         services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();
+        services.AddScoped<IDevicePresenceService, DevicePresenceService>();
+        services.AddSingleton<IMobileRateLimitService, MobileRateLimitService>();
+        if (configuration.GetValue<bool>("RabbitMQ:Enabled"))
+            services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
+        else
+            services.AddSingleton<IMessagePublisher, NullMessagePublisher>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
         return services;

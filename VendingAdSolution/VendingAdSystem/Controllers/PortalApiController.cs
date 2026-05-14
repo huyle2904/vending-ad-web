@@ -14,13 +14,15 @@ public class PortalApiController : ControllerBase
     private readonly ITimeService _timeService;
     private readonly IMediaUploadService _mediaUploadService;
     private readonly IPlaylistService _playlistService;
+    private readonly IDevicePresenceService _devicePresenceService;
 
-    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService)
+    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService, IDevicePresenceService devicePresenceService)
     {
         _deviceService = deviceService;
         _timeService = timeService;
         _mediaUploadService = mediaUploadService;
         _playlistService = playlistService;
+        _devicePresenceService = devicePresenceService;
     }
 
     [HttpPost("upload")]
@@ -87,8 +89,14 @@ public class PortalApiController : ControllerBase
         if (device == null)
             return NotFound(new { message = "Không tìm thấy thiết bị." });
 
-        device.LastSeen = _timeService.UtcNow;
-        await _deviceService.SaveChangesAsync();
+        var utcNow = _timeService.UtcNow;
+        await _devicePresenceService.MarkOnlineAsync(device.DeviceCode, utcNow);
+
+        if (_devicePresenceService.ShouldUpdateLastSeen(device.LastSeen, utcNow))
+        {
+            device.LastSeen = utcNow;
+            await _deviceService.SaveChangesAsync();
+        }
 
         return Ok(new { message = "ok", timestamp = device.LastSeen });
     }

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using VendingAd.Contracts;
 using VendingAdSystem.Application.DTOs;
+using VendingAdSystem.Application.Messaging;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Repositories.Interfaces;
 
@@ -32,6 +34,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     private readonly IRepository<Media> _medias;
     private readonly ITimeService _timeService;
     private readonly IMobilePlaybackCacheService _mobilePlaybackCache;
+    private readonly IMessagePublisher _messagePublisher;
 
     public PlaybackScheduleService(
         IRepository<PlaybackSchedule> playbackScheduleRepository,
@@ -41,7 +44,8 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         IRepository<Playlist> playlists,
         IRepository<Media> medias,
         ITimeService timeService,
-        IMobilePlaybackCacheService mobilePlaybackCache)
+        IMobilePlaybackCacheService mobilePlaybackCache,
+        IMessagePublisher messagePublisher)
     {
         _playbackScheduleRepository = playbackScheduleRepository;
         _scheduleDevices = scheduleDevices;
@@ -51,6 +55,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         _medias = medias;
         _timeService = timeService;
         _mobilePlaybackCache = mobilePlaybackCache;
+        _messagePublisher = messagePublisher;
     }
 
     public Task<IEnumerable<PlaybackSchedule>> GetAllAsync()
@@ -118,6 +123,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
         await _playbackScheduleRepository.SaveChangesAsync();
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: true);
+        await PublishScheduleChangedEventAsync(schedule.Id, ScheduleChangeType.Created);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã tạo lịch phát" };
     }
 
@@ -146,6 +152,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         await _playbackScheduleRepository.SaveChangesAsync();
         await AddScheduleLinksAsync(schedule.Id, request);
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: true);
+        await PublishScheduleChangedEventAsync(schedule.Id, ScheduleChangeType.Created);
         return new PlaybackScheduleActionResult { Success = true, Message = "Immediate playback started." };
     }
 
@@ -195,14 +202,18 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
         await _playbackScheduleRepository.SaveChangesAsync();
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: true);
+        await PublishScheduleChangedEventAsync(schedule.Id, ScheduleChangeType.Updated);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã cập nhật lịch phát" };
     }
 
     public async Task<bool> DeleteAsync(int userId, int scheduleId)
     {
-        var schedule = await _playbackScheduleRepository.Query().FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
+        var schedule = await _playbackScheduleRepository.Query()
+            .Include(s => s.Devices).ThenInclude(d => d.Device)
+            .FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
         if (schedule == null) return false;
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: false);
+        await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Deleted);
         _playbackScheduleRepository.Delete(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
         return true;
@@ -210,19 +221,25 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
     public async Task<bool> ToggleAsync(int userId, int scheduleId)
     {
-        var schedule = await _playbackScheduleRepository.Query().FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
+        var schedule = await _playbackScheduleRepository.Query()
+            .Include(s => s.Devices).ThenInclude(d => d.Device)
+            .FirstOrDefaultAsync(s => s.Id == scheduleId && s.UserId == userId);
         if (schedule == null) return false;
         schedule.IsActive = !schedule.IsActive;
         await _playbackScheduleRepository.SaveChangesAsync();
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: schedule.IsActive);
+        await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Toggled);
         return true;
     }
 
     public async Task<bool> DeleteByIdAsync(int scheduleId)
     {
-        var schedule = await _playbackScheduleRepository.Query().FirstOrDefaultAsync(s => s.Id == scheduleId);
+        var schedule = await _playbackScheduleRepository.Query()
+            .Include(s => s.Devices).ThenInclude(d => d.Device)
+            .FirstOrDefaultAsync(s => s.Id == scheduleId);
         if (schedule == null) return false;
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: false);
+        await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Deleted);
         _playbackScheduleRepository.Delete(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
         return true;
@@ -230,11 +247,14 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
     public async Task<bool> ToggleByIdAsync(int scheduleId)
     {
-        var schedule = await _playbackScheduleRepository.Query().FirstOrDefaultAsync(s => s.Id == scheduleId);
+        var schedule = await _playbackScheduleRepository.Query()
+            .Include(s => s.Devices).ThenInclude(d => d.Device)
+            .FirstOrDefaultAsync(s => s.Id == scheduleId);
         if (schedule == null) return false;
         schedule.IsActive = !schedule.IsActive;
         await _playbackScheduleRepository.SaveChangesAsync();
         await RefreshScheduleCacheAsync(schedule.Id, warmContent: schedule.IsActive);
+        await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Toggled);
         return true;
     }
 
@@ -261,6 +281,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
         await _playbackScheduleRepository.SaveChangesAsync();
         await RefreshScheduleCacheAsync(scheduleId, warmContent: true);
+        await PublishScheduleChangedEventAsync(scheduleId, ScheduleChangeType.ItemAdded);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã thêm video vào lịch phát" };
     }
 
@@ -279,6 +300,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
         await NormalizeScheduleItemOrderAsync(scheduleId);
         await RefreshScheduleCacheAsync(scheduleId, warmContent: true);
+        await PublishScheduleChangedEventAsync(scheduleId, ScheduleChangeType.ItemRemoved);
         return true;
     }
 
@@ -304,6 +326,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         await _scheduleItems.SaveChangesAsync();
         await NormalizeScheduleItemOrderAsync(scheduleId);
         await RefreshScheduleCacheAsync(scheduleId, warmContent: true);
+        await PublishScheduleChangedEventAsync(scheduleId, ScheduleChangeType.Reordered);
         return true;
     }
 
@@ -399,6 +422,36 @@ public class PlaybackScheduleService : IPlaybackScheduleService
             items[i].OrderIndex = i;
 
         await _scheduleItems.SaveChangesAsync();
+    }
+
+    private async Task PublishScheduleChangedEventAsync(int scheduleId, ScheduleChangeType changeType)
+    {
+        var schedule = await _playbackScheduleRepository.Query()
+            .AsNoTracking()
+            .Include(s => s.Devices).ThenInclude(d => d.Device)
+            .FirstOrDefaultAsync(s => s.Id == scheduleId);
+
+        if (schedule != null)
+            await PublishScheduleChangedEventAsync(schedule, changeType);
+    }
+
+    private Task PublishScheduleChangedEventAsync(PlaybackSchedule schedule, ScheduleChangeType changeType)
+    {
+        return _messagePublisher.PublishAsync(new ScheduleChangedEvent
+        {
+            OccurredAtUtc = _timeService.UtcNow,
+            ScheduleId = schedule.Id,
+            UserId = schedule.UserId,
+            ChangeType = changeType,
+            IsActive = schedule.IsActive,
+            AffectedDeviceCodes = schedule.Devices
+                .Select(d => d.Device?.DeviceCode)
+                .Where(code => !string.IsNullOrWhiteSpace(code))
+                .Select(code => code!)
+                .Distinct()
+                .OrderBy(code => code)
+                .ToList()
+        });
     }
 
     private async Task RefreshScheduleCacheAsync(int scheduleId, bool warmContent)

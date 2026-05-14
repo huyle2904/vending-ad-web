@@ -18,6 +18,7 @@ public class AdminController : Controller
     private readonly IRepository<Playlist> _playlists;
     private readonly IRepository<PlaylistItem> _playlistItems;
     private readonly IPlaybackScheduleService _playbackScheduleService;
+    private readonly IDevicePresenceService _devicePresenceService;
 
     public AdminController(
         ICurrentSession currentSession,
@@ -27,7 +28,8 @@ public class AdminController : Controller
         IMediaService mediaService,
         IRepository<Playlist> playlists,
         IRepository<PlaylistItem> playlistItems,
-        IPlaybackScheduleService playbackScheduleService)
+        IPlaybackScheduleService playbackScheduleService,
+        IDevicePresenceService devicePresenceService)
     {
         _currentSession = currentSession;
         _userService = userService;
@@ -37,6 +39,7 @@ public class AdminController : Controller
         _playlists = playlists;
         _playlistItems = playlistItems;
         _playbackScheduleService = playbackScheduleService;
+        _devicePresenceService = devicePresenceService;
     }
 
     [HttpGet("/admin")]
@@ -51,7 +54,8 @@ public class AdminController : Controller
         var schedules = await _playbackScheduleService.GetAllAsync();
         var now = _timeService.UtcNow;
         var vietnamToday = _timeService.ToVietnamTime(now).Date;
-        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (now - d.LastSeen.Value).TotalMinutes < 5);
+        var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
+        var onlineCount = onlineByDeviceCode.Count(x => x.Value);
 
         var model = new AdminDashboardViewModel
         {
@@ -97,8 +101,21 @@ public class AdminController : Controller
 
         var users = await _userService.Query().AsNoTracking().Where(u => u.IsActive).OrderBy(u => u.Username).ToListAsync();
         ViewBag.Users = users;
+        ViewBag.OnlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, _timeService.UtcNow);
 
         return View(devices);
+    }
+
+    private async Task<Dictionary<string, bool>> GetOnlineDeviceMapAsync(IEnumerable<Device> devices, DateTime utcNow)
+    {
+        var checks = devices.Select(async device => new
+        {
+            device.DeviceCode,
+            IsOnline = await _devicePresenceService.IsOnlineAsync(device.DeviceCode, device.LastSeen, utcNow)
+        });
+
+        var results = await Task.WhenAll(checks);
+        return results.ToDictionary(x => x.DeviceCode, x => x.IsOnline);
     }
 
     [HttpGet("/admin/videos")]

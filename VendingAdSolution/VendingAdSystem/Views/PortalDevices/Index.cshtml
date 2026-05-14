@@ -14,6 +14,7 @@
     var deviceStatus = ViewBag.DeviceStatus as string ?? string.Empty;
     var deviceSortBy = ViewBag.DeviceSortBy as string ?? "deviceCode";
     var deviceSortDir = ViewBag.DeviceSortDir as string ?? "asc";
+    var onlineByDeviceCode = ViewBag.OnlineByDeviceCode as Dictionary<string, bool> ?? new Dictionary<string, bool>();
 
     string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
     string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
@@ -71,7 +72,7 @@ else
   <div class="device-grid">
     @foreach (var device in Model)
     {
-      var isOnline = device.LastSeen.HasValue && (utcNow - device.LastSeen.Value).TotalMinutes < 5;
+      var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
       var currentSchedule = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
       var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
       <div class="device-card fx-card">
@@ -104,7 +105,7 @@ else
 {
   var currentSchedule = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
   var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
-  var isOnline = device.LastSeen.HasValue && (utcNow - device.LastSeen.Value).TotalMinutes < 5;
+  var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
   var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
   <div class="modal-overlay u-hidden" id="deviceDetail-@device.Id">
     <div class="modal modal-wide">

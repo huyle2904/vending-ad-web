@@ -17,6 +17,7 @@ public class PortalController : Controller
     private readonly ITimeService _timeService;
     private readonly IPlaylistManagementService _playlistManagementService;
     private readonly IPlaybackScheduleService _playbackScheduleService;
+    private readonly IDevicePresenceService _devicePresenceService;
 
     public PortalController(
         ICurrentSession currentSession,
@@ -26,7 +27,8 @@ public class PortalController : Controller
         IPlaylistService playlistService,
         ITimeService timeService,
         IPlaylistManagementService playlistManagementService,
-        IPlaybackScheduleService playbackScheduleService)
+        IPlaybackScheduleService playbackScheduleService,
+        IDevicePresenceService devicePresenceService)
     {
         _currentSession = currentSession;
         _deviceService = deviceService;
@@ -36,6 +38,7 @@ public class PortalController : Controller
         _timeService = timeService;
         _playlistManagementService = playlistManagementService;
         _playbackScheduleService = playbackScheduleService;
+        _devicePresenceService = devicePresenceService;
     }
 
     private static string DateRangeText(PlaybackSchedule schedule)
@@ -79,6 +82,8 @@ public class PortalController : Controller
             .AsNoTracking()
             .OrderByDescending(d => d.LastSeen)
             .ToListAsync();
+
+        ViewBag.OnlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, _timeService.UtcNow);
 
         return View("~/Views/Dashboard/Index.cshtml", devices);
     }
@@ -152,7 +157,8 @@ public class PortalController : Controller
             .Select(g => g.First())
             .OrderBy(s => GetNextScheduleStartUtc(s, now))
             .ToList();
-        var onlineDevices = devices.Count(d => d.LastSeen.HasValue && (now - d.LastSeen.Value).TotalMinutes < 5);
+        var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
+        var onlineDevices = onlineByDeviceCode.Count(x => x.Value);
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
         var medias = await _mediaService.Query()
             .AsNoTracking()
@@ -198,7 +204,7 @@ public class PortalController : Controller
             {
                 var current = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
                 var next = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
-                var isOnline = device.LastSeen.HasValue && (now - device.LastSeen.Value).TotalMinutes < 5;
+                var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
                 return new DeviceViewModel
                 {
                     Id = device.Id,
@@ -305,7 +311,8 @@ public class PortalController : Controller
                 upcomingByDevice[device.Id] = upcoming;
         }
 
-        var onlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
+        var onlineCount = onlineByDeviceCode.Count(x => x.Value);
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId);
         var medias = await _mediaService.Query()
             .AsNoTracking()
@@ -326,6 +333,7 @@ public class PortalController : Controller
         ViewBag.DeviceSortBy = sortBy ?? "deviceCode";
         ViewBag.DeviceSortDir = sortDir ?? "asc";
         ViewBag.VietnamNow = vietnamNow;
+        ViewBag.OnlineByDeviceCode = onlineByDeviceCode;
 
         return View("~/Views/PortalDevices/Index.cshtml", devices);
     }
@@ -344,9 +352,24 @@ public class PortalController : Controller
             .ToListAsync();
 
         ViewBag.TotalDevices = devices.Count;
-        ViewBag.OnlineCount = devices.Count(d => d.LastSeen.HasValue && (_timeService.UtcNow - d.LastSeen.Value).TotalMinutes < 5);
+        var now = _timeService.UtcNow;
+        var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
+        ViewBag.OnlineCount = onlineByDeviceCode.Count(x => x.Value);
+        ViewBag.OnlineByDeviceCode = onlineByDeviceCode;
 
         return View("~/Views/Portal/DeviceWall.cshtml", devices);
+    }
+
+    private async Task<Dictionary<string, bool>> GetOnlineDeviceMapAsync(IEnumerable<Device> devices, DateTime utcNow)
+    {
+        var checks = devices.Select(async device => new
+        {
+            device.DeviceCode,
+            IsOnline = await _devicePresenceService.IsOnlineAsync(device.DeviceCode, device.LastSeen, utcNow)
+        });
+
+        var results = await Task.WhenAll(checks);
+        return results.ToDictionary(x => x.DeviceCode, x => x.IsOnline);
     }
 
     [HttpPost("/portal/devices")]

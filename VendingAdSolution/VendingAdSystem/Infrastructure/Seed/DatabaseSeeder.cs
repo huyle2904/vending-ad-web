@@ -9,8 +9,6 @@ public static class DatabaseSeeder
 {
     public static void Seed(AppDbContext db)
     {
-        db.Database.EnsureCreated();
-
         if (db.Database.IsSqlite())
         {
             EnsureColumn(db, "Users", "Username", "TEXT NOT NULL DEFAULT ''");

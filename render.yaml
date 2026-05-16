@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: vending-ad-system
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /account/login
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DatabaseProvider
+        value: Postgres
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: vending-ad-db
+          property: connectionString
+      - key: UploadsPath
+        value: /data/uploads
+databases:
+  - name: vending-ad-db
+    plan: free
+    databaseName: vendingad
+    user: vendingad

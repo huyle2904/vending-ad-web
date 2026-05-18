@@ -90,6 +90,7 @@ else
             <button type="button" class="btn-primary" onclick="openQuickPlay(@device.Id); return false;">Phát nhanh</button>
             <button type="button" class="btn-outline" onclick="openDeviceDetail(@device.Id); return false;">Chi tiết</button>
             <form method="post" action="/portal/devices/delete" class="u-inline">
+              @Html.AntiForgeryToken()
               <input type="hidden" name="deviceId" value="@device.Id" />
               <button type="submit" class="btn-outline u-danger-text" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')">Xóa</button>
             </form>
@@ -172,6 +173,7 @@ else
       <button class="modal-close" onclick="hideAddModal()">&times;</button>
     </div>
     <form method="post" action="/portal/devices">
+      @Html.AntiForgeryToken()
       <div class="form-group">
         <label class="form-label">Mã liên kết</label>
         <input type="text" name="claimCode" id="claimCodeInput" class="form-input" placeholder="VD: 483920" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required />
@@ -196,6 +198,7 @@ else
     </div>
 
     <form method="post" action="/portal/schedules/create" id="quickPlayForm">
+      @Html.AntiForgeryToken()
       <input type="hidden" name="actionType" value="immediate" />
       <input type="hidden" name="DeviceIds" id="quickPlayDeviceId" />
       <input type="hidden" name="Name" id="quickPlayName" />

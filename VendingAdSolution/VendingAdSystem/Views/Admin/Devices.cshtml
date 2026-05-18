@@ -90,6 +90,7 @@
                           data-claim-code="@(device.ClaimCode ?? "Đã sử dụng")">Gán user</button>
                 }
                 <form method="post" action="/admin/devices/delete" onsubmit="return confirm('Xóa thiết bị @device.DeviceCode?')">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="deviceId" value="@device.Id" />
                   <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>
@@ -112,6 +113,7 @@
       <button class="modal-close" onclick="hideAssignModal()">&times;</button>
     </div>
     <form method="post" action="/admin/devices/assign">
+      @Html.AntiForgeryToken()
       <input type="hidden" name="deviceId" id="assignDeviceId" />
       <div class="card u-mb-1">
         <div class="text-sm">Mã thiết bị: <strong id="assignDeviceCode"></strong></div>

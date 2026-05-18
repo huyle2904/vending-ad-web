@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
@@ -5,17 +7,25 @@ using VendingAdSystem.Infrastructure.Repositories.Interfaces;
 
 namespace VendingAdSystem.Controllers;
 
+[Authorize]
+[AutoValidateAntiforgeryToken]
 public class ProfileController : Controller
 {
     private readonly ICurrentSession _currentSession;
     private readonly IRepository<Admin> _admins;
     private readonly IRepository<User> _users;
+    private readonly IPasswordHashingService _passwordHashingService;
 
-    public ProfileController(ICurrentSession currentSession, IRepository<Admin> admins, IRepository<User> users)
+    public ProfileController(
+        ICurrentSession currentSession,
+        IRepository<Admin> admins,
+        IRepository<User> users,
+        IPasswordHashingService passwordHashingService)
     {
         _currentSession = currentSession;
         _admins = admins;
         _users = users;
+        _passwordHashingService = passwordHashingService;
     }
 
     private bool IsLoggedIn()
@@ -73,8 +83,6 @@ public class ProfileController : Controller
         var adminId = _currentSession.AdminId;
         var userId = _currentSession.UserId;
 
-        var hashedNewPassword = HashPassword(newPassword);
-
         if (adminId != null)
         {
             var admin = await _admins.GetByIdAsync(adminId.Value);
@@ -84,14 +92,14 @@ public class ProfileController : Controller
                 return RedirectToAction("Index");
             }
 
-            var currentHash = HashPassword(currentPassword);
-            if (admin.PasswordHash != currentHash)
+            var verification = _passwordHashingService.VerifyPassword(admin.PasswordHash, currentPassword);
+            if (verification == PasswordVerificationResult.Failed)
             {
                 TempData["Error"] = "Current password is incorrect";
                 return RedirectToAction("Index");
             }
 
-            admin.PasswordHash = hashedNewPassword;
+            admin.PasswordHash = _passwordHashingService.HashPassword(newPassword);
             await _admins.SaveChangesAsync();
             TempData["Success"] = "Đã đổi mật khẩu";
         }
@@ -104,25 +112,18 @@ public class ProfileController : Controller
                 return RedirectToAction("Index");
             }
 
-            var currentHash = HashPassword(currentPassword);
-            if (user.PasswordHash != currentHash)
+            var verification = _passwordHashingService.VerifyPassword(user.PasswordHash, currentPassword);
+            if (verification == PasswordVerificationResult.Failed)
             {
                 TempData["Error"] = "Current password is incorrect";
                 return RedirectToAction("Index");
             }
 
-            user.PasswordHash = hashedNewPassword;
+            user.PasswordHash = _passwordHashingService.HashPassword(newPassword);
             await _users.SaveChangesAsync();
             TempData["Success"] = "Đã đổi mật khẩu";
         }
 
         return RedirectToAction("Index");
-    }
-
-    private static string HashPassword(string password)
-    {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
     }
 }

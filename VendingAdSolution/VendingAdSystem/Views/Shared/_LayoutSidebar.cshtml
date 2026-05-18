@@ -1,10 +1,17 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
-    var adminEmail = Context.Session.GetString("AdminEmail");
-    var displayName = Context.Session.GetString("UserDisplayName") ?? Context.Session.GetString("UserEmail") ?? (adminEmail ?? "User");
-    var isPortalUser = Context.Session.GetInt32("UserId") != null && Context.Session.GetInt32("UserId") > 0;
-    var isAdmin = !string.IsNullOrEmpty(adminEmail);
+    var antiforgeryTokens = Antiforgery.GetAndStoreTokens(Context);
+    var principal = Context.User;
+    var sessionUserId = Context.Session.GetInt32("UserId");
+    var adminEmail = Context.Session.GetString("AdminEmail")
+        ?? (principal.IsInRole("Admin") ? principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value : null);
+    var userEmail = Context.Session.GetString("UserEmail")
+        ?? (principal.IsInRole("User") ? principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value : null);
+    var displayName = Context.Session.GetString("UserDisplayName") ?? principal.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? userEmail ?? (adminEmail ?? "User");
+    var isPortalUser = (sessionUserId != null && sessionUserId > 0) || principal.IsInRole("User");
+    var isAdmin = !string.IsNullOrEmpty(adminEmail) || principal.IsInRole("Admin");
     var roleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
-    var topDisplayName = Context.Session.GetString("UserDisplayName") ?? Context.Session.GetString("UserEmail") ?? (adminEmail ?? "Người dùng");
+    var topDisplayName = Context.Session.GetString("UserDisplayName") ?? principal.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? userEmail ?? (adminEmail ?? "Người dùng");
     var topRoleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
     var topAvatar = string.IsNullOrWhiteSpace(topDisplayName) ? "U" : topDisplayName.Trim().Substring(0,1).ToUpper();
     var currentUrl = Context.Request.Path.ToString().ToLower();
@@ -22,6 +29,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="request-verification-token" content="@antiforgeryTokens.RequestToken" />
   <title>@ViewData["Title"] | VendAD</title>
   <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
   <link rel="stylesheet" href="~/css/ui-components.css" asp-append-version="true" />
@@ -135,6 +143,15 @@
       font-weight: 500;
     }
     .logout-btn:hover { background: rgba(220,38,38,0.2); }
+    .profile-dropdown-form { margin: 0; }
+    .profile-dropdown-form .profile-dropdown-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
     .main-content {
       margin-left: 256px;
       flex: 1;
@@ -230,7 +247,10 @@
           <div class="profile-dropdown" id="globalProfileDropdown">
             <a href="/profile" class="profile-dropdown-item"><i class="bi bi-person"></i>Tài khoản</a>
             <a href="/settings" class="profile-dropdown-item"><i class="bi bi-gear"></i>Cài đặt</a>
-            <a href="/account/logout" class="profile-dropdown-item danger"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a>
+            <form method="post" action="/account/logout" class="profile-dropdown-form">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="profile-dropdown-item danger"><i class="bi bi-box-arrow-right"></i>Đăng xuất</button>
+            </form>
           </div>
         </div>
       </div>
@@ -244,6 +264,10 @@
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
   <script>
     (function () {
+      window.getRequestVerificationToken = function () {
+        return document.querySelector('meta[name="request-verification-token"]')?.content || '';
+      };
+
       const messages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(toastMessages));
       const container = document.getElementById('toastContainer');
 

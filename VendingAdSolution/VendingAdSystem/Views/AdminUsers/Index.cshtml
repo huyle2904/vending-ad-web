@@ -13,6 +13,7 @@
     <h3 class="card-title">Tạo tài khoản mới</h3>
   </div>
   <form method="post" action="/admin/users/create" class="grid grid-cols-3 u-gap-1 u-items-end">
+    @Html.AntiForgeryToken()
     <div class="form-group">
       <label class="form-label">Tên đăng nhập</label>
       <input type="text" name="username" class="form-input" required />
@@ -68,10 +69,12 @@ else
               <div class="action-buttons">
                 <button class="action-btn" onclick="showEditModal(@user.Id, '@user.Username', '@user.Email', '@user.FullName')">✏️</button>
                 <form method="post" action="/admin/users/reset-password">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="userId" value="@user.Id" />
                   <button type="submit" class="action-btn" onclick="return confirm('Đặt lại mật khẩu cho @user.Username về TD@12345?')">🔑</button>
                 </form>
                 <form method="post" action="/admin/users/toggle-active">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="userId" value="@user.Id" />
                   <button type="submit" class="action-btn @(user.IsActive ? "action-btn-danger" : "")" onclick="return confirm('@(user.IsActive ? "Vô hiệu hóa" : "Kích hoạt") tài khoản @user.Username?')">@(user.IsActive ? "⛔" : "✅")</button>
                 </form>
@@ -91,6 +94,7 @@ else
       <button class="modal-close" onclick="hideEditModal()">&times;</button>
     </div>
     <form method="post" action="/admin/users/update">
+      @Html.AntiForgeryToken()
       <input type="hidden" name="userId" id="editUserId" />
       <div class="form-group">
         <label class="form-label">Tên đăng nhập</label>

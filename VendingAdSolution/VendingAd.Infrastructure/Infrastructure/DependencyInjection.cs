@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.Configure<MobileRateLimitOptions>(configuration.GetSection("MobileRateLimiting"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
 
+        services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentSession, CurrentSession>();
         services.AddScoped<ITimeService, TimeService>();

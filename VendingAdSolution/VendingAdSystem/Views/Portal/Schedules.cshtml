@@ -4,14 +4,18 @@
     var playlists = (List<Playlist>)ViewBag.Playlists;
     var medias = (List<Media>)ViewBag.Medias;
     var scheduleDraftJson = ViewBag.ScheduleDraftJson as string ?? string.Empty;
+    var vietnamNow = DateTime.UtcNow.AddHours(7);
     ViewData["Title"] = "Lịch phát";
 
     string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
     string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
     string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
+    DateTime LocalScheduleStart(PlaybackSchedule schedule) => schedule.StartDate.AddHours(7).Date.Add(schedule.StartTime);
+    DateTime LocalScheduleEnd(PlaybackSchedule schedule) => schedule.EndDate.AddHours(7).Date.Add(schedule.EndTime);
 }
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800&display=swap" />
 <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="schedules-page">
@@ -44,148 +48,181 @@
       </span>
     </button>
   </div>
-<div class="schedule-create-panel card surface u-hidden u-mb-15" id="createSchedulePanel">
-  <div class="card-header u-flex-head">
-    <div>
-      <h3 class="card-title" id="createPanelTitle">Tạo schedule</h3>
-      <div class="card-description" id="createPanelDescription">Chọn nội dung, thiết bị và khung giờ.</div>
+<section class="schedule-create-panel u-hidden u-mb-15" id="createSchedulePanel">
+  <div class="schedule-builder-head">
+    <div class="schedule-builder-title">
+      <span class="schedule-builder-icon" id="createPanelIcon"><i class="bi bi-calendar-plus"></i></span>
+      <div>
+        <h3 id="createPanelTitle">Tạo schedule</h3>
+        <p id="createPanelDescription">Theo lịch</p>
+      </div>
     </div>
-    <button type="button" class="btn btn-secondary btn-sm" onclick="closeCreateSchedule()">Đóng</button>
+    <button type="button" class="icon-btn schedule-builder-close" onclick="closeCreateSchedule()" aria-label="Đóng"><i class="bi bi-x-lg"></i></button>
   </div>
 
   <form method="post" action="/portal/schedules/create" id="scheduleCreateForm" class="schedule-create-form">
+    @Html.AntiForgeryToken()
     <input type="hidden" name="actionType" id="scheduleActionType" value="schedule" />
     <input type="hidden" name="sourceTab" id="scheduleSourceTab" value="media" />
     <input type="hidden" name="selectedSourcePlaylistId" id="selectedSourcePlaylistId" />
-    <div class="schedule-form-grid">
-      <div class="card schedule-form-card">
-        <div class="card-title">Thông tin</div>
-        <div class="form-group u-mt-075">
-          <label class="form-label">Tên schedule</label>
-          <input class="form-input" name="Name" placeholder="VD: Thứ 2 - 6 / Quầy A" required />
-        </div>
-      </div>
 
-      <div class="card schedule-form-card">
-        <div class="card-title">Khung ngày</div>
-        <div class="date-quick-row">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setDateRange('today')">Hôm nay</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setDateRange('7d')">7 ngày</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setDateRange('30d')">30 ngày</button>
-        </div>
-        <div class="two-field-grid">
-          <div class="form-group">
-            <label class="form-label">Bắt đầu</label>
-            <input class="form-input" type="date" name="StartDate" id="startDate" required />
+    <div class="schedule-builder-grid">
+      <div class="schedule-builder-main">
+        <section class="schedule-builder-section schedule-info-section">
+          <div class="schedule-section-head">
+            <span><i class="bi bi-info-circle"></i></span>
+            <h4>Thông tin phát</h4>
           </div>
-          <div class="form-group">
-            <label class="form-label">Kết thúc</label>
-            <input class="form-input" type="date" name="EndDate" id="endDate" required />
-          </div>
-        </div>
-      </div>
 
-      <div class="card schedule-form-card">
-        <div class="card-title">Khung giờ</div>
-        <div class="date-quick-row">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setTimeRange('all-day')">Cả ngày</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setTimeRange('morning')">Sáng</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setTimeRange('afternoon')">Chiều</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="setTimeRange('evening')">Tối</button>
-        </div>
-        <div class="two-field-grid">
-          <div class="form-group">
-            <label class="form-label">Giờ bắt đầu</label>
-            <input class="form-input" type="time" name="StartTime" id="startTime" required />
+          <div class="form-group schedule-name-field">
+            <label class="form-label">Tên schedule</label>
+            <input class="form-input" name="Name" placeholder="VD: Quầy A - khung giờ trưa" required />
           </div>
-          <div class="form-group">
-            <label class="form-label">Giờ kết thúc</label>
-            <input class="form-input" type="time" name="EndTime" id="endTime" required />
-          </div>
-        </div>
-      </div>
 
-      <div class="card schedule-form-card">
-        <div class="card-title">Thiết bị phát</div>
-        <div class="schedule-select-panel u-mt-075">
-          @foreach (var d in devices)
-          {
-            <label class="schedule-select-item">
-              <input type="checkbox" name="DeviceIds" value="@d.Id" />
-              <div>
-                <div class="schedule-select-title">@d.DeviceCode</div>
-                <div class="schedule-select-subtitle">@((d.Location ?? "Chưa có vị trí"))</div>
+          <div class="schedule-time-layout">
+            <div class="schedule-fieldset">
+              <div class="schedule-fieldset-head">
+                <strong><i class="bi bi-calendar3"></i>Khung ngày</strong>
+                <div class="schedule-preset-row">
+                  <button type="button" class="schedule-preset" onclick="setDateRange('today')">Hôm nay</button>
+                  <button type="button" class="schedule-preset" onclick="setDateRange('7d')">7 ngày</button>
+                  <button type="button" class="schedule-preset" onclick="setDateRange('30d')">30 ngày</button>
+                </div>
               </div>
-            </label>
-          }
-        </div>
+              <div class="two-field-grid">
+                <div class="form-group">
+                  <label class="form-label">Bắt đầu</label>
+                  <input class="form-input" type="date" name="StartDate" id="startDate" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Kết thúc</label>
+                  <input class="form-input" type="date" name="EndDate" id="endDate" required />
+                </div>
+              </div>
+            </div>
+
+            <div class="schedule-fieldset">
+              <div class="schedule-fieldset-head">
+                <strong><i class="bi bi-clock"></i>Khung giờ</strong>
+                <div class="schedule-preset-row">
+                  <button type="button" class="schedule-preset" onclick="setTimeRange('all-day')">Cả ngày</button>
+                  <button type="button" class="schedule-preset" onclick="setTimeRange('morning')">Sáng</button>
+                  <button type="button" class="schedule-preset" onclick="setTimeRange('afternoon')">Chiều</button>
+                  <button type="button" class="schedule-preset" onclick="setTimeRange('evening')">Tối</button>
+                </div>
+              </div>
+              <div class="two-field-grid">
+                <div class="form-group">
+                  <label class="form-label">Bắt đầu</label>
+                  <input class="form-input" type="time" name="StartTime" id="startTime" required />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Kết thúc</label>
+                  <input class="form-input" type="time" name="EndTime" id="endTime" required />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="schedule-builder-section schedule-source-section">
+          <div class="schedule-section-head schedule-section-head-split">
+            <div>
+              <span><i class="bi bi-collection-play"></i></span>
+              <h4>Nguồn video</h4>
+            </div>
+            <div class="source-tabs">
+              <button type="button" class="source-tab active" id="mediaTabBtn" onclick="switchSourceTab('media')"><i class="bi bi-film"></i>Video từ kho</button>
+              <button type="button" class="source-tab" id="playlistTabBtn" onclick="switchSourceTab('playlist')"><i class="bi bi-card-checklist"></i>Danh sách phát</button>
+            </div>
+          </div>
+
+          <div id="mediaSourcePanel" class="source-panel">
+            <div class="schedule-select-panel schedule-media-panel">
+              @foreach (var m in medias)
+              {
+                <label class="schedule-select-item">
+                  <input type="checkbox" name="MediaIds" value="@m.Id" data-source="media" />
+                  <span class="schedule-select-icon"><i class="bi bi-play-btn"></i></span>
+                  <div>
+                    <div class="schedule-select-title">@m.FileName</div>
+                    <div class="schedule-select-subtitle">@((m.FileSize / 1024 / 1024).ToString()) MB</div>
+                  </div>
+                </label>
+              }
+            </div>
+          </div>
+
+          <div id="playlistSourcePanel" class="source-panel u-hidden">
+            <input type="hidden" id="playlistSelect" />
+            <div class="playlist-choice-grid">
+              @foreach (var p in playlists)
+              {
+                var items = p.Items.OrderBy(i => i.OrderIndex).ToList();
+                <button type="button" class="playlist-choice" data-playlist-id="@p.Id" onclick="selectPlaylistSource(@p.Id)">
+                  <strong>@p.Name</strong>
+                  <span>@items.Count video(s)</span>
+                </button>
+              }
+            </div>
+
+            <div class="playlist-preview" id="playlistPreviewEmpty">
+              Chọn playlist để xem nội dung.
+            </div>
+
+            @foreach (var p in playlists)
+            {
+              var items = p.Items.OrderBy(i => i.OrderIndex).ToList();
+              <div class="playlist-preview-list u-hidden" id="playlistPreview-@p.Id" data-playlist-id="@p.Id">
+                @foreach (var item in items)
+                {
+                  <div class="playlist-preview-item" draggable="true" data-media-id="@item.MediaId">
+                    <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                    <span class="playlist-preview-order">@(item.OrderIndex + 1)</span>
+                    <div>
+                      <div class="schedule-select-title">@item.Media.FileName</div>
+                      <div class="schedule-select-subtitle">@((item.Media.FileSize / 1024 / 1024).ToString()) MB</div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </section>
       </div>
 
-      <div class="card schedule-form-card schedule-source-card">
-        <div class="card-title">Nguồn video</div>
-        <div class="source-tabs u-mt-075">
-          <button type="button" class="source-tab active" id="mediaTabBtn" onclick="switchSourceTab('media')">Video từ kho</button>
-          <button type="button" class="source-tab" id="playlistTabBtn" onclick="switchSourceTab('playlist')">Danh sách phát</button>
-        </div>
+      <aside class="schedule-builder-side">
+        <section class="schedule-builder-section schedule-device-section">
+          <div class="schedule-section-head schedule-section-head-split">
+            <div>
+              <span><i class="bi bi-display"></i></span>
+              <h4>Thiết bị phát</h4>
+            </div>
+            <strong class="schedule-count-chip">@devices.Count</strong>
+          </div>
 
-        <div id="mediaSourcePanel" class="source-panel">
-          <div class="schedule-select-panel">
-            @foreach (var m in medias)
+          <div class="schedule-select-panel schedule-device-panel">
+            @foreach (var d in devices)
             {
               <label class="schedule-select-item">
-                <input type="checkbox" name="MediaIds" value="@m.Id" data-source="media" />
+                <input type="checkbox" name="DeviceIds" value="@d.Id" />
+                <span class="schedule-select-icon"><i class="bi bi-display"></i></span>
                 <div>
-                  <div class="schedule-select-title">@m.FileName</div>
-                  <div class="schedule-select-subtitle">@((m.FileSize / 1024 / 1024).ToString()) MB</div>
+                  <div class="schedule-select-title">@d.DeviceCode</div>
+                  <div class="schedule-select-subtitle">@((d.Location ?? "Chưa có vị trí"))</div>
                 </div>
               </label>
             }
           </div>
+        </section>
+
+        <div class="schedule-builder-actions">
+          <button class="btn btn-primary fx-btn schedule-submit-btn" type="submit" id="scheduleSubmitBtn"><i class="bi bi-calendar-check"></i>Lên lịch</button>
         </div>
-
-        <div id="playlistSourcePanel" class="source-panel u-hidden">
-          <input type="hidden" id="playlistSelect" />
-          <div class="playlist-choice-grid">
-            @foreach (var p in playlists)
-            {
-              var items = p.Items.OrderBy(i => i.OrderIndex).ToList();
-              <button type="button" class="playlist-choice" data-playlist-id="@p.Id" onclick="selectPlaylistSource(@p.Id)">
-                <strong>@p.Name</strong>
-                <span>@items.Count video(s)</span>
-              </button>
-            }
-          </div>
-
-          <div class="playlist-preview" id="playlistPreviewEmpty">
-            Chọn playlist để xem video và kéo thả thứ tự cho schedule này.
-          </div>
-
-          @foreach (var p in playlists)
-          {
-            var items = p.Items.OrderBy(i => i.OrderIndex).ToList();
-            <div class="playlist-preview-list u-hidden" id="playlistPreview-@p.Id" data-playlist-id="@p.Id">
-              @foreach (var item in items)
-              {
-                <div class="playlist-preview-item" draggable="true" data-media-id="@item.MediaId">
-                  <span class="drag-handle">☰</span>
-                  <span class="playlist-preview-order">@(item.OrderIndex + 1)</span>
-                  <div>
-                    <div class="schedule-select-title">@item.Media.FileName</div>
-                    <div class="schedule-select-subtitle">@((item.Media.FileSize / 1024 / 1024).ToString()) MB</div>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
-      </div>
-    </div>
-
-    <div class="page-actions">
-      <button class="btn btn-primary fx-btn" type="submit" id="scheduleSubmitBtn">Lên lịch</button>
+      </aside>
     </div>
   </form>
-</div>
+</section>
 
 @if (!Model.Any())
 {
@@ -216,32 +253,118 @@ else
   <div class="schedule-list">
     @foreach (var s in Model)
     {
-      <div class="schedule-summary card @(s.IsActive ? "schedule-active" : "schedule-inactive")">
-        <div class="flex items-center justify-between u-flex-between-start">
-          <div>
-            <div class="schedule-name">@s.Name</div>
-            <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
-            <div class="schedule-badges">
-              @if (s.IsImmediate)
-              {
-                <span class="badge badge-primary">Phát ngay</span>
-              }
-              else
-              {
-                <span class="badge badge-schedule">Đã lên lịch</span>
-              }
-               <span class="badge @(s.IsActive ? "badge-success" : "badge-secondary")">@(s.IsActive ? "Đang hoạt động" : "Đã tắt")</span>
-              <span class="badge badge-secondary">@s.Devices.Count thiết bị</span>
-              <span class="badge badge-secondary">@s.Items.Count video(s)</span>
+      var visibleDevices = s.Devices.OrderBy(x => x.Device.DeviceCode).Take(3).ToList();
+      var remainingDevices = Math.Max(0, s.Devices.Count - visibleDevices.Count);
+      var visibleItems = s.Items.OrderBy(i => i.OrderIndex).Take(3).ToList();
+      var remainingItems = Math.Max(0, s.Items.Count - visibleItems.Count);
+      var scheduleStart = LocalScheduleStart(s);
+      var scheduleEnd = LocalScheduleEnd(s);
+      var scheduleState = s.IsActive && vietnamNow >= scheduleStart && vietnamNow <= scheduleEnd
+        ? "playing"
+        : vietnamNow <= scheduleEnd
+          ? "upcoming"
+          : "past";
+      var scheduleStateLabel = scheduleState switch
+      {
+        "playing" => "Đang phát",
+        "upcoming" => "Chờ tới lịch phát",
+        _ => "Đã qua lịch phát"
+      };
+      var scheduleStateDetail = scheduleState switch
+      {
+        "playing" => s.IsImmediate ? "Phát ngay" : "Trong khung giờ",
+        "upcoming" => $"Bắt đầu {scheduleStart:dd/MM HH:mm}",
+        _ => $"Kết thúc {scheduleEnd:dd/MM HH:mm}"
+      };
+      var scheduleStateIcon = scheduleState switch
+      {
+        "playing" => "bi-broadcast-pin",
+        "upcoming" => "bi-hourglass-split",
+        _ => "bi-calendar-x"
+      };
+
+      <article class="schedule-live-card schedule-state-@scheduleState">
+        <div class="schedule-live-status">
+          <span class="schedule-status-dot"><i class="bi @scheduleStateIcon"></i></span>
+          <strong>@scheduleStateLabel</strong>
+          <small>@scheduleStateDetail</small>
+        </div>
+
+        <div class="schedule-live-body">
+          <div class="schedule-live-main-row">
+            <div class="schedule-live-title-block">
+              <div class="schedule-live-type">
+                <i class="bi @(s.IsImmediate ? "bi-lightning-charge" : "bi-calendar-event")"></i>
+                @(s.IsImmediate ? "Phát ngay" : "Lịch thường")
+              </div>
+              <h3>@s.Name</h3>
+            </div>
+
+            <div class="schedule-live-actions">
+              <button type="button" class="schedule-action-btn primary" onclick="openScheduleDetail(@s.Id)"><i class="bi bi-sliders"></i>Chi tiết</button>
+              <form method="post" action="/portal/schedules/toggle">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="scheduleId" value="@s.Id" />
+                <button class="schedule-action-btn" type="submit"><i class="bi @(s.IsActive ? "bi-pause-fill" : "bi-play-fill")"></i>@(s.IsActive ? "Tắt" : "Bật")</button>
+              </form>
+              <form method="post" action="/portal/schedules/delete" onsubmit="return confirm('Xóa schedule?')">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="scheduleId" value="@s.Id" />
+                <button class="schedule-action-btn danger" type="submit"><i class="bi bi-trash"></i>Xóa</button>
+              </form>
             </div>
           </div>
-          <div class="flex gap-2 u-actions-wrap-end">
-            <button type="button" class="btn btn-sm btn-secondary" onclick="openScheduleDetail(@s.Id)">Chi tiết / Sửa</button>
-            <form method="post" action="/portal/schedules/toggle"><input type="hidden" name="scheduleId" value="@s.Id" /><button class="btn btn-sm btn-secondary" type="submit">@(s.IsActive ? "Tắt" : "Bật")</button></form>
-            <form method="post" action="/portal/schedules/delete" onsubmit="return confirm('Xóa schedule?')"><input type="hidden" name="scheduleId" value="@s.Id" /><button class="btn btn-sm" type="submit">Xóa</button></form>
+
+          <div class="schedule-live-facts">
+            <div class="schedule-fact">
+              <span><i class="bi bi-calendar3"></i></span>
+              <div><small>Ngày phát</small><strong>@DateRangeText(s)</strong></div>
+            </div>
+            <div class="schedule-fact">
+              <span><i class="bi bi-clock"></i></span>
+              <div><small>Khung giờ</small><strong>@TimeRangeText(s)</strong></div>
+            </div>
+            <div class="schedule-fact">
+              <span><i class="bi bi-display"></i></span>
+              <div><small>Thiết bị</small><strong>@s.Devices.Count thiết bị</strong></div>
+            </div>
+            <div class="schedule-fact">
+              <span><i class="bi bi-play-btn"></i></span>
+              <div><small>Nội dung</small><strong>@s.Items.Count video</strong></div>
+            </div>
+          </div>
+
+          <div class="schedule-live-preview">
+            <div class="schedule-preview-group">
+              <span class="schedule-preview-label">Thiết bị</span>
+              <div class="schedule-preview-chips">
+                @foreach (var device in visibleDevices)
+                {
+                  <span class="schedule-preview-chip">@device.Device.DeviceCode</span>
+                }
+                @if (remainingDevices > 0)
+                {
+                  <span class="schedule-preview-chip muted">+@remainingDevices</span>
+                }
+              </div>
+            </div>
+
+            <div class="schedule-preview-group">
+              <span class="schedule-preview-label">Video</span>
+              <div class="schedule-preview-chips">
+                @foreach (var item in visibleItems)
+                {
+                  <span class="schedule-preview-chip">@item.Media.FileName</span>
+                }
+                @if (remainingItems > 0)
+                {
+                  <span class="schedule-preview-chip muted">+@remainingItems</span>
+                }
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </article>
 
       <div class="modal-overlay u-hidden" id="scheduleDetail-@s.Id">
         <div class="modal modal-wide schedule-detail-modal">
@@ -282,6 +405,7 @@ else
 
               <div class="schedule-item-toolbar">
                 <form method="post" action="/portal/schedules/add-item" class="schedule-add-item-form">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="scheduleId" value="@s.Id" />
                   <select class="form-input" name="mediaId" required>
                     <option value="">Chọn video để thêm</option>
@@ -312,6 +436,7 @@ else
                         <td>
                           <div class="flex gap-2">
                             <form method="post" action="/portal/schedules/remove-item" onsubmit="return confirm('Xóa video khỏi schedule?')">
+                              @Html.AntiForgeryToken()
                               <input type="hidden" name="scheduleItemId" value="@item.Id" />
                               <button type="submit" class="btn btn-sm">Xóa</button>
                             </form>
@@ -337,43 +462,100 @@ else
   .schedule-mode-card strong { display:block; color: var(--foreground); font-size: 1rem; }
   .schedule-mode-card small { display:block; color: var(--muted-foreground); margin-top:.25rem; }
   .schedule-mode-icon { width:42px; height:42px; border-radius: 999px; display:flex; align-items:center; justify-content:center; background: rgba(37, 99, 235, .1); color: var(--primary); font-weight:700; }
+  .schedule-create-panel { border:1px solid #dbe7f5; border-radius: 8px; background:#fff; box-shadow: 0 16px 40px rgba(15, 23, 42, .08); overflow:hidden; }
+  .schedule-builder-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding: 1rem 1.1rem; border-bottom:1px solid #e3ebf7; background:#f8fbff; }
+  .schedule-builder-title { display:flex; align-items:center; gap:.8rem; min-width:0; }
+  .schedule-builder-title h3 { margin:0; font-size:1rem; line-height:1.3; color:#0f172a; }
+  .schedule-builder-title p { margin:.2rem 0 0; color:#64748b; font-size:.82rem; }
+  .schedule-builder-icon { width:38px; height:38px; border-radius:8px; background:#2563eb; color:#fff; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .schedule-builder-close { width:34px; height:34px; border-radius:8px; }
   .schedule-create-form { display:block; }
-  .schedule-form-grid { display:grid; gap:1rem; }
-  .schedule-form-card { padding: 1rem; }
-  .two-field-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .date-quick-row { display:flex; gap:.5rem; flex-wrap:wrap; margin: .75rem 0 1rem; }
-  .schedule-select-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-  .schedule-select-panel { border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); padding: 0.75rem; max-height: 280px; overflow-y: auto; }
-  .schedule-select-item { display:flex; align-items:flex-start; gap:.75rem; padding:.75rem; margin-bottom:.5rem; background: var(--background); border:1px solid var(--border); border-radius: var(--radius); cursor:pointer; transition: border-color .15s, background .15s; }
+  .schedule-builder-grid { display:grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .75fr); gap:1rem; padding:1rem; align-items:start; }
+  .schedule-builder-main { display:grid; gap:1rem; min-width:0; }
+  .schedule-builder-side { display:grid; gap:1rem; min-width:0; }
+  .schedule-builder-section { border:1px solid #dbe7f5; border-radius:8px; background:#fff; padding:1rem; min-width:0; }
+  .schedule-section-head { display:flex; align-items:center; gap:.55rem; margin-bottom:.85rem; }
+  .schedule-section-head > span, .schedule-section-head > div > span { width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:#eff6ff; color:#2563eb; flex:0 0 auto; }
+  .schedule-section-head h4 { margin:0; font-size:.95rem; color:#0f172a; }
+  .schedule-section-head-split { justify-content:space-between; gap:.75rem; flex-wrap:wrap; }
+  .schedule-section-head-split > div { display:flex; align-items:center; gap:.55rem; min-width:0; }
+  .schedule-name-field { margin-bottom:1rem; }
+  .schedule-time-layout { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:1rem; }
+  .schedule-fieldset { border:1px solid #e3ebf7; border-radius:8px; background:#f8fbff; padding:.85rem; min-width:0; }
+  .schedule-fieldset-head { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; margin-bottom:.75rem; flex-wrap:wrap; }
+  .schedule-fieldset-head strong { display:inline-flex; align-items:center; gap:.4rem; color:#0f172a; font-size:.86rem; }
+  .schedule-preset-row { display:flex; gap:.35rem; flex-wrap:wrap; }
+  .schedule-preset { border:1px solid #dbe7f5; background:#fff; color:#1e3a8a; border-radius:8px; padding:.34rem .55rem; font-size:.76rem; font-weight:700; cursor:pointer; line-height:1.1; }
+  .schedule-preset:hover { border-color:#2563eb; color:#1d4ed8; }
+  .two-field-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:.75rem; }
+  .schedule-select-panel { border:1px solid #e3ebf7; border-radius:8px; background:#f8fbff; padding:.55rem; overflow-y:auto; }
+  .schedule-device-panel { max-height: 390px; }
+  .schedule-media-panel { max-height: 300px; }
+  .schedule-select-item { display:grid; grid-template-columns: auto auto minmax(0, 1fr); align-items:flex-start; gap:.65rem; padding:.72rem; margin-bottom:.45rem; background:#fff; border:1px solid #dbe7f5; border-radius:8px; cursor:pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
   .schedule-select-item:last-child { margin-bottom:0; }
-  .schedule-select-item input { margin-top:.2rem; }
-  .schedule-select-title { font-weight:600; color: var(--foreground); }
-  .schedule-select-subtitle { font-size:.75rem; color: var(--muted-foreground); }
-  .schedule-select-item:has(input:checked) { border-color: var(--primary); background: rgba(37, 99, 235, 0.06); }
-  .schedule-source-card { grid-column: 1 / -1; }
-  .source-tabs { display:inline-flex; gap:.35rem; background: var(--muted); padding:.35rem; border-radius: 999px; border:1px solid var(--border); }
-  .source-tab { border:0; background:transparent; color: var(--muted-foreground); padding:.45rem .8rem; border-radius:999px; cursor:pointer; font-weight:600; }
-  .source-tab.active { background: var(--background); color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
-  .source-panel { margin-top: 1rem; }
-  .playlist-choice-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:.75rem; }
-  .playlist-choice { text-align:left; border:1px solid var(--border); border-radius: var(--radius); background: var(--background); padding:.85rem; cursor:pointer; }
-  .playlist-choice strong { display:block; color: var(--foreground); }
-  .playlist-choice span { display:block; color: var(--muted-foreground); font-size:.75rem; margin-top:.2rem; }
-  .playlist-choice.active { border-color: var(--primary); background: rgba(37, 99, 235, .06); }
-  .playlist-preview { margin-top:1rem; padding:1rem; border:1px dashed var(--border); border-radius: var(--radius); color: var(--muted-foreground); text-align:center; }
-  .playlist-preview-list { margin-top:1rem; display:grid; gap:.5rem; }
-  .playlist-preview-item { display:flex; align-items:center; gap:.75rem; border:1px solid var(--border); border-radius: var(--radius); background: var(--background); padding:.75rem; cursor:grab; }
+  .schedule-select-item:hover { border-color:#93c5fd; box-shadow:0 6px 18px rgba(37, 99, 235, .08); }
+  .schedule-select-item input { margin-top:.18rem; }
+  .schedule-select-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#eef2f7; color:#475569; }
+  .schedule-select-title { font-weight:700; color:#0f172a; overflow-wrap:anywhere; }
+  .schedule-select-subtitle { font-size:.75rem; color:#64748b; margin-top:.15rem; overflow-wrap:anywhere; }
+  .schedule-select-item:has(input:checked) { border-color:#2563eb; background:#eff6ff; box-shadow:0 8px 22px rgba(37, 99, 235, .12); }
+  .schedule-select-item:has(input:checked) .schedule-select-icon { background:#2563eb; color:#fff; }
+  .schedule-count-chip { min-width:28px; height:28px; padding:0 .55rem; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; background:#eef2f7; color:#334155; font-size:.78rem; }
+  .source-tabs { display:inline-flex; gap:.25rem; background:#eef2f7; padding:.25rem; border-radius:8px; border:1px solid #dbe7f5; flex-wrap:wrap; }
+  .source-tab { border:0; background:transparent; color:#475569; padding:.44rem .68rem; border-radius:7px; cursor:pointer; font-weight:700; font-size:.8rem; display:inline-flex; align-items:center; gap:.38rem; white-space:nowrap; }
+  .source-tab.active { background:#fff; color:#2563eb; box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  .source-panel { margin-top:.75rem; }
+  .playlist-choice-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:.65rem; }
+  .playlist-choice { text-align:left; border:1px solid #dbe7f5; border-radius:8px; background:#fff; padding:.78rem; cursor:pointer; min-width:0; }
+  .playlist-choice strong { display:block; color:#0f172a; overflow-wrap:anywhere; }
+  .playlist-choice span { display:block; color:#64748b; font-size:.75rem; margin-top:.2rem; }
+  .playlist-choice.active { border-color:#2563eb; background:#eff6ff; box-shadow:0 8px 22px rgba(37, 99, 235, .1); }
+  .playlist-preview { margin-top:.75rem; padding:.9rem; border:1px dashed #cbd5e1; border-radius:8px; color:#64748b; text-align:center; background:#f8fbff; }
+  .playlist-preview-list { margin-top:.75rem; display:grid; gap:.45rem; max-height:260px; overflow:auto; padding-right:.15rem; }
+  .playlist-preview-item { display:grid; grid-template-columns: auto auto minmax(0, 1fr); align-items:center; gap:.65rem; border:1px solid #dbe7f5; border-radius:8px; background:#fff; padding:.72rem; cursor:grab; }
   .playlist-preview-item.dragging { opacity:.5; }
-  .drag-handle { color: var(--muted-foreground); cursor:grab; }
-  .playlist-preview-order { width:26px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: rgba(37,99,235,.1); color: var(--primary); font-size:.75rem; font-weight:700; }
+  .drag-handle { color:#64748b; cursor:grab; display:flex; align-items:center; }
+  .playlist-preview-order { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#eff6ff; color:#2563eb; font-size:.75rem; font-weight:800; }
+  .schedule-builder-actions { position:sticky; bottom:1rem; border:1px solid #dbe7f5; border-radius:8px; background:#f8fbff; padding:.75rem; box-shadow:0 12px 26px rgba(15, 23, 42, .08); }
+  .schedule-submit-btn { width:100%; justify-content:center; display:inline-flex; align-items:center; gap:.45rem; min-height:42px; }
   .schedule-list-header { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin-bottom: .75rem; }
   .schedule-count { font-size:.875rem; color: var(--muted-foreground); }
-  .schedule-list { display:grid; gap: .75rem; }
-  .schedule-summary { padding: 1rem 1.25rem; }
-  .schedule-active { border-color: rgba(34, 197, 94, .35); }
-  .schedule-inactive { opacity: .85; }
-  .schedule-name { font-size: 1rem; font-weight: 700; color: var(--foreground); }
-  .schedule-badges { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; }
+  .schedule-list { display:grid; gap:.85rem; }
+  .schedule-live-card { display:grid; grid-template-columns: 136px minmax(0, 1fr); border:1px solid #dbe7f5; border-radius:8px; background:#fff; overflow:hidden; box-shadow:0 10px 28px rgba(15, 23, 42, .06); transition:border-color .15s, box-shadow .15s, transform .15s; }
+  .schedule-live-card:hover { border-color:#93c5fd; box-shadow:0 16px 34px rgba(15, 23, 42, .09); transform:translateY(-1px); }
+  .schedule-live-card.schedule-state-playing { border-color:#86efac; }
+  .schedule-live-card.schedule-state-upcoming { border-color:#bfdbfe; }
+  .schedule-live-card.schedule-state-past { border-color:#cbd5e1; opacity:.9; }
+  .schedule-live-status { display:flex; flex-direction:column; justify-content:center; gap:.25rem; padding:1rem; background:#f0fdf4; border-right:1px solid #dcfce7; color:#166534; }
+  .schedule-live-card.schedule-state-upcoming .schedule-live-status { background:#eff6ff; border-right-color:#dbeafe; color:#1d4ed8; }
+  .schedule-live-card.schedule-state-past .schedule-live-status { background:#f8fafc; border-right-color:#e2e8f0; color:#64748b; }
+  .schedule-status-dot { width:34px; height:34px; border-radius:999px; background:#22c55e; box-shadow:0 0 0 6px rgba(34,197,94,.14); margin-bottom:.55rem; display:flex; align-items:center; justify-content:center; color:#fff; }
+  .schedule-live-card.schedule-state-upcoming .schedule-status-dot { background:#2563eb; box-shadow:0 0 0 6px rgba(37,99,235,.13); }
+  .schedule-live-card.schedule-state-past .schedule-status-dot { background:#94a3b8; box-shadow:0 0 0 6px rgba(148,163,184,.14); }
+  .schedule-live-status strong { font-size:.9rem; line-height:1.25; }
+  .schedule-live-status small { color:currentColor; opacity:.72; font-weight:700; }
+  .schedule-live-body { padding:1rem; min-width:0; display:grid; gap:.85rem; }
+  .schedule-live-main-row { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; }
+  .schedule-live-title-block { min-width:0; }
+  .schedule-live-title-block h3 { margin:.18rem 0 0; color:#0f172a; font-size:1.05rem; line-height:1.25; overflow-wrap:anywhere; }
+  .schedule-live-type { display:inline-flex; align-items:center; gap:.35rem; color:#2563eb; font-weight:800; font-size:.76rem; text-transform:uppercase; }
+  .schedule-live-actions { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; justify-content:flex-end; flex:0 0 auto; }
+  .schedule-live-actions form { margin:0; }
+  .schedule-action-btn { border:1px solid #dbe7f5; background:#f8fafc; color:#334155; border-radius:8px; padding:.45rem .65rem; font-family:"Be Vietnam Pro", "Segoe UI", Arial, sans-serif; font-size:.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:.35rem; min-height:34px; letter-spacing:0; }
+  .schedule-action-btn:hover { border-color:#93c5fd; background:#eff6ff; color:#1d4ed8; }
+  .schedule-action-btn.primary { background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
+  .schedule-action-btn.danger:hover { border-color:#fecaca; background:#fef2f2; color:#dc2626; }
+  .schedule-live-facts { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:.65rem; }
+  .schedule-fact { display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:center; gap:.55rem; border:1px solid #e3ebf7; border-radius:8px; background:#f8fbff; padding:.68rem; min-width:0; }
+  .schedule-fact > span { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:#eef2ff; color:#2563eb; }
+  .schedule-fact small { display:block; color:#64748b; font-size:.72rem; margin-bottom:.1rem; }
+  .schedule-fact strong { display:block; color:#0f172a; font-size:.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .schedule-live-preview { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:.65rem; border-top:1px solid #edf2f7; padding-top:.85rem; }
+  .schedule-preview-group { min-width:0; }
+  .schedule-preview-label { display:block; color:#64748b; font-size:.72rem; font-weight:800; margin-bottom:.35rem; text-transform:uppercase; }
+  .schedule-preview-chips { display:flex; flex-wrap:wrap; gap:.35rem; min-width:0; }
+  .schedule-preview-chip { max-width: 190px; border:1px solid #dbe7f5; background:#fff; color:#334155; border-radius:999px; padding:.28rem .55rem; font-size:.76rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .schedule-preview-chip.muted { background:#f1f5f9; color:#64748b; }
   .schedule-detail-modal .modal-body { max-height: 80vh; overflow-y: auto; }
   .schedule-item-toolbar { display:flex; justify-content:space-between; gap:1rem; margin-top: 1rem; flex-wrap: wrap; }
   .schedule-add-item-form { display:flex; gap:.5rem; flex-wrap:wrap; width:100%; }
@@ -382,9 +564,31 @@ else
   .schedule-item-table tbody tr.dragging { opacity: .5; }
   .schedule-order-cell { display:flex; align-items:center; gap:.5rem; }
   .schedule-item-handle { color: var(--muted-foreground); font-size:.9rem; }
+  @@media (max-width: 1180px) {
+    .schedule-builder-grid { grid-template-columns: 1fr; }
+    .schedule-builder-actions { position:static; }
+    .schedule-device-panel { max-height:260px; }
+    .schedule-live-card { grid-template-columns: 1fr; }
+    .schedule-live-status { flex-direction:row; align-items:center; justify-content:flex-start; border-right:0; border-bottom:1px solid #dcfce7; }
+    .schedule-live-card.schedule-state-upcoming .schedule-live-status { border-bottom-color:#dbeafe; }
+    .schedule-live-card.schedule-state-past .schedule-live-status { border-bottom-color:#e2e8f0; }
+    .schedule-status-dot { margin:0 .35rem 0 0; }
+  }
   @@media (max-width: 768px) {
-    .schedule-mode-grid, .schedule-select-grid, .two-field-grid, .playlist-choice-grid { grid-template-columns: 1fr; }
+    .schedule-mode-grid, .schedule-time-layout, .two-field-grid, .playlist-choice-grid { grid-template-columns: 1fr; }
+    .schedule-builder-grid { padding:.75rem; }
+    .schedule-builder-head { align-items:flex-start; padding:.9rem; }
+    .schedule-builder-section { padding:.85rem; }
+    .schedule-section-head-split { align-items:flex-start; }
+    .source-tabs { width:100%; }
+    .source-tab { flex:1; justify-content:center; }
     .schedule-list-header { flex-direction:column; align-items:flex-start; }
+    .schedule-live-main-row { flex-direction:column; }
+    .schedule-live-actions { width:100%; justify-content:flex-start; }
+    .schedule-live-facts, .schedule-live-preview { grid-template-columns:1fr; }
+    .schedule-action-btn { flex:1; justify-content:center; }
+    .schedule-live-actions form { flex:1; }
+    .schedule-live-actions form .schedule-action-btn { width:100%; }
   }
 </style>
 
@@ -399,11 +603,12 @@ else
   function openCreateSchedule(mode) {
     createMode = mode || 'schedule';
     document.getElementById('scheduleActionType').value = createMode;
+    document.getElementById('createPanelIcon').innerHTML = createMode === 'immediate' ? '<i class="bi bi-play-fill"></i>' : '<i class="bi bi-calendar-plus"></i>';
     document.getElementById('createPanelTitle').textContent = createMode === 'immediate' ? 'Tạo danh sách phát ngay' : 'Tạo lịch phát video';
-    document.getElementById('createPanelDescription').textContent = createMode === 'immediate'
-      ? 'Điền thông tin, chọn thiết bị, chọn nguồn video rồi bấm phát.'
-      : 'Đặt ngày giờ, chọn thiết bị, chọn nguồn video rồi lên lịch.';
-    document.getElementById('scheduleSubmitBtn').textContent = createMode === 'immediate' ? 'Phát' : 'Lên lịch';
+    document.getElementById('createPanelDescription').textContent = createMode === 'immediate' ? 'Phát ngay' : 'Theo lịch';
+    document.getElementById('scheduleSubmitBtn').innerHTML = createMode === 'immediate'
+      ? '<i class="bi bi-play-fill"></i>Phát'
+      : '<i class="bi bi-calendar-check"></i>Lên lịch';
 
     document.getElementById('createSchedulePanel').style.display = 'block';
     setDateRange('today');
@@ -422,11 +627,12 @@ else
     document.getElementById('createSchedulePanel').style.display = 'block';
     createMode = scheduleDraft.actionType || 'schedule';
     document.getElementById('scheduleActionType').value = createMode;
+    document.getElementById('createPanelIcon').innerHTML = createMode === 'immediate' ? '<i class="bi bi-play-fill"></i>' : '<i class="bi bi-calendar-plus"></i>';
     document.getElementById('createPanelTitle').textContent = createMode === 'immediate' ? 'Tạo danh sách phát ngay' : 'Tạo lịch phát video';
-    document.getElementById('createPanelDescription').textContent = createMode === 'immediate'
-      ? 'Điền thông tin, chọn thiết bị, chọn nguồn video rồi bấm phát.'
-      : 'Đặt ngày giờ, chọn thiết bị, chọn nguồn video rồi lên lịch.';
-    document.getElementById('scheduleSubmitBtn').textContent = createMode === 'immediate' ? 'Phát' : 'Lên lịch';
+    document.getElementById('createPanelDescription').textContent = createMode === 'immediate' ? 'Phát ngay' : 'Theo lịch';
+    document.getElementById('scheduleSubmitBtn').innerHTML = createMode === 'immediate'
+      ? '<i class="bi bi-play-fill"></i>Phát'
+      : '<i class="bi bi-calendar-check"></i>Lên lịch';
 
     form.querySelector('[name="Name"]').value = scheduleDraft.Name || '';
     document.getElementById('startDate').value = scheduleDraft.startDate || '';
@@ -628,7 +834,7 @@ else
 
     fetch('/portal/schedules/update-item-order', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': window.getRequestVerificationToken?.() || '' },
       body: JSON.stringify({ scheduleId: scheduleId, updates: updates })
     }).then(r => {
       if (!r.ok) location.reload();

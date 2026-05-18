@@ -36,6 +36,8 @@
       </div>
 
       <form class="login-form-modern" method="post" action="/account/login">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
         @if (!ViewData.ModelState.IsValid)
         {
           <div class="alert alert-danger">

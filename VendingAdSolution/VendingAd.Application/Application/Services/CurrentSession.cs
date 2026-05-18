@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace VendingAdSystem.Application.Services;
 
@@ -22,11 +23,35 @@ public class CurrentSession : ICurrentSession
     }
 
     private ISession? Session => _httpContextAccessor.HttpContext?.Session;
+    private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
 
-    public int? AdminId => Session?.GetInt32("AdminId");
-    public int? UserId => Session?.GetInt32("UserId");
-    public string? AdminEmail => Session?.GetString("AdminEmail");
-    public string? UserEmail => Session?.GetString("UserEmail");
+    private bool HasRole(string role)
+    {
+        return User?.Identity?.IsAuthenticated == true && User.IsInRole(role);
+    }
+
+    private string? ClaimValue(string type)
+    {
+        return User?.FindFirstValue(type);
+    }
+
+    private static int? ParseId(string? value)
+    {
+        return int.TryParse(value, out var id) && id > 0 ? id : null;
+    }
+
+    public int? AdminId => Session?.GetInt32("AdminId")
+        ?? (HasRole("Admin") ? ParseId(ClaimValue("AdminId") ?? ClaimValue(ClaimTypes.NameIdentifier)) : null);
+
+    public int? UserId => Session?.GetInt32("UserId")
+        ?? (HasRole("User") ? ParseId(ClaimValue("UserId") ?? ClaimValue(ClaimTypes.NameIdentifier)) : null);
+
+    public string? AdminEmail => Session?.GetString("AdminEmail")
+        ?? (HasRole("Admin") ? ClaimValue(ClaimTypes.Email) : null);
+
+    public string? UserEmail => Session?.GetString("UserEmail")
+        ?? (HasRole("User") ? ClaimValue(ClaimTypes.Email) : null);
+
     public bool IsAdminLoggedIn => AdminId.HasValue && AdminId.Value > 0 && !string.IsNullOrEmpty(AdminEmail);
     public bool IsPortalLoggedIn => UserId.HasValue && UserId.Value > 0 && !string.IsNullOrEmpty(UserEmail);
 }

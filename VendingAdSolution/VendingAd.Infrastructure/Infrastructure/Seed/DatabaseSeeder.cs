@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
+using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
 
@@ -7,6 +8,8 @@ namespace VendingAdSystem.Infrastructure.Seed;
 
 public static class DatabaseSeeder
 {
+    private static readonly IPasswordHashingService PasswordHashingService = new PasswordHashingService();
+
     public static void Seed(AppDbContext db)
     {
         if (db.Database.IsSqlite())
@@ -83,9 +86,7 @@ public static class DatabaseSeeder
 
     private static string HashPassword(string password)
     {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
+        return PasswordHashingService.HashPassword(password);
     }
 
     private static void EnsureColumn(AppDbContext db, string tableName, string columnName, string columnDefinition)

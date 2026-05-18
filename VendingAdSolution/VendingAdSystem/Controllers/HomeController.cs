@@ -18,13 +18,13 @@ public class HomeController : Controller
         var adminEmail = _currentSession.AdminEmail;
 
         if (!string.IsNullOrEmpty(adminEmail))
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("Index", "Admin");
 
         if (!string.IsNullOrEmpty(userEmail) && _currentSession.UserId.HasValue)
             return RedirectToAction("Dashboard", "Portal");
 
         if (!string.IsNullOrEmpty(userEmail))
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("Dashboard", "Portal");
 
         return RedirectToAction("Login", "Account");
     }

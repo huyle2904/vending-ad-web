@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -7,6 +8,8 @@ using VendingAdSystem.Domain.Entities;
 
 namespace VendingAdSystem.Controllers;
 
+[Authorize]
+[AutoValidateAntiforgeryToken]
 public class PortalController : Controller
 {
     private readonly ICurrentSession _currentSession;
@@ -73,25 +76,25 @@ public class PortalController : Controller
 
     [HttpGet("/")]
     [HttpGet("/dashboard")]
-    public async Task<IActionResult> DashboardHome()
+    [AllowAnonymous]
+    public IActionResult DashboardHome()
     {
-        if (!_currentSession.IsAdminLoggedIn && !_currentSession.IsPortalLoggedIn)
-            return RedirectToAction("Login", "Account");
+        if (_currentSession.IsAdminLoggedIn || User.IsInRole("Admin"))
+            return RedirectToAction("Index", "Admin");
 
-        var devices = await _deviceService.Query()
-            .AsNoTracking()
-            .OrderByDescending(d => d.LastSeen)
-            .ToListAsync();
+        if (_currentSession.IsPortalLoggedIn || User.IsInRole("User"))
+            return RedirectToAction("Dashboard", "Portal");
 
-        ViewBag.OnlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, _timeService.UtcNow);
-
-        return View("~/Views/Dashboard/Index.cshtml", devices);
+        return RedirectToAction("Login", "Account");
     }
 
     [HttpGet("/upload")]
     public IActionResult Upload()
     {
-        if (!_currentSession.IsAdminLoggedIn && !_currentSession.IsPortalLoggedIn)
+        if (_currentSession.IsAdminLoggedIn || User.IsInRole("Admin"))
+            return RedirectToAction("Videos", "Admin");
+
+        if (!_currentSession.IsPortalLoggedIn && !User.IsInRole("User"))
             return RedirectToAction("Login", "Account");
 
         return RedirectToAction("Videos");

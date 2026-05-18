@@ -106,6 +106,7 @@
               <td class="col-actions">
                 <button class="icon-btn" title="Xem"><i class="bi bi-eye"></i></button>
                 <form method="post" action="/portal/videos/delete" class="u-inline">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="videoId" value="@video.Id" />
                   <button class="icon-btn danger-outline" type="submit" onclick="return confirm('Bạn có chắc muốn xóa video này?')"><i class="bi bi-trash"></i></button>
                 </form>
@@ -218,6 +219,14 @@
     const selected = Array.from(document.querySelectorAll('.delete-check:checked')).map(x => x.value);
     if (!selected.length) { window.showToast('Chọn ít nhất 1 video', 'error'); return; }
     const form = document.createElement('form'); form.method = 'post'; form.action = '/portal/videos/batch-delete';
+    const token = window.getRequestVerificationToken?.() || '';
+    if (token) {
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden';
+      csrf.name = '__RequestVerificationToken';
+      csrf.value = token;
+      form.appendChild(csrf);
+    }
     selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='videoIds'; i.value=id; form.appendChild(i); });
     document.body.appendChild(form); form.submit();
   }

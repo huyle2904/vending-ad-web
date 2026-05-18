@@ -33,6 +33,7 @@
       </div>
     </div>
     <form method="post" action="/portal/playlist/create" class="playlist-create-form">
+      @Html.AntiForgeryToken()
       <input id="playlistNameInput" type="text" name="name" value="@ViewBag.PlaylistDraftName" placeholder="Nhập tên playlist mới..." required />
       <button type="submit">Tạo playlist</button>
     </form>
@@ -67,6 +68,7 @@
               <span class="pill-counter">@items.Count video</span>
               <button type="button" class="btn-soft fx-soft" onclick="openVideoModal(@playlist.Id)"><i class="bi bi-plus-circle"></i>Thêm video</button>
               <form method="post" action="/portal/playlist/delete" onsubmit="return confirm('Xóa playlist @playlist.Name?')">
+                @Html.AntiForgeryToken()
                 <input type="hidden" name="playlistId" value="@playlist.Id" />
                 <button type="submit" class="btn-soft danger"><i class="bi bi-trash"></i>Xóa</button>
               </form>
@@ -88,6 +90,7 @@
                   <span class="name">@item.Media.FileName</span>
                   <span class="size">@((item.Media.FileSize / 1024 / 1024).ToString()) MB</span>
                   <form method="post" action="/portal/playlist/remove-item" onsubmit="return confirm('Xóa video này khỏi playlist?')">
+                    @Html.AntiForgeryToken()
                     <input type="hidden" name="playlistItemId" value="@item.Id" />
                     <button type="submit" class="btn-soft danger">Xóa</button>
                   </form>
@@ -109,6 +112,7 @@
       <button class="modal-close" type="button" onclick="closeVideoModal()">×</button>
     </div>
     <form method="post" action="/portal/playlist/add-video">
+      @Html.AntiForgeryToken()
       <input type="hidden" name="playlistId" id="modalPlaylistId" />
       <div class="modal-body">
         @if (!medias.Any())
@@ -141,7 +145,7 @@
     const lists=document.querySelectorAll('.playlist-media-list');
     for(const list of lists){
       const updates=[]; list.querySelectorAll('.playlist-media-row').forEach((item,i)=>updates.push({playlistItemId:parseInt(item.dataset.playlistItemId),orderIndex:i}));
-      const resp=await fetch('/portal/playlist/update-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({playlistId:parseInt(list.dataset.playlistId),updates})});
+      const resp=await fetch('/portal/playlist/update-order',{method:'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':window.getRequestVerificationToken?.() || ''},body:JSON.stringify({playlistId:parseInt(list.dataset.playlistId),updates})});
       if(!resp.ok){ window.showToast('Lưu thứ tự thất bại','error'); return; }
     }
     window.showToast('Thứ tự playlist đã được lưu!','success');

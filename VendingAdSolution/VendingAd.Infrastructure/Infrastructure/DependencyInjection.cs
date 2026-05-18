@@ -53,7 +53,6 @@ public static class DependencyInjection
         services.AddPersistence(configuration);
         services.AddCache(configuration, requireRedis: true);
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
-        services.AddVendingAdHealthChecks();
 
         services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VendingAd.Contracts;
+using VendingAdSystem.Application.Messaging;
 using VendingAdSystem.Application.Services;
 
 namespace VendingAdWorker;
@@ -14,12 +15,12 @@ public class Worker : BackgroundService
     private const string ScheduleChangedRoutingKey = "schedule.changed";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ILogger<Worker> _logger;
-    private readonly RabbitMqWorkerOptions _options;
+    private readonly RabbitMqOptions _options;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private IConnection? _connection;
     private IModel? _channel;
 
-    public Worker(ILogger<Worker> logger, IOptions<RabbitMqWorkerOptions> options, IServiceScopeFactory serviceScopeFactory)
+    public Worker(ILogger<Worker> logger, IOptions<RabbitMqOptions> options, IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
         _options = options.Value;

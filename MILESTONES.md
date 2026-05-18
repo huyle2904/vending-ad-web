@@ -468,6 +468,36 @@ Validation:
 
 ---
 
+### Milestone 9.6: Local SQL Server Readiness
+
+Status: Done
+
+Goal: Make the project easy to clone and run locally with SQL Server, Redis, RabbitMQ, web, and worker.
+
+Implemented:
+
+- Added explicit startup flags:
+  - `Database:ApplyMigrationsOnStartup`
+  - `Database:EnsureCreatedOnStartup`
+  - `Seed:EnableDemoData`
+- Web startup now runs migrations, `EnsureCreated()`, and demo seed only when enabled by config.
+- Added local SQL Server example configs for web and worker.
+- Updated solution README with current local setup commands.
+- Unified RabbitMQ config by using shared `RabbitMqOptions` for both web and worker.
+- Removed unused `NullCacheService`.
+- Removed unused worker health-check registration while keeping worker startup dependency validation.
+
+Key files:
+
+- `VendingAdSolution/README.md`
+- `VendingAdSolution/VendingAdSystem/appsettings.Development.example.json`
+- `VendingAdSolution/VendingAdWorker/appsettings.Development.example.json`
+- `VendingAdSolution/VendingAdSystem/Program.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Messaging/MessagePublisher.cs`
+- `VendingAdSolution/VendingAdWorker/Worker.cs`
+
+---
+
 ### Milestone 10: Video Metadata / Thumbnail Pipeline
 
 Status: Planned

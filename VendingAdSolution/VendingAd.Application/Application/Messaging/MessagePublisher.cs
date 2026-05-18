@@ -8,6 +8,7 @@ public class RabbitMqOptions
     public string UserName { get; set; } = "guest";
     public string Password { get; set; } = "guest";
     public string ExchangeName { get; set; } = "vendingad.events";
+    public string ScheduleChangedQueueName { get; set; } = "vendingad.worker.schedule-changed";
 }
 
 public interface IMessagePublisher

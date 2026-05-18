@@ -1,8 +1,9 @@
+using VendingAdSystem.Application.Messaging;
 using VendingAdWorker;
 using VendingAdSystem.Infrastructure;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddOptions<RabbitMqWorkerOptions>()
+builder.Services.AddOptions<RabbitMqOptions>()
     .Bind(builder.Configuration.GetSection("RabbitMQ"))
     .Validate(options => !string.IsNullOrWhiteSpace(options.HostName), "RabbitMQ:HostName is required.")
     .Validate(options => options.Port > 0, "RabbitMQ:Port must be greater than 0.")

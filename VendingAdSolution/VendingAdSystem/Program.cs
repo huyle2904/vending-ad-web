@@ -44,12 +44,22 @@ if (!app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (db.Database.IsSqlServer())
-        db.Database.Migrate();
-    else
-        db.Database.EnsureCreated();
+    var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
+    var ensureCreatedOnStartup = builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup");
+    var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
 
-    DatabaseSeeder.Seed(db);
+    if (db.Database.IsSqlServer())
+    {
+        if (applyMigrationsOnStartup)
+            db.Database.Migrate();
+    }
+    else if (ensureCreatedOnStartup)
+    {
+        db.Database.EnsureCreated();
+    }
+
+    if (seedDemoData)
+        DatabaseSeeder.Seed(db);
 }
 
 app.UseStaticFiles();

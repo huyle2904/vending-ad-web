@@ -70,7 +70,12 @@
 - Config key: `DatabaseProvider` supports `Sqlite`, `Postgres`, `SqlServer`
 - Codespaces/local should keep SQLite as default for quick startup, and use SQL Server from Docker Compose when production-like testing is needed.
 - SQL Server now has EF Core migrations under `Infrastructure/Persistence/Migrations`.
-- Startup uses `Database.Migrate()` for SQL Server and keeps `EnsureCreated()` for SQLite quick-dev mode.
+- Startup behavior is controlled by config:
+  - `Database:ApplyMigrationsOnStartup`
+  - `Database:EnsureCreatedOnStartup`
+  - `Seed:EnableDemoData`
+- SQL Server local/dev should use migrations.
+- SQLite quick-dev mode can use `EnsureCreated()`.
 
 ## Mobile API State
 
@@ -136,7 +141,8 @@ Config in `appsettings.json`:
   "Port": 5672,
   "UserName": "vendingad",
   "Password": "vendingad@123",
-  "ExchangeName": "vendingad.events"
+  "ExchangeName": "vendingad.events",
+  "ScheduleChangedQueueName": "vendingad.worker.schedule-changed"
 }
 ```
 
@@ -166,6 +172,29 @@ dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
 Run worker locally:
 
 ```bash
+dotnet run --project "VendingAdSolution/VendingAdWorker"
+```
+
+Run app against local SQL Server:
+
+```bash
+DatabaseProvider=SqlServer \
+ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;" \
+Database__ApplyMigrationsOnStartup=true \
+Database__EnsureCreatedOnStartup=false \
+Seed__EnableDemoData=true \
+Redis__Enabled=true \
+RabbitMQ__Enabled=true \
+dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
+```
+
+Run worker against local SQL Server:
+
+```bash
+DatabaseProvider=SqlServer \
+ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;" \
+Redis__Enabled=true \
+Redis__ConnectionString=localhost:6379 \
 dotnet run --project "VendingAdSolution/VendingAdWorker"
 ```
 
@@ -338,11 +367,12 @@ Main completed areas so far:
 
 ## Recommended Next Steps
 
-1. Video metadata / thumbnail pipeline.
-2. Object storage / CDN.
-3. Observability and structured logs.
-4. Load testing with simulated devices.
-5. Transactional outbox / DLQ when message reliability becomes production-critical.
+1. Clone and run the project locally with SQL Server to verify the new setup outside Codespaces.
+2. Video metadata / thumbnail pipeline.
+3. Object storage / CDN.
+4. Observability and structured logs.
+5. Load testing with simulated devices.
+6. Transactional outbox / DLQ when message reliability becomes production-critical.
 
 ## Useful Commands
 

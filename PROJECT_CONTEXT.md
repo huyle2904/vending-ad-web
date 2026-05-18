@@ -152,12 +152,15 @@ Meaning:
 - `VendingAdWorker` consumes `ScheduleChangedEvent` from queue `vendingad.worker.schedule-changed` with routing key `schedule.changed`.
 - Worker invalidates per-device playback cache keys and warms schedule content cache for active schedules.
 - Worker requires Redis through `AddWorkerInfrastructure`; startup fails fast if Redis is disabled or missing.
+- Worker validates database, Redis, and RabbitMQ connectivity before consuming messages.
 - Worker logs handler failures and acknowledges messages for this milestone; stale cache is bounded by TTL fallback.
 
-Run app with RabbitMQ enabled temporarily:
+Run app with RabbitMQ and Redis enabled temporarily:
 
 ```bash
-RabbitMQ__Enabled=true dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
+Redis__Enabled=true \
+RabbitMQ__Enabled=true \
+dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
 ```
 
 Run worker locally:
@@ -202,6 +205,74 @@ Meaning:
 - Shared schedule cache lets many devices reuse one schedule payload instead of loading the same ordered media list from DB many times.
 - Redis lock reduces cache stampede when many requests miss the same shared cache simultaneously.
 - Device presence key tracks online/offline state with TTL and reduces heartbeat DB writes.
+
+## Health Checks
+
+Web endpoints:
+
+- `GET /health/live`
+- `GET /health/ready`
+
+Meaning:
+
+- `/health/live` checks that the web process is running.
+- `/health/ready` checks database connectivity.
+- `/health/ready` checks Redis only when `Redis:Enabled=true`.
+- `/health/ready` checks RabbitMQ only when `RabbitMQ:Enabled=true`.
+- Redis/RabbitMQ disabled by config are reported as healthy for local quick-start mode.
+
+Useful checks:
+
+```bash
+curl http://localhost:8080/health/live
+curl http://localhost:8080/health/ready
+```
+
+Worker readiness:
+
+- Worker has no HTTP endpoint yet.
+- Worker validates DB, Redis, and RabbitMQ during startup.
+- If one dependency is unavailable, worker startup fails before consuming messages.
+
+## Milestone 9.5 E2E Verification
+
+Start local infrastructure:
+
+```bash
+docker compose -f docker-compose.infra.yml up -d redis rabbitmq
+```
+
+Run web with event publishing and Redis enabled:
+
+```bash
+Redis__Enabled=true \
+RabbitMQ__Enabled=true \
+dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
+```
+
+Run worker:
+
+```bash
+dotnet run --project "VendingAdSolution/VendingAdWorker"
+```
+
+Manual verification flow:
+
+1. Open CMS and login as `test@test` / `test@test`.
+2. Create or edit a playback schedule assigned to at least one device.
+3. Confirm web publishes `ScheduleChangedEvent`.
+4. Confirm worker logs `Consumed ScheduleChangedEvent`.
+5. Confirm RabbitMQ queue returns to zero ready messages:
+
+```bash
+docker exec vendingad-rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged
+```
+
+6. Confirm Redis contains or removes expected mobile cache keys:
+
+```bash
+docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
+```
 
 ## Device Presence / Heartbeat
 
@@ -262,13 +333,14 @@ Main completed areas so far:
 - Redis device presence / heartbeat write throttling
 - Mobile API rate limiting for heartbeat and playback-state
 - Event-driven schedule cache invalidation through RabbitMQ worker
+- Health checks and E2E verification for DB/Redis/RabbitMQ/worker flow
 - UI/UX improvements for date/time, thumbnails, video and playlist pages
 
 ## Recommended Next Steps
 
 1. Video metadata / thumbnail pipeline.
 2. Object storage / CDN.
-3. Observability and health checks.
+3. Observability and structured logs.
 4. Load testing with simulated devices.
 5. Transactional outbox / DLQ when message reliability becomes production-critical.
 

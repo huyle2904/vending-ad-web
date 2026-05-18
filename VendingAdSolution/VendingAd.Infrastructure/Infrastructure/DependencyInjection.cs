@@ -5,6 +5,7 @@ using StackExchange.Redis;
 using VendingAdSystem.Application.Messaging;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Infrastructure.Caching;
+using VendingAdSystem.Infrastructure.Health;
 using VendingAdSystem.Infrastructure.Messaging;
 using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Repositories.Implementations;
@@ -18,6 +19,7 @@ public static class DependencyInjection
     {
         services.AddPersistence(configuration);
         services.AddCache(configuration, requireRedis: false);
+        services.AddVendingAdHealthChecks();
         services.Configure<DevicePresenceOptions>(configuration.GetSection("DevicePresence"));
         services.Configure<MobileRateLimitOptions>(configuration.GetSection("MobileRateLimiting"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
@@ -50,11 +52,25 @@ public static class DependencyInjection
     {
         services.AddPersistence(configuration);
         services.AddCache(configuration, requireRedis: true);
+        services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
+        services.AddVendingAdHealthChecks();
 
         services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();
         services.AddScoped<IScheduleCacheEventHandler, ScheduleCacheEventHandler>();
         services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+        services.AddHostedService<WorkerStartupDependencyValidator>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddVendingAdHealthChecks(this IServiceCollection services)
+    {
+        services.AddHealthChecks()
+            .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy("Application process is running."), tags: new[] { "live" })
+            .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" })
+            .AddCheck<RedisHealthCheck>("redis", tags: new[] { "ready" })
+            .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "ready" });
 
         return services;
     }

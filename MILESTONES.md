@@ -428,6 +428,46 @@ Validation:
 
 ---
 
+### Milestone 9.5: E2E Stabilization and Health Checks
+
+Status: Done
+
+Goal: Make the event-driven cache flow testable end-to-end and expose production-style dependency health.
+
+Implemented:
+
+- Added web health endpoints:
+  - `GET /health/live`
+  - `GET /health/ready`
+- Readiness checks cover:
+  - Database connectivity
+  - Redis connectivity when `Redis:Enabled=true`
+  - RabbitMQ connectivity when `RabbitMQ:Enabled=true`
+- Local quick-start remains healthy when Redis/RabbitMQ are disabled by configuration.
+- Worker now validates startup dependencies before consuming messages:
+  - Database reachable
+  - Redis reachable
+  - RabbitMQ reachable
+- Worker validates required RabbitMQ options on startup.
+- Added JSON health response output for easier manual and automated checks.
+- Documented E2E verification commands for Redis + RabbitMQ + worker cache invalidation.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Health/`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSolution/VendingAdSystem/Program.cs`
+- `VendingAdSolution/VendingAdWorker/Program.cs`
+- `PROJECT_CONTEXT.md`
+
+Validation:
+
+- `dotnet restore`
+- `dotnet build --configuration Release`
+- `dotnet test --configuration Release --no-build`
+
+---
+
 ### Milestone 10: Video Metadata / Thumbnail Pipeline
 
 Status: Planned

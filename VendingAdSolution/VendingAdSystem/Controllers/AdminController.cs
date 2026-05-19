@@ -23,6 +23,7 @@ public class AdminController : Controller
     private readonly IPlaybackScheduleService _playbackScheduleService;
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly IPasswordHashingService _passwordHashingService;
+    private readonly IDeviceCredentialService _deviceCredentialService;
 
     public AdminController(
         ICurrentSession currentSession,
@@ -34,7 +35,8 @@ public class AdminController : Controller
         IRepository<PlaylistItem> playlistItems,
         IPlaybackScheduleService playbackScheduleService,
         IDevicePresenceService devicePresenceService,
-        IPasswordHashingService passwordHashingService)
+        IPasswordHashingService passwordHashingService,
+        IDeviceCredentialService deviceCredentialService)
     {
         _currentSession = currentSession;
         _userService = userService;
@@ -46,6 +48,7 @@ public class AdminController : Controller
         _playbackScheduleService = playbackScheduleService;
         _devicePresenceService = devicePresenceService;
         _passwordHashingService = passwordHashingService;
+        _deviceCredentialService = deviceCredentialService;
     }
 
     [HttpGet("/admin")]
@@ -500,6 +503,39 @@ public class AdminController : Controller
         await _deviceService.SaveChangesAsync();
 
         TempData["Success"] = "Đã xóa thiết bị.";
+        return RedirectToAction("Devices");
+    }
+
+    [HttpPost("/admin/devices/rotate-secret")]
+    public async Task<IActionResult> RotateDeviceSecret([FromForm] int deviceId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var result = await _deviceCredentialService.RotateSecretAsync(deviceId, _timeService.UtcNow);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Message;
+            return RedirectToAction("Devices");
+        }
+
+        TempData["Success"] = $"Đã cấp lại secret cho thiết bị {result.DeviceCode}. Secret chỉ hiển thị một lần.";
+        TempData["DeviceSecretDeviceCode"] = result.DeviceCode;
+        TempData["DeviceSecret"] = result.DeviceSecret;
+        return RedirectToAction("Devices");
+    }
+
+    [HttpPost("/admin/devices/revoke-secret")]
+    public async Task<IActionResult> RevokeDeviceSecret([FromForm] int deviceId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var result = await _deviceCredentialService.RevokeSecretAsync(deviceId, _timeService.UtcNow);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"Đã thu hồi secret của thiết bị {result.DeviceCode}."
+            : result.Message;
+
         return RedirectToAction("Devices");
     }
 

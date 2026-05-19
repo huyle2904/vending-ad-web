@@ -13,6 +13,7 @@ This solution contains:
 
 - .NET 8 SDK
 - Docker Desktop, recommended for SQL Server, Redis, and RabbitMQ
+- FFmpeg/ffprobe, recommended for production-like video validation
 - Visual Studio 2022 or VS Code
 
 ## Restore, Build, Test
@@ -56,6 +57,8 @@ $env:Redis__Enabled="true"
 $env:RabbitMQ__Enabled="true"
 $env:RabbitMQ__UserName="vendingad"
 $env:RabbitMQ__Password="vendingad@123"
+$env:VideoValidation__FfprobeEnabled="true"
+$env:VideoValidation__RequireFfprobe="false"
 
 dotnet run --no-launch-profile --project VendingAdSolution/VendingAdSystem
 ```
@@ -79,6 +82,8 @@ Seeded demo device secrets:
 - `CLAIM-TEST-210603`: `dev-secret-CLAIM-TEST-210603`
 
 Mobile/device API calls must send either `X-Device-Secret: <secret>` or `Authorization: Bearer <secret>`.
+
+Admin can rotate or revoke a device secret from `/admin/devices`. A rotated secret is shown once and the old secret stops working immediately.
 
 ## Run Worker
 
@@ -146,3 +151,10 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 - Good for local/dev.
 - Defaults to `false` in committed production config.
 - Startup fails if this is enabled outside `Development`.
+
+`VideoValidation:FfprobeEnabled`
+
+- `true`: uploaded videos are probed with `ffprobe` after basic extension/MIME/magic-byte checks.
+- If `ffprobe` is present and rejects the file, upload fails.
+- `VideoValidation:RequireFfprobe=true` makes uploads fail closed when `ffprobe` is missing.
+- `VideoValidation:AllowedVideoCodecs` defaults to `h264`, `hevc`, `vp8`, `vp9`, and `av1`.

@@ -57,6 +57,25 @@ Portal device-wall endpoint vẫn cho user đã đăng nhập và sở hữu dev
 - `GET /api/portal/playlist/{deviceCode}`
 - `POST /api/portal/heartbeat`
 
+### Device secret lifecycle đã có rotate/revoke
+
+Đã thêm:
+- `Device.DeviceSecretRevokedAt`
+- Admin action rotate secret, secret mới chỉ hiển thị một lần.
+- Admin action revoke secret, thiết bị không gọi được API cho tới khi rotate secret mới.
+- Test verify old secret bị vô hiệu hóa sau rotate và current secret bị vô hiệu hóa sau revoke.
+
+### Upload video đã probe bằng ffprobe
+
+Đã thêm:
+- `VideoValidation:FfprobeEnabled`
+- `VideoValidation:RequireFfprobe`
+- `VideoValidation:FfprobePath`
+- `VideoValidation:ProbeTimeoutSeconds`
+- `VideoValidation:AllowedVideoCodecs`
+
+Khi `ffprobe` khả dụng, upload phải có video stream, codec nằm trong allow-list, và duration hợp lệ. Duration được lưu vào `Media.DurationSeconds`.
+
 ## 1. Mật khẩu mặc định cố định cho user mới/reset
 
 Vị trí liên quan:
@@ -73,19 +92,16 @@ Nên làm tiếp:
 - Thêm cờ `MustChangePassword`.
 - Bắt đổi password sau lần login đầu tiên.
 
-## 2. Device secret lifecycle còn thiếu
+## 2. Device secret lifecycle còn thiếu audit
 
 Vị trí liên quan:
 - `VendingAdSolution/VendingAd.Application/Application/Services/DeviceCredentialService.cs`
-- `VendingAdSolution/VendingAdSystem/Controllers/PortalApiController.cs`
-- `VendingAdSolution/VendingAdSystem/Controllers/MobileApiController.cs`
+- `VendingAdSolution/VendingAdSystem/Controllers/AdminController.cs`
 
 Vấn đề còn lại:
-- Chưa có UI/API rotate secret khi thiết bị bị lộ secret.
-- Chưa có revoke riêng; hiện chỉ có thể vô hiệu hóa device.
+- Rotate/revoke đã có, nhưng chưa ghi audit trail.
 
 Nên làm tiếp:
-- Thêm admin action `Rotate device secret`, trả secret mới một lần.
 - Log audit khi register/rotate/revoke device secret.
 
 ## 3. Session/manual auth check còn lẫn với Cookie Auth
@@ -110,12 +126,12 @@ Vị trí liên quan:
 - `VendingAd.Application/Application/Services/MediaUploadService.cs`
 
 Vấn đề còn lại:
-- Chưa probe duration/codec bằng FFmpeg/ffprobe.
 - Chưa scan malware.
 - Chưa có cleanup job cho orphan file nếu lỗi xảy ra giữa DB và filesystem.
 
 Nên làm tiếp:
-- Với quy mô hiện tại, `ffprobe` để xác nhận duration/codec là bước đủ thực dụng tiếp theo.
+- Với quy mô hiện tại, `ffprobe` đã đủ cho bước validation thực dụng đầu tiên.
+- Thêm cleanup job quét file orphan theo lịch nếu upload/delete bị gián đoạn.
 - Malware scan/object storage/CDN để sau khi có nhu cầu public upload rộng hơn.
 
 ## 5. Thiếu security/integration tests

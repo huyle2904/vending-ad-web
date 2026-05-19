@@ -1,7 +1,12 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Repositories.Interfaces;
@@ -33,8 +38,9 @@ public class MediaUploadService : IMediaUploadService
     private readonly IPlaylistManagementService _playlistManagementService;
     private readonly IRepository<PlaylistItem> _playlistItems;
     private readonly IRepository<PlaybackScheduleItem> _scheduleItems;
+    private readonly ILogger<MediaUploadService> _logger;
 
-    public MediaUploadService(IWebHostEnvironment env, IConfiguration configuration, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems)
+    public MediaUploadService(IWebHostEnvironment env, IConfiguration configuration, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems, ILogger<MediaUploadService> logger)
     {
         _env = env;
         _configuration = configuration;
@@ -43,6 +49,7 @@ public class MediaUploadService : IMediaUploadService
         _playlistManagementService = playlistManagementService;
         _playlistItems = playlistItems;
         _scheduleItems = scheduleItems;
+        _logger = logger;
     }
 
     public async Task<UploadVideoResult> UploadAsync(UploadVideoRequest request, string scheme, HostString host)
@@ -63,11 +70,21 @@ public class MediaUploadService : IMediaUploadService
             await using var stream = new FileStream(filePath, FileMode.Create);
             await uploadFile.CopyToAsync(stream);
 
+            var probeResult = await ValidateWithFfprobeAsync(filePath);
+            if (!probeResult.Success)
+            {
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
+
+                return new UploadVideoResult { Success = false, Message = probeResult.Message };
+            }
+
             var media = new Media
             {
                 FileName = Path.GetFileName(uploadFile.FileName),
                 FileUrl = $"/uploads/{uniqueName}",
                 FileSize = uploadFile.Length,
+                DurationSeconds = probeResult.DurationSeconds,
                 UserId = request.UserId,
                 UploadedAt = _timeService.UtcNow
             };
@@ -170,11 +187,21 @@ public class MediaUploadService : IMediaUploadService
             await using var stream = new FileStream(filePath, FileMode.Create);
             await uploadFile.CopyToAsync(stream);
 
+            var probeResult = await ValidateWithFfprobeAsync(filePath);
+            if (!probeResult.Success)
+            {
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
+
+                return new UploadVideoResult { Success = false, Message = probeResult.Message };
+            }
+
             var media = new Media
             {
                 FileName = Path.GetFileName(uploadFile.FileName),
                 FileUrl = $"/uploads/{uniqueName}",
                 FileSize = uploadFile.Length,
+                DurationSeconds = probeResult.DurationSeconds,
                 UserId = userId,
                 UploadedAt = _timeService.UtcNow
             };
@@ -258,6 +285,170 @@ public class MediaUploadService : IMediaUploadService
         };
     }
 
+    private async Task<VideoProbeResult> ValidateWithFfprobeAsync(string filePath)
+    {
+        if (!_configuration.GetValue("VideoValidation:FfprobeEnabled", true))
+            return VideoProbeResult.Valid(null);
+
+        var ffprobePath = _configuration["VideoValidation:FfprobePath"];
+        if (string.IsNullOrWhiteSpace(ffprobePath))
+            ffprobePath = "ffprobe";
+
+        var requireFfprobe = _configuration.GetValue("VideoValidation:RequireFfprobe", false);
+        var timeoutSeconds = Math.Max(1, _configuration.GetValue("VideoValidation:ProbeTimeoutSeconds", 10));
+
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = ffprobePath,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.StartInfo.ArgumentList.Add("-v");
+            process.StartInfo.ArgumentList.Add("error");
+            process.StartInfo.ArgumentList.Add("-show_entries");
+            process.StartInfo.ArgumentList.Add("stream=codec_type,codec_name,duration:format=duration");
+            process.StartInfo.ArgumentList.Add("-of");
+            process.StartInfo.ArgumentList.Add("json");
+            process.StartInfo.ArgumentList.Add(filePath);
+
+            if (!process.Start())
+                return requireFfprobe
+                    ? VideoProbeResult.Invalid("Không thể chạy ffprobe để kiểm tra video.")
+                    : VideoProbeResult.Valid(null);
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                KillProcess(process);
+                return VideoProbeResult.Invalid("Kiểm tra video bằng ffprobe bị quá thời gian.");
+            }
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            if (process.ExitCode != 0)
+            {
+                _logger.LogWarning("ffprobe rejected uploaded video. ExitCode={ExitCode}, Error={Error}", process.ExitCode, stderr);
+                return VideoProbeResult.Invalid("File không phải video hợp lệ hoặc không đọc được metadata.");
+            }
+
+            return ParseFfprobeOutput(stdout);
+        }
+        catch (Win32Exception ex)
+        {
+            _logger.LogWarning(ex, "ffprobe executable was not found or could not be started.");
+            return requireFfprobe
+                ? VideoProbeResult.Invalid("ffprobe chưa được cài đặt hoặc không chạy được.")
+                : VideoProbeResult.Valid(null);
+        }
+    }
+
+    private VideoProbeResult ParseFfprobeOutput(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            JsonElement? videoStream = null;
+
+            if (root.TryGetProperty("streams", out var streams) && streams.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var stream in streams.EnumerateArray())
+                {
+                    if (GetString(stream, "codec_type").Equals("video", StringComparison.OrdinalIgnoreCase))
+                    {
+                        videoStream = stream;
+                        break;
+                    }
+                }
+            }
+
+            if (videoStream == null)
+                return VideoProbeResult.Invalid("File không có video stream hợp lệ.");
+
+            var codecName = GetString(videoStream.Value, "codec_name");
+            if (!IsAllowedVideoCodec(codecName))
+                return VideoProbeResult.Invalid($"Video codec '{codecName}' chưa được hỗ trợ.");
+
+            var duration = TryGetDuration(videoStream.Value);
+            if (duration == null && root.TryGetProperty("format", out var format))
+                duration = TryGetDuration(format);
+
+            if (duration == null || duration.Value <= TimeSpan.Zero)
+                return VideoProbeResult.Invalid("Không đọc được duration hợp lệ từ video.");
+
+            return VideoProbeResult.Valid((int)Math.Ceiling(duration.Value.TotalSeconds));
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "ffprobe returned invalid JSON.");
+            return VideoProbeResult.Invalid("Không đọc được metadata video từ ffprobe.");
+        }
+    }
+
+    private bool IsAllowedVideoCodec(string codecName)
+    {
+        if (string.IsNullOrWhiteSpace(codecName))
+            return false;
+
+        var configuredCodecs = _configuration.GetSection("VideoValidation:AllowedVideoCodecs")
+            .GetChildren()
+            .Select(child => child.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim())
+            .ToList();
+
+        var allowedCodecs = configuredCodecs.Any()
+            ? configuredCodecs
+            : new List<string> { "h264", "hevc", "vp8", "vp9", "av1" };
+
+        return allowedCodecs.Contains(codecName.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static TimeSpan? TryGetDuration(JsonElement element)
+    {
+        var value = GetString(element, "duration");
+        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+            return null;
+
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    private static string GetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString() ?? string.Empty
+            : string.Empty;
+    }
+
+    private static void KillProcess(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+        }
+        catch
+        {
+            // Best-effort cleanup after probe timeout.
+        }
+    }
+
     private string GetUploadsPath()
     {
         var configuredPath = _configuration["UploadsPath"];
@@ -270,5 +461,11 @@ public class MediaUploadService : IMediaUploadService
     {
         public static VideoFileValidationResult Valid(string extension) => new(true, string.Empty, extension);
         public static VideoFileValidationResult Invalid(string message) => new(false, message, string.Empty);
+    }
+
+    private sealed record VideoProbeResult(bool Success, string Message, int? DurationSeconds)
+    {
+        public static VideoProbeResult Valid(int? durationSeconds) => new(true, string.Empty, durationSeconds);
+        public static VideoProbeResult Invalid(string message) => new(false, message, null);
     }
 }

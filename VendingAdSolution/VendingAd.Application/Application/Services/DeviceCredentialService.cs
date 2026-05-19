@@ -10,8 +10,14 @@ public interface IDeviceCredentialService
 {
     string GenerateSecret();
     void AssignSecret(Device device, string secret, DateTime utcNow);
+    Task<DeviceSecretRotationResult> RotateSecretAsync(int deviceId, DateTime utcNow);
+    Task<DeviceSecretRevokeResult> RevokeSecretAsync(int deviceId, DateTime utcNow);
     Task<bool> ValidateSecretAsync(string deviceCode, string? providedSecret);
 }
+
+public sealed record DeviceSecretRotationResult(bool Success, string Message, int? DeviceId = null, string? DeviceCode = null, string? DeviceSecret = null);
+
+public sealed record DeviceSecretRevokeResult(bool Success, string Message, int? DeviceId = null, string? DeviceCode = null);
 
 public sealed class DeviceCredentialService : IDeviceCredentialService
 {
@@ -43,6 +49,42 @@ public sealed class DeviceCredentialService : IDeviceCredentialService
 
         device.DeviceSecretHash = _passwordHashingService.HashPassword(secret);
         device.DeviceSecretCreatedAt = utcNow;
+        device.DeviceSecretRevokedAt = null;
+    }
+
+    public async Task<DeviceSecretRotationResult> RotateSecretAsync(int deviceId, DateTime utcNow)
+    {
+        var device = await _devices.GetByIdAsync(deviceId);
+        if (device == null)
+            return new DeviceSecretRotationResult(false, "Không tìm thấy thiết bị.");
+
+        var secret = GenerateSecret();
+        AssignSecret(device, secret, utcNow);
+        await _devices.SaveChangesAsync();
+
+        return new DeviceSecretRotationResult(
+            true,
+            "Đã cấp lại secret cho thiết bị.",
+            device.Id,
+            device.DeviceCode,
+            secret);
+    }
+
+    public async Task<DeviceSecretRevokeResult> RevokeSecretAsync(int deviceId, DateTime utcNow)
+    {
+        var device = await _devices.GetByIdAsync(deviceId);
+        if (device == null)
+            return new DeviceSecretRevokeResult(false, "Không tìm thấy thiết bị.");
+
+        device.DeviceSecretHash = null;
+        device.DeviceSecretRevokedAt = utcNow;
+        await _devices.SaveChangesAsync();
+
+        return new DeviceSecretRevokeResult(
+            true,
+            "Đã thu hồi secret của thiết bị.",
+            device.Id,
+            device.DeviceCode);
     }
 
     public async Task<bool> ValidateSecretAsync(string deviceCode, string? providedSecret)

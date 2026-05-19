@@ -135,6 +135,42 @@ public class SecurityIntegrationTests
         Assert.StartsWith("/uploads/", media.FileUrl);
     }
 
+    [Fact]
+    public async Task PortalUpload_WhenFfprobeEnabled_StoresVideoDuration()
+    {
+        var ffprobePath = CreateFakeFfprobe();
+        try
+        {
+            await using var factory = new VendingAdWebApplicationFactory(
+                useTestAuth: true,
+                ffprobeEnabled: true,
+                requireFfprobe: true,
+                ffprobePath: ffprobePath);
+            await factory.SeedUserAsync(1);
+            var client = factory.CreateClient();
+            client.UseTestUser(role: "User", userId: 1);
+
+            using var form = new MultipartFormDataContent();
+            var file = new ByteArrayContent(CreateMinimalMp4Header());
+            file.Headers.ContentType = MediaTypeHeaderValue.Parse("video/mp4");
+            form.Add(file, "file", "clip.mp4");
+
+            var response = await client.PostAsync("/api/portal/upload", form);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var media = await db.Medias.OrderByDescending(m => m.Id).FirstAsync();
+            Assert.Equal(13, media.DurationSeconds);
+        }
+        finally
+        {
+            if (File.Exists(ffprobePath))
+                File.Delete(ffprobePath);
+        }
+    }
+
     private static byte[] CreateMinimalMp4Header()
     {
         return new byte[]
@@ -152,9 +188,20 @@ public class SecurityIntegrationTests
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"vendingad-tests-{Guid.NewGuid():N}.db");
         private readonly string _uploadsPath = Path.Combine(Path.GetTempPath(), $"vendingad-uploads-{Guid.NewGuid():N}");
 
-        public VendingAdWebApplicationFactory(bool useTestAuth)
+        private readonly bool _ffprobeEnabled;
+        private readonly bool _requireFfprobe;
+        private readonly string? _ffprobePath;
+
+        public VendingAdWebApplicationFactory(
+            bool useTestAuth,
+            bool ffprobeEnabled = false,
+            bool requireFfprobe = false,
+            string? ffprobePath = null)
         {
             _useTestAuth = useTestAuth;
+            _ffprobeEnabled = ffprobeEnabled;
+            _requireFfprobe = requireFfprobe;
+            _ffprobePath = ffprobePath;
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -177,6 +224,11 @@ public class SecurityIntegrationTests
                     ["MobileRateLimiting:HeartbeatPermitLimit"] = "1",
                     ["MobileRateLimiting:PlaybackStatePermitLimit"] = "1",
                     ["MobileRateLimiting:PlaylistPermitLimit"] = "1",
+                    ["VideoValidation:FfprobeEnabled"] = _ffprobeEnabled.ToString(),
+                    ["VideoValidation:RequireFfprobe"] = _requireFfprobe.ToString(),
+                    ["VideoValidation:FfprobePath"] = _ffprobePath ?? "ffprobe",
+                    ["VideoValidation:ProbeTimeoutSeconds"] = "5",
+                    ["VideoValidation:AllowedVideoCodecs:0"] = "h264",
                     ["Logging:LogLevel:Default"] = "Warning",
                     ["Logging:LogLevel:Microsoft.Hosting.Lifetime"] = "Warning",
                     ["Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command"] = "Warning"
@@ -300,6 +352,27 @@ public class SecurityIntegrationTests
 
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
+    }
+
+    private static string CreateFakeFfprobe()
+    {
+        var scriptPath = Path.Combine(Path.GetTempPath(), $"fake-ffprobe-{Guid.NewGuid():N}.sh");
+        File.WriteAllText(scriptPath, """
+            #!/usr/bin/env sh
+            cat <<'JSON'
+            {"streams":[{"codec_type":"video","codec_name":"h264","duration":"12.4"}],"format":{"duration":"12.4"}}
+            JSON
+            """);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(scriptPath,
+                UnixFileMode.UserRead |
+                UnixFileMode.UserWrite |
+                UnixFileMode.UserExecute);
+        }
+
+        return scriptPath;
     }
 }
 

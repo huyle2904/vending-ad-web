@@ -23,6 +23,16 @@
   </select>
 </div>
 
+@if (TempData["DeviceSecret"] is string deviceSecret && !string.IsNullOrWhiteSpace(deviceSecret))
+{
+  <div class="card u-mb-125">
+    <div class="text-sm text-muted">Secret mới cho thiết bị <strong>@TempData["DeviceSecretDeviceCode"]</strong>. Lưu lại ngay, giá trị này chỉ hiển thị một lần.</div>
+    <div class="u-mt-035">
+      <code class="u-primary-mono">@deviceSecret</code>
+    </div>
+  </div>
+}
+
 <div class="table-wrapper">
   @if (!Model.Any())
   {
@@ -40,6 +50,7 @@
           <th>Mã liên kết</th>
           <th>Vị trí</th>
           <th>Tài khoản</th>
+          <th>Secret</th>
           <th>Trạng thái</th>
           <th>Lần cuối hoạt động</th>
           <th>Hành động</th>
@@ -64,6 +75,16 @@
             <td class="text-muted">@device.Location</td>
             <td>
               <span class="badge @(device.UserId.HasValue ? "badge-primary" : "badge-secondary")">@(device.User?.Username ?? "Chưa gán")</span>
+            </td>
+            <td>
+              @if (!string.IsNullOrWhiteSpace(device.DeviceSecretHash) && !device.DeviceSecretRevokedAt.HasValue)
+              {
+                <span class="badge badge-success">Đang hiệu lực</span>
+              }
+              else
+              {
+                <span class="badge badge-danger">Đã thu hồi</span>
+              }
             </td>
             <td>
               @if (isOnline)
@@ -94,6 +115,19 @@
                   <input type="hidden" name="deviceId" value="@device.Id" />
                   <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>
+                <form method="post" action="/admin/devices/rotate-secret" onsubmit="return confirm('Cấp lại secret cho thiết bị @device.DeviceCode? Secret cũ sẽ không còn dùng được.')">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="deviceId" value="@device.Id" />
+                  <button type="submit" class="btn btn-sm btn-secondary">Rotate secret</button>
+                </form>
+                @if (!string.IsNullOrWhiteSpace(device.DeviceSecretHash))
+                {
+                  <form method="post" action="/admin/devices/revoke-secret" onsubmit="return confirm('Thu hồi secret của thiết bị @device.DeviceCode? Thiết bị sẽ không gọi được API cho tới khi rotate secret mới.')">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="deviceId" value="@device.Id" />
+                    <button type="submit" class="btn btn-sm u-btn-danger-soft">Revoke</button>
+                  </form>
+                }
               </div>
             </td>
           </tr>

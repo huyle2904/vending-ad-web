@@ -20,6 +20,7 @@ public static class DatabaseSeeder
             EnsureColumn(db, "Devices", "ClaimedAt", "TEXT NULL");
             EnsureColumn(db, "Devices", "DeviceSecretHash", "TEXT NULL");
             EnsureColumn(db, "Devices", "DeviceSecretCreatedAt", "TEXT NULL");
+            EnsureColumn(db, "Devices", "DeviceSecretRevokedAt", "TEXT NULL");
             EnsureColumn(db, "Medias", "UserId", "INTEGER NULL");
             EnsurePlaybackScheduleColumns(db);
             MigratePlaylistsSchema(db);

@@ -383,15 +383,118 @@ Deferred:
 
 ### Milestone 9: Event-Driven Schedule Cache Invalidation
 
-Status: Planned
+Status: Done
 
 Goal: Move schedule cache warm/invalidate flow from web request to RabbitMQ + Worker.
 
-Planned:
+Implemented:
 
-- Publish `ScheduleChangedEvent` after DB changes
-- Worker warms `mobile:schedule-content:*`
-- Worker invalidates device playback caches
+- Split shared code into layered class libraries:
+  - `VendingAd.Domain`
+  - `VendingAd.Application`
+  - `VendingAd.Infrastructure`
+- Web schedule write flows save DB changes first, then publish `ScheduleChangedEvent`.
+- Removed direct web-request calls to schedule cache refresh.
+- `ScheduleChangedEvent.AffectedDeviceCodes` now means all devices affected before or after the change.
+- Schedule reassignment publishes the union of old and new device codes.
+- Worker consumes `ScheduleChangedEvent` and delegates cache handling to `IScheduleCacheEventHandler`.
+- Worker invalidates per-device playback cache keys for every affected device.
+- Worker warms `mobile:schedule-content:*` only for schedules that still exist and are active.
+- Deleted or inactive schedules skip cache warm.
+- Handler logs cache failures and does not throw back into RabbitMQ processing; worker acknowledges and relies on TTL fallback.
+- Worker infrastructure fails fast if Redis is not enabled.
+- Added focused xUnit tests for cache handler behavior, cache key invalidation, and schedule reassignment event semantics.
+- Added separate CI/publish flow for web and worker artifacts.
+- Added `global.json` pinned to .NET 8 with roll-forward.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Application/Application/Services/PlaybackScheduleService.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Services/ScheduleCacheEventHandler.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Services/MobilePlaybackCacheService.cs`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSolution/VendingAdWorker/Worker.cs`
+- `VendingAdSolution/VendingAd.Tests/`
+- `.github/workflows/ci.yml`
+- `.github/workflows/publish.yml`
+
+Validation:
+
+- `dotnet restore`
+- `dotnet build`
+- `dotnet test`
+- publish web artifact
+- publish worker artifact
+
+---
+
+### Milestone 9.5: E2E Stabilization and Health Checks
+
+Status: Done
+
+Goal: Make the event-driven cache flow testable end-to-end and expose production-style dependency health.
+
+Implemented:
+
+- Added web health endpoints:
+  - `GET /health/live`
+  - `GET /health/ready`
+- Readiness checks cover:
+  - Database connectivity
+  - Redis connectivity when `Redis:Enabled=true`
+  - RabbitMQ connectivity when `RabbitMQ:Enabled=true`
+- Local quick-start remains healthy when Redis/RabbitMQ are disabled by configuration.
+- Worker now validates startup dependencies before consuming messages:
+  - Database reachable
+  - Redis reachable
+  - RabbitMQ reachable
+- Worker validates required RabbitMQ options on startup.
+- Added JSON health response output for easier manual and automated checks.
+- Documented E2E verification commands for Redis + RabbitMQ + worker cache invalidation.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Health/`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSolution/VendingAdSystem/Program.cs`
+- `VendingAdSolution/VendingAdWorker/Program.cs`
+- `PROJECT_CONTEXT.md`
+
+Validation:
+
+- `dotnet restore`
+- `dotnet build --configuration Release`
+- `dotnet test --configuration Release --no-build`
+
+---
+
+### Milestone 9.6: Local SQL Server Readiness
+
+Status: Done
+
+Goal: Make the project easy to clone and run locally with SQL Server, Redis, RabbitMQ, web, and worker.
+
+Implemented:
+
+- Added explicit startup flags:
+  - `Database:ApplyMigrationsOnStartup`
+  - `Database:EnsureCreatedOnStartup`
+  - `Seed:EnableDemoData`
+- Web startup now runs migrations, `EnsureCreated()`, and demo seed only when enabled by config.
+- Added local SQL Server example configs for web and worker.
+- Updated solution README with current local setup commands.
+- Unified RabbitMQ config by using shared `RabbitMqOptions` for both web and worker.
+- Removed unused `NullCacheService`.
+- Removed unused worker health-check registration while keeping worker startup dependency validation.
+
+Key files:
+
+- `VendingAdSolution/README.md`
+- `VendingAdSolution/VendingAdSystem/appsettings.Development.example.json`
+- `VendingAdSolution/VendingAdWorker/appsettings.Development.example.json`
+- `VendingAdSolution/VendingAdSystem/Program.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Messaging/MessagePublisher.cs`
+- `VendingAdSolution/VendingAdWorker/Worker.cs`
 
 ---
 

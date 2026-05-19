@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Build web
+    name: Build and test
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +28,6 @@ jobs:
 
       - name: Build
         run: dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test VendingAdSolution/VendingAdSolution.sln --configuration Release --no-build

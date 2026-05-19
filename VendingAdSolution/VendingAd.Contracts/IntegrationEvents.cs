@@ -19,6 +19,7 @@ public class ScheduleChangedEvent
     public int? UserId { get; set; }
     public ScheduleChangeType ChangeType { get; set; }
     public bool? IsActive { get; set; }
+    // Union of devices affected before and after the schedule change.
     public List<string> AffectedDeviceCodes { get; set; } = new();
 }
 

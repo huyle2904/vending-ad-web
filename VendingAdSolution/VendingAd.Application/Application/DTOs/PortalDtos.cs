@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace VendingAdSystem.Application.DTOs;
 
 public class UploadVideoRequest

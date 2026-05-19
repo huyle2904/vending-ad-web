@@ -13,6 +13,7 @@ public interface IMobilePlaybackCacheService
     Task<MobileScheduleContentCache> GetOrBuildScheduleContentAsync(PlaybackSchedule schedule, DateTime vietnamNow);
     Task WarmScheduleContentAsync(int scheduleId);
     Task InvalidateScheduleDevicesAsync(int scheduleId);
+    Task InvalidateDevicePlaybackCachesAsync(IEnumerable<string> deviceCodes);
 }
 
 public class MobilePlaybackCacheService : IMobilePlaybackCacheService
@@ -96,7 +97,15 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
             .SelectMany(s => s.Devices.Select(d => d.Device.DeviceCode))
             .ToListAsync();
 
-        foreach (var deviceCode in deviceCodes.Distinct())
+        await InvalidateDevicePlaybackCachesAsync(deviceCodes);
+    }
+
+    public async Task InvalidateDevicePlaybackCachesAsync(IEnumerable<string> deviceCodes)
+    {
+        foreach (var deviceCode in deviceCodes
+                     .Where(code => !string.IsNullOrWhiteSpace(code))
+                     .Select(code => code.Trim())
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
         {
             await _cache.RemoveAsync(PlaybackStateKey(deviceCode));
             await _cache.RemoveAsync(DeviceActiveScheduleKey(deviceCode));

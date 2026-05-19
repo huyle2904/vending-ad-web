@@ -1,24 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using VendingAdSystem.Application.Messaging;
 
-namespace VendingAdSystem.Application.Messaging;
-
-public class RabbitMqOptions
-{
-    public bool Enabled { get; set; }
-    public string HostName { get; set; } = "localhost";
-    public int Port { get; set; } = 5672;
-    public string UserName { get; set; } = "guest";
-    public string Password { get; set; } = "guest";
-    public string ExchangeName { get; set; } = "vendingad.events";
-}
-
-public interface IMessagePublisher
-{
-    Task PublishAsync<TEvent>(TEvent eventMessage, CancellationToken cancellationToken = default) where TEvent : class;
-}
+namespace VendingAdSystem.Infrastructure.Messaging;
 
 public class NullMessagePublisher : IMessagePublisher
 {

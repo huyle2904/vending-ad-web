@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Repositories.Interfaces;

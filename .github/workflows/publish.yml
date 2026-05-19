@@ -22,11 +22,26 @@ jobs:
       - name: Restore
         run: dotnet restore VendingAdSolution/VendingAdSolution.sln
 
-      - name: Publish
-        run: dotnet publish VendingAdSolution/VendingAdSystem/VendingAdSystem.csproj --configuration Release --output ./publish --no-restore
+      - name: Build
+        run: dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release --no-restore
 
-      - name: Upload artifact
+      - name: Test
+        run: dotnet test VendingAdSolution/VendingAdSolution.sln --configuration Release --no-build
+
+      - name: Publish web
+        run: dotnet publish VendingAdSolution/VendingAdSystem/VendingAdSystem.csproj --configuration Release --output ./publish-web --no-restore
+
+      - name: Publish worker
+        run: dotnet publish VendingAdSolution/VendingAdWorker/VendingAdWorker.csproj --configuration Release --output ./publish-worker --no-restore
+
+      - name: Upload web artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vending-ad-publish
-          path: ./publish
+          name: vending-ad-web
+          path: ./publish-web
+
+      - name: Upload worker artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vending-ad-worker
+          path: ./publish-worker

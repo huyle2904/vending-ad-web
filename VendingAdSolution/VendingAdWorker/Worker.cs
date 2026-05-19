@@ -1,9 +1,12 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using VendingAd.Contracts;
+using VendingAdSystem.Application.Messaging;
+using VendingAdSystem.Application.Services;
 
 namespace VendingAdWorker;
 
@@ -12,14 +15,16 @@ public class Worker : BackgroundService
     private const string ScheduleChangedRoutingKey = "schedule.changed";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ILogger<Worker> _logger;
-    private readonly RabbitMqWorkerOptions _options;
+    private readonly RabbitMqOptions _options;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private IConnection? _connection;
     private IModel? _channel;
 
-    public Worker(ILogger<Worker> logger, IOptions<RabbitMqWorkerOptions> options)
+    public Worker(ILogger<Worker> logger, IOptions<RabbitMqOptions> options, IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
         _options = options.Value;
+        _serviceScopeFactory = serviceScopeFactory;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,10 +55,10 @@ public class Worker : BackgroundService
         return Task.Delay(Timeout.Infinite, stoppingToken);
     }
 
-    private Task HandleScheduleChangedAsync(object sender, BasicDeliverEventArgs args)
+    private async Task HandleScheduleChangedAsync(object sender, BasicDeliverEventArgs args)
     {
         if (_channel == null)
-            return Task.CompletedTask;
+            return;
 
         try
         {
@@ -62,8 +67,8 @@ public class Worker : BackgroundService
             if (message == null)
             {
                 _logger.LogWarning("Received empty ScheduleChangedEvent payload.");
-                _channel.BasicReject(args.DeliveryTag, requeue: false);
-                return Task.CompletedTask;
+                _channel.BasicAck(args.DeliveryTag, multiple: false);
+                return;
             }
 
             _logger.LogInformation(
@@ -73,15 +78,17 @@ public class Worker : BackgroundService
                 message.ChangeType,
                 string.Join(",", message.AffectedDeviceCodes));
 
+            using var scope = _serviceScopeFactory.CreateScope();
+            var handler = scope.ServiceProvider.GetRequiredService<IScheduleCacheEventHandler>();
+            await handler.HandleAsync(message);
+
             _channel.BasicAck(args.DeliveryTag, multiple: false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process ScheduleChangedEvent.");
-            _channel.BasicReject(args.DeliveryTag, requeue: false);
+            _channel.BasicAck(args.DeliveryTag, multiple: false);
         }
-
-        return Task.CompletedTask;
     }
 
     public override void Dispose()

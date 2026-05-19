@@ -24,11 +24,13 @@ public static class DependencyInjection
         services.Configure<MobileRateLimitOptions>(configuration.GetSection("MobileRateLimiting"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
 
+        services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentSession, CurrentSession>();
         services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IDeviceService, DeviceService>();
+        services.AddScoped<IDeviceCredentialService, DeviceCredentialService>();
         services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IMediaUploadService, MediaUploadService>();
         services.AddScoped<IPlaylistService, PlaylistService>();

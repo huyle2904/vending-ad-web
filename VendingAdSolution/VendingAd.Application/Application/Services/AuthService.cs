@@ -1,5 +1,5 @@
-using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Domain.Entities;
@@ -18,11 +18,16 @@ public class AuthService : IAuthService
 {
     private readonly IRepository<User> _users;
     private readonly IRepository<Admin> _admins;
+    private readonly IPasswordHashingService _passwordHashingService;
 
-    public AuthService(IRepository<User> users, IRepository<Admin> admins)
+    public AuthService(
+        IRepository<User> users,
+        IRepository<Admin> admins,
+        IPasswordHashingService passwordHashingService)
     {
         _users = users;
         _admins = admins;
+        _passwordHashingService = passwordHashingService;
     }
 
     public async Task<AuthResponse> RegisterUserAsync(RegisterRequest request)
@@ -45,7 +50,7 @@ public class AuthService : IAuthService
         {
             Username = username,
             Email = request.Email,
-            PasswordHash = HashPassword(request.Password),
+            PasswordHash = _passwordHashingService.HashPassword(request.Password),
             FullName = request.FullName,
             CreatedAt = DateTime.UtcNow,
             IsActive = true
@@ -69,8 +74,18 @@ public class AuthService : IAuthService
             return new AuthResponse { Success = false, Message = "Tên đăng nhập và mật khẩu là bắt buộc." };
 
         var user = await _users.Query().FirstOrDefaultAsync(u => u.Username == login || u.Email == login);
-        if (user == null || !VerifyPassword(request.Password, user.PasswordHash) || !user.IsActive)
+        if (user == null)
             return new AuthResponse { Success = false, Message = "Invalid email or password." };
+
+        var verification = _passwordHashingService.VerifyPassword(user.PasswordHash, request.Password);
+        if (verification == PasswordVerificationResult.Failed || !user.IsActive)
+            return new AuthResponse { Success = false, Message = "Invalid email or password." };
+
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = _passwordHashingService.HashPassword(request.Password);
+            await _users.SaveChangesAsync();
+        }
 
         return new AuthResponse
         {
@@ -88,8 +103,18 @@ public class AuthService : IAuthService
             return new AuthResponse { Success = false, Message = "Tên đăng nhập và mật khẩu là bắt buộc." };
 
         var admin = await _admins.Query().FirstOrDefaultAsync(a => a.Email == login);
-        if (admin == null || !VerifyPassword(request.Password, admin.PasswordHash) || !admin.IsActive)
+        if (admin == null)
             return new AuthResponse { Success = false, Message = "Invalid email or password." };
+
+        var verification = _passwordHashingService.VerifyPassword(admin.PasswordHash, request.Password);
+        if (verification == PasswordVerificationResult.Failed || !admin.IsActive)
+            return new AuthResponse { Success = false, Message = "Invalid email or password." };
+
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            admin.PasswordHash = _passwordHashingService.HashPassword(request.Password);
+            await _admins.SaveChangesAsync();
+        }
 
         return new AuthResponse
         {
@@ -117,18 +142,6 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Role = "User"
         };
-    }
-
-    private static string HashPassword(string password)
-    {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
-
-    private static bool VerifyPassword(string password, string hash)
-    {
-        return HashPassword(password) == hash;
     }
 
     private static string GetLoginValue(LoginRequest request)

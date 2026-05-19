@@ -1,13 +1,20 @@
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
-    var adminEmail = Context.Session.GetString("AdminEmail");
-    var displayName = Context.Session.GetString("UserDisplayName") ?? Context.Session.GetString("UserEmail") ?? (adminEmail ?? "User");
-    var isPortalUser = Context.Session.GetInt32("UserId") != null && Context.Session.GetInt32("UserId") > 0;
-    var isAdmin = !string.IsNullOrEmpty(adminEmail);
-    var roleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
-    var topDisplayName = Context.Session.GetString("UserDisplayName") ?? Context.Session.GetString("UserEmail") ?? (adminEmail ?? "Người dùng");
+    var antiforgeryTokens = Antiforgery.GetAndStoreTokens(Context);
+    var principal = Context.User;
+    var sessionUserId = Context.Session.GetInt32("UserId");
+    var adminEmail = Context.Session.GetString("AdminEmail")
+        ?? (principal.IsInRole("Admin") ? principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value : null);
+    var userEmail = Context.Session.GetString("UserEmail")
+        ?? (principal.IsInRole("User") ? principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value : null);
+    var isPortalUser = (sessionUserId != null && sessionUserId > 0) || principal.IsInRole("User");
+    var isAdmin = !string.IsNullOrEmpty(adminEmail) || principal.IsInRole("Admin");
+    var topDisplayName = Context.Session.GetString("UserDisplayName") ?? principal.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? userEmail ?? (adminEmail ?? "Người dùng");
     var topRoleLabel = isAdmin ? "Quản trị viên" : "Người dùng";
     var topAvatar = string.IsNullOrWhiteSpace(topDisplayName) ? "U" : topDisplayName.Trim().Substring(0,1).ToUpper();
     var currentUrl = Context.Request.Path.ToString().ToLower();
+    var homeUrl = isAdmin && !isPortalUser ? "/admin" : "/portal/dashboard";
+    var pageTitle = ViewData["Title"]?.ToString() ?? "VendAD";
     var toastMessages = new List<Dictionary<string, string>>();
 
     if (TempData["Success"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
@@ -22,205 +29,127 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>@ViewData["Title"] | VendAD</title>
+  <meta name="request-verification-token" content="@antiforgeryTokens.RequestToken" />
+  <title>@pageTitle | VendAD</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
   <link rel="stylesheet" href="~/css/ui-components.css" asp-append-version="true" />
   <link rel="stylesheet" href="~/css/ui-effects.css" asp-append-version="true" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-  <style>
-    .sidebar {
-      width: 256px;
-      background: var(--muted);
-      border-right: 1px solid var(--border);
-      height: 100vh;
-      position: fixed;
-      left: 0;
-      top: 0;
-      display: flex;
-      flex-direction: column;
-      z-index: 100;
-    }
-    .sidebar-logo {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--primary);
-      padding: 20px 20px 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .sidebar-logo-badge {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: var(--primary);
-      color: var(--primary-foreground);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .sidebar-logo span { color: var(--foreground); font-size: 1rem; }
-    .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
-    .nav-section { margin-bottom: 20px; }
-    .nav-section-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted-foreground);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 0 8px;
-      margin-bottom: 8px;
-    }
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 14px;
-      color: var(--muted-foreground);
-      text-decoration: none;
-      font-size: 16px;
-      font-weight: 500;
-      border-radius: var(--radius);
-      transition: all 0.15s;
-      margin-bottom: 2px;
-    }
-    .nav-item:hover { background: var(--secondary); color: var(--foreground); }
-    .nav-item.active {
-      background: var(--primary);
-      color: var(--primary-foreground);
-    }
-    .nav-item.active:hover {
-      background: var(--primary);
-      color: var(--primary-foreground);
-    }
-    .nav-icon { font-size: 18px; width: 22px; text-align: center; }
-    .sidebar-user {
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background: var(--background);
-    }
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    .user-avatar {
-      width: 36px;
-      height: 36px;
-      background: var(--primary);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 600;
-      font-size: 16px;
-    }
-    .user-details { flex: 1; min-width: 0; }
-    .user-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .user-role { font-size: 11px; color: var(--muted-foreground); }
-    .logout-btn {
-      display: block;
-      padding: 8px 12px;
-      background: rgba(220,38,38,0.1);
-      color: var(--destructive);
-      text-decoration: none;
-      border-radius: var(--radius);
-      text-align: center;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    .logout-btn:hover { background: rgba(220,38,38,0.2); }
-    .main-content {
-      margin-left: 256px;
-      flex: 1;
-      padding: 28px 36px;
-      min-height: 100vh;
-      background: var(--background);
-    }
-    .app-shell {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-
-    .shared-top-header { display:flex; justify-content:flex-end; align-items:center; padding: 10px 24px; margin: -28px -36px 18px; position: sticky; top: 0; background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 100%); border-bottom: 1px solid #e3ebf7; box-shadow: 0 8px 20px rgba(15, 23, 42, .06); z-index: 120; }
-    .shared-top-header .dashboard-actions { display:flex; gap:.65rem; align-items:center; margin-left:auto; }
-
-    @@media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); transition: transform 0.2s; }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { margin-left: 0; }
-      .shared-top-header { margin: 0 0 12px; border-bottom: 1px solid #e3ebf7; padding: 8px; }
-      .shared-top-header .dashboard-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
-    }
-  </style>
 </head>
-<body>
+<body class="app-shell-body">
   <aside class="sidebar">
-    <div class="sidebar-logo"><span class="sidebar-logo-badge">VA</span> <span>VendingAds</span></div>
+    <a class="sidebar-logo" href="@homeUrl" aria-label="VendAD">
+      <span class="sidebar-logo-badge"><i class="bi bi-display"></i></span>
+      <span class="sidebar-logo-text">
+        <strong>VendAD</strong>
+        <small>Content CMS</small>
+      </span>
+    </a>
     <nav class="sidebar-nav">
       @if (isPortalUser)
       {
         <div class="nav-section">
-          <div class="nav-section-title">Danh mục</div>
-          <a href="/portal/dashboard" class="nav-item @(currentUrl.Contains("dashboard") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span> Bảng điều khiển
+          <div class="nav-section-title">Vận hành</div>
+          <a href="/portal/dashboard" class="nav-item @(currentUrl.StartsWith("/portal/dashboard") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span>
+            <span class="nav-label">Bảng điều khiển</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
-          <a href="/portal/videos" class="nav-item @(currentUrl.Contains("videos") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-film"></i></span> Video
+          <a href="/portal/schedules" class="nav-item @(currentUrl.StartsWith("/portal/schedules") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-calendar3"></i></span>
+            <span class="nav-label">Lịch phát</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
-          <a href="/portal/playlist" class="nav-item @(currentUrl.Contains("playlist") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-card-checklist"></i></span> Danh sách phát
+          <a href="/portal/devices" class="nav-item @(currentUrl.StartsWith("/portal/devices") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-phone"></i></span>
+            <span class="nav-label">Thiết bị</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
-          <a href="/portal/schedules" class="nav-item @(currentUrl.Contains("schedules") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-calendar3"></i></span> Lịch phát
-          </a>
-          <a href="/portal/devices" class="nav-item @(currentUrl.Contains("devices") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-phone"></i></span> Thiết bị
-          </a>
-          <a href="/portal/device-wall" class="nav-item @(currentUrl.Contains("device-wall") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-display"></i></span> Màn hình thiết bị
+          <a href="/portal/device-wall" class="nav-item @(currentUrl.StartsWith("/portal/device-wall") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-display"></i></span>
+            <span class="nav-label">Màn hình thiết bị</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
         </div>
-        
+        <div class="nav-section">
+          <div class="nav-section-title">Nội dung</div>
+          <a href="/portal/videos" class="nav-item @(currentUrl.StartsWith("/portal/videos") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-film"></i></span>
+            <span class="nav-label">Video</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
+          </a>
+          <a href="/portal/playlist" class="nav-item @(currentUrl.StartsWith("/portal/playlist") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-card-checklist"></i></span>
+            <span class="nav-label">Danh sách phát</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
+          </a>
+        </div>
       }
       @if (isAdmin)
       {
         <div class="nav-section">
-          <div class="nav-section-title">Admin</div>
-          <a href="/admin" class="nav-item @(currentUrl == "/admin" ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span> Thống kê
+          <div class="nav-section-title">Quản trị</div>
+          <a href="/admin" class="nav-item @((currentUrl == "/admin" || currentUrl == "/admin/") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-speedometer2"></i></span>
+            <span class="nav-label">Thống kê</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
           <a href="/admin/users" class="nav-item @(currentUrl.Contains("/admin/users") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-people"></i></span> Tài khoản
+            <span class="nav-icon"><i class="bi bi-people"></i></span>
+            <span class="nav-label">Tài khoản</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
           <a href="/admin/devices" class="nav-item @(currentUrl.Contains("/admin/devices") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-phone"></i></span> Thiết bị
+            <span class="nav-icon"><i class="bi bi-phone"></i></span>
+            <span class="nav-label">Thiết bị</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">Nội dung</div>
           <a href="/admin/videos" class="nav-item @(currentUrl.Contains("/admin/videos") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-film"></i></span> Video
+            <span class="nav-icon"><i class="bi bi-film"></i></span>
+            <span class="nav-label">Video</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
           <a href="/admin/playlists" class="nav-item @(currentUrl.Contains("/admin/playlists") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-card-checklist"></i></span> Danh sách phát
+            <span class="nav-icon"><i class="bi bi-card-checklist"></i></span>
+            <span class="nav-label">Danh sách phát</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
           <a href="/admin/schedules" class="nav-item @(currentUrl.Contains("/admin/schedules") ? "active" : "")">
-            <span class="nav-icon"><i class="bi bi-calendar3"></i></span> Lịch phát
+            <span class="nav-icon"><i class="bi bi-calendar3"></i></span>
+            <span class="nav-label">Lịch phát</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
           </a>
         </div>
       }
     </nav>
-    
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user-card">
+        <span class="avatar">@topAvatar</span>
+        <span class="user-details">
+          <strong class="user-name">@topDisplayName</strong>
+          <small class="user-role">@topRoleLabel</small>
+        </span>
+      </div>
+    </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeAppSidebar()"></div>
 
   <main class="main-content">
     <div class="shared-top-header">
+      <button type="button" class="mobile-nav-toggle" aria-label="Mở menu" onclick="toggleAppSidebar(event)">
+        <i class="bi bi-list"></i>
+      </button>
+      <div class="shared-header-title">
+        <span>@topRoleLabel</span>
+        <strong>@pageTitle</strong>
+      </div>
       <div class="dashboard-actions">
-                <button class="icon-btn" aria-label="Thông báo"><i class="bi bi-bell"></i><span class="dot">3</span></button>
+        <button class="icon-btn" aria-label="Thông báo"><i class="bi bi-bell"></i><span class="dot">3</span></button>
         <div class="profile-menu" id="globalProfileMenu">
           <button type="button" class="profile-btn" onclick="toggleGlobalProfileMenu(event)">
             <span class="avatar">@topAvatar</span>
@@ -230,7 +159,10 @@
           <div class="profile-dropdown" id="globalProfileDropdown">
             <a href="/profile" class="profile-dropdown-item"><i class="bi bi-person"></i>Tài khoản</a>
             <a href="/settings" class="profile-dropdown-item"><i class="bi bi-gear"></i>Cài đặt</a>
-            <a href="/account/logout" class="profile-dropdown-item danger"><i class="bi bi-box-arrow-right"></i>Đăng xuất</a>
+            <form method="post" action="/account/logout" class="profile-dropdown-form">
+              @Html.AntiForgeryToken()
+              <button type="submit" class="profile-dropdown-item danger"><i class="bi bi-box-arrow-right"></i>Đăng xuất</button>
+            </form>
           </div>
         </div>
       </div>
@@ -244,6 +176,10 @@
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
   <script>
     (function () {
+      window.getRequestVerificationToken = function () {
+        return document.querySelector('meta[name="request-verification-token"]')?.content || '';
+      };
+
       const messages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(toastMessages));
       const container = document.getElementById('toastContainer');
 
@@ -270,7 +206,117 @@
         setTimeout(function () { toast.remove(); }, 180);
       }
 
+      function closeCustomSelects(except) {
+        document.querySelectorAll(".custom-select-wrap.open").forEach(function (wrap) {
+          if (wrap !== except) wrap.classList.remove("open");
+        });
+      }
+
+      function enhanceCustomSelect(select) {
+        if (!select || select.multiple || select.dataset.customSelectEnhanced === "true") return;
+
+        const wrap = document.createElement("span");
+        wrap.className = "custom-select-wrap" + (select.classList.contains("btn-soft") || select.classList.contains("fx-soft") ? " compact" : "");
+        select.parentNode.insertBefore(wrap, select);
+        wrap.appendChild(select);
+        select.classList.add("custom-select-native");
+        select.dataset.customSelectEnhanced = "true";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "custom-select-button";
+        button.setAttribute("aria-haspopup", "listbox");
+        button.setAttribute("aria-expanded", "false");
+
+        const label = document.createElement("span");
+        label.className = "custom-select-label";
+        const caret = document.createElement("span");
+        caret.className = "custom-select-caret";
+        caret.innerHTML = '<i class="bi bi-chevron-down"></i>';
+        button.appendChild(label);
+        button.appendChild(caret);
+
+        const menu = document.createElement("div");
+        menu.className = "custom-select-menu";
+        menu.setAttribute("role", "listbox");
+
+        wrap.appendChild(button);
+        wrap.appendChild(menu);
+
+        function selectedOption() {
+          return select.options[select.selectedIndex] || select.options[0];
+        }
+
+        function updateLabel() {
+          const option = selectedOption();
+          label.textContent = option ? option.textContent : "";
+          Array.from(menu.children).forEach(function (item) {
+            item.classList.toggle("selected", item.dataset.value === select.value);
+            item.setAttribute("aria-selected", item.dataset.value === select.value ? "true" : "false");
+          });
+        }
+
+        function chooseOption(option) {
+          if (!option || option.disabled) return;
+          select.value = option.value;
+          updateLabel();
+          wrap.classList.remove("open");
+          button.setAttribute("aria-expanded", "false");
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
+        Array.from(select.options).forEach(function (option) {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "custom-select-option" + (option.disabled ? " disabled" : "");
+          item.textContent = option.textContent;
+          item.dataset.value = option.value;
+          item.setAttribute("role", "option");
+          item.addEventListener("click", function (event) {
+            event.preventDefault();
+            chooseOption(option);
+          });
+          menu.appendChild(item);
+        });
+
+        button.addEventListener("click", function (event) {
+          event.stopPropagation();
+          const isOpen = wrap.classList.contains("open");
+          closeCustomSelects(wrap);
+          wrap.classList.toggle("open", !isOpen);
+          button.setAttribute("aria-expanded", !isOpen ? "true" : "false");
+        });
+
+        button.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            wrap.classList.remove("open");
+            button.setAttribute("aria-expanded", "false");
+          }
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            button.click();
+          }
+        });
+
+        select.addEventListener("change", updateLabel);
+        updateLabel();
+      }
+
+      window.refreshCustomSelects = function () {
+        document.querySelectorAll("select:not([data-native-select])").forEach(enhanceCustomSelect);
+      };
+
       messages.forEach(function (item) { window.showToast(item.message, item.type); });
+      window.refreshCustomSelects();
+      window.toggleAppSidebar = function (event) {
+        event.stopPropagation();
+        document.querySelector(".sidebar")?.classList.toggle("open");
+        document.getElementById("sidebarBackdrop")?.classList.toggle("open");
+      };
+      window.closeAppSidebar = function () {
+        document.querySelector(".sidebar")?.classList.remove("open");
+        document.getElementById("sidebarBackdrop")?.classList.remove("open");
+      };
       window.toggleGlobalProfileMenu = function (event) {
         event.stopPropagation();
         document.getElementById("globalProfileDropdown")?.classList.toggle("open");
@@ -279,6 +325,7 @@
         var menu=document.getElementById("globalProfileMenu");
         var drop=document.getElementById("globalProfileDropdown");
         if(menu && drop && !menu.contains(e.target)) drop.classList.remove("open");
+        if (!e.target.closest(".custom-select-wrap")) closeCustomSelects();
       });
 
     })();

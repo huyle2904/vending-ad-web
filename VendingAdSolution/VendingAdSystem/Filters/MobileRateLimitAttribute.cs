@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 
 namespace VendingAdSystem.Filters;
@@ -51,8 +50,13 @@ public class MobileRateLimitAttribute : Attribute, IAsyncActionFilter
         if (context.ActionArguments.TryGetValue("deviceCode", out var routeCode))
             return routeCode?.ToString();
 
-        if (context.ActionArguments.TryGetValue("request", out var request) && request is MobileHeartbeatRequest heartbeatRequest)
-            return heartbeatRequest.DeviceCode;
+        foreach (var argument in context.ActionArguments.Values)
+        {
+            var property = argument?.GetType().GetProperty("DeviceCode");
+            var value = property?.GetValue(argument)?.ToString();
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
 
         return null;
     }

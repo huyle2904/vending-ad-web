@@ -13,6 +13,7 @@ This solution contains:
 
 - .NET 8 SDK
 - Docker Desktop, recommended for SQL Server, Redis, and RabbitMQ
+- FFmpeg/ffprobe, recommended for production-like video validation
 - Visual Studio 2022 or VS Code
 
 ## Restore, Build, Test
@@ -46,6 +47,7 @@ Local service defaults:
 From the repository root:
 
 ```powershell
+$env:ASPNETCORE_ENVIRONMENT="Development"
 $env:DatabaseProvider="SqlServer"
 $env:ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;"
 $env:Database__ApplyMigrationsOnStartup="true"
@@ -53,6 +55,10 @@ $env:Database__EnsureCreatedOnStartup="false"
 $env:Seed__EnableDemoData="true"
 $env:Redis__Enabled="true"
 $env:RabbitMQ__Enabled="true"
+$env:RabbitMQ__UserName="vendingad"
+$env:RabbitMQ__Password="vendingad@123"
+$env:VideoValidation__FfprobeEnabled="true"
+$env:VideoValidation__RequireFfprobe="false"
 
 dotnet run --no-launch-profile --project VendingAdSolution/VendingAdSystem
 ```
@@ -68,15 +74,29 @@ Seeded accounts when `Seed__EnableDemoData=true`:
 - Admin: `admin@admin` / `admin@admin`
 - Demo user: `test@test` / `test@test`
 
+Seeded demo device secrets:
+
+- `TAB-01`: `dev-secret-TAB-01`
+- `TAB-02`: `dev-secret-TAB-02`
+- `CLAIM-TEST-290403`: `dev-secret-CLAIM-TEST-290403`
+- `CLAIM-TEST-210603`: `dev-secret-CLAIM-TEST-210603`
+
+Mobile/device API calls must send either `X-Device-Secret: <secret>` or `Authorization: Bearer <secret>`.
+
+Admin can rotate or revoke a device secret from `/admin/devices`. A rotated secret is shown once and the old secret stops working immediately.
+
 ## Run Worker
 
 Open a second terminal:
 
 ```powershell
+$env:DOTNET_ENVIRONMENT="Development"
 $env:DatabaseProvider="SqlServer"
 $env:ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;"
 $env:Redis__Enabled="true"
 $env:Redis__ConnectionString="localhost:6379"
+$env:RabbitMQ__UserName="vendingad"
+$env:RabbitMQ__Password="vendingad@123"
 
 dotnet run --project VendingAdSolution/VendingAdWorker
 ```
@@ -129,4 +149,12 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 
 - `true`: seeds demo/admin accounts and sample data.
 - Good for local/dev.
-- Use `false` for real production data.
+- Defaults to `false` in committed production config.
+- Startup fails if this is enabled outside `Development`.
+
+`VideoValidation:FfprobeEnabled`
+
+- `true`: uploaded videos are probed with `ffprobe` after basic extension/MIME/magic-byte checks.
+- If `ffprobe` is present and rejects the file, upload fails.
+- `VideoValidation:RequireFfprobe=true` makes uploads fail closed when `ffprobe` is missing.
+- `VideoValidation:AllowedVideoCodecs` defaults to `h264`, `hevc`, `vp8`, `vp9`, and `av1`.

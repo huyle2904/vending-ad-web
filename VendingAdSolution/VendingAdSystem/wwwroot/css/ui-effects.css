@@ -3,8 +3,8 @@
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
 .fx-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px rgba(10, 35, 90, .10);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(10, 35, 90, .07);
 }
 
 .fx-btn {
@@ -27,7 +27,7 @@
   transition: background-color .14s ease;
 }
 .fx-list-row:hover {
-  background: #f8fbff;
+  background: #f8fafc;
 }
 
 /* Global button hover */
@@ -53,7 +53,7 @@
 .video-upload-btn:hover,
 .login-btn-submit:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
 }
 
 .btn:active,

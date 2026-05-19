@@ -1,39 +1,31 @@
-@using Microsoft.AspNetCore.Http
-@using System.Globalization
 @using VendingAdSystem.Application.DTOs
 @model DashboardViewModel
 @{
     ViewData["Title"] = "Bảng điều khiển";
-    var displayName = Context.Session.GetString("UserDisplayName")
-        ?? Context.Session.GetString("UserEmail")
-        ?? Context.Session.GetString("AdminEmail")
-        ?? "Người dùng";
-    var roleLabel = Context.Session.GetString("AdminEmail") is { Length: > 0 }
-        ? "Quản trị viên"
-        : "Người dùng";
-    var avatarSeed = displayName.Trim();
-    var avatarLetter = avatarSeed.Length > 0
-        ? avatarSeed.Substring(0, 1).ToUpper(CultureInfo.GetCultureInfo("vi-VN"))
-        : "U";
+    var hasNowPlaying = Model.NowPlaying is { IsEmpty: false };
+    var hasUpcoming = Model.Upcoming is { IsEmpty: false };
 }
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
 <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="dashboard-page">
-    <header class="dashboard-topbar">
-        <div>
-            <nav class="dashboard-breadcrumb" aria-label="breadcrumb">
-                <span>@Model.BreadcrumbSection</span>
-                <i class="bi bi-chevron-right"></i>
-                <span class="active">@Model.BreadcrumbPage</span>
-            </nav>
-            <h1 class="dashboard-title">@Model.Title</h1>
-            <p class="dashboard-subtitle">@Model.Subtitle</p>
+    <section class="dashboard-command-row">
+        <div class="dashboard-date-chip"><i class="bi bi-calendar2-week"></i>@Model.DateFilterLabel</div>
+        <div class="dashboard-hero-actions">
+            <a class="btn-soft" href="/portal/schedules"><i class="bi bi-calendar-plus"></i>Tạo lịch phát</a>
+            <a class="btn-soft" href="/portal/videos"><i class="bi bi-cloud-upload"></i>Tải video</a>
         </div>
-    </header>
+    </section>
 
     @await Html.PartialAsync("~/Views/Shared/Components/_KpiCards.cshtml", Model.Kpis)
+
+    <section class="dashboard-section-heading">
+        <div>
+            <h2>Lịch phát</h2>
+            <p>@(hasNowPlaying || hasUpcoming ? "Theo dõi nội dung đang chạy và lịch phát kế tiếp." : "Chưa có lịch phát đang chạy hoặc sắp phát.")</p>
+        </div>
+        <a class="section-link" href="/portal/schedules">Quản lý lịch phát <i class="bi bi-arrow-right"></i></a>
+    </section>
 
     <section class="schedule-grid">
         @await Html.PartialAsync("~/Views/Shared/Components/_NowPlaying.cshtml", Model.NowPlaying)
@@ -42,21 +34,3 @@
 
     @await Html.PartialAsync("~/Views/Shared/Components/_DeviceGrid.cshtml", Model.Devices)
 </div>
-
-<script>
-  window.quickPlayDeviceMap = window.quickPlayDeviceMap || {};
-
-  function toggleProfileMenu(event) {
-    event.stopPropagation();
-    document.getElementById('profileDropdown')?.classList.toggle('open');
-  }
-
-  document.addEventListener('click', function (event) {
-    var menu = document.getElementById('profileMenu');
-    var dropdown = document.getElementById('profileDropdown');
-    if (!menu || !dropdown) return;
-    if (!menu.contains(event.target)) {
-      dropdown.classList.remove('open');
-    }
-  });
-</script>

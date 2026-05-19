@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VendingAdSystem.Application.Services;
 
 namespace VendingAdSystem.Controllers;
 
+[Authorize]
 public class SettingsController : Controller
 {
     private readonly ICurrentSession _currentSession;

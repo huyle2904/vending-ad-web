@@ -6,14 +6,18 @@ namespace VendingAdSystem.Application.Services;
 public class MobileRateLimitOptions
 {
     public int WindowSeconds { get; set; } = 60;
+    public int DeviceInfoPermitLimit { get; set; } = 20;
     public int HeartbeatPermitLimit { get; set; } = 10;
     public int PlaybackStatePermitLimit { get; set; } = 30;
+    public int PlaylistPermitLimit { get; set; } = 30;
 }
 
 public enum MobileRateLimitPolicy
 {
+    DeviceInfo,
     Heartbeat,
-    PlaybackState
+    PlaybackState,
+    Playlist
 }
 
 public record MobileRateLimitResult(bool IsAllowed, int RetryAfterSeconds);
@@ -37,9 +41,7 @@ public class MobileRateLimitService : IMobileRateLimitService
     {
         var normalizedCode = string.IsNullOrWhiteSpace(deviceCode) ? "unknown" : deviceCode.Trim();
         var window = TimeSpan.FromSeconds(Math.Max(1, _options.WindowSeconds));
-        var limit = policy == MobileRateLimitPolicy.Heartbeat
-            ? Math.Max(1, _options.HeartbeatPermitLimit)
-            : Math.Max(1, _options.PlaybackStatePermitLimit);
+        var limit = GetLimit(policy);
         var key = $"{policy}:{normalizedCode}";
 
         CleanupExpiredCounters(utcNow);
@@ -60,6 +62,20 @@ public class MobileRateLimitService : IMobileRateLimitService
             counter.Count++;
             return new MobileRateLimitResult(true, 0);
         }
+    }
+
+    private int GetLimit(MobileRateLimitPolicy policy)
+    {
+        var limit = policy switch
+        {
+            MobileRateLimitPolicy.DeviceInfo => _options.DeviceInfoPermitLimit,
+            MobileRateLimitPolicy.Heartbeat => _options.HeartbeatPermitLimit,
+            MobileRateLimitPolicy.PlaybackState => _options.PlaybackStatePermitLimit,
+            MobileRateLimitPolicy.Playlist => _options.PlaylistPermitLimit,
+            _ => _options.PlaybackStatePermitLimit
+        };
+
+        return Math.Max(1, limit);
     }
 
     private void CleanupExpiredCounters(DateTime utcNow)

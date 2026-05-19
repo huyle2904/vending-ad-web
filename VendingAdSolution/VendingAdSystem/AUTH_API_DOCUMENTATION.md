@@ -119,7 +119,7 @@ The authentication system provides register and login endpoints for both User an
 
 ## Features
 
-✅ **Password Security**: Passwords are hashed using SHA256
+✅ **Password Security**: Passwords are hashed with ASP.NET Core `PasswordHasher`; legacy SHA256 hashes are rehashed after successful login
 ✅ **Email Validation**: Ensures unique email addresses
 ✅ **Password Requirements**: Minimum 6 characters
 ✅ **Token Generation**: JWT-like access tokens with 24-hour expiration

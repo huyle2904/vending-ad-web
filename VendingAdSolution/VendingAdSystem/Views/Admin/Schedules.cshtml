@@ -85,10 +85,12 @@
             <td>
               <div class="action-buttons">
                 <form method="post" action="/admin/schedules/toggle">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="scheduleId" value="@s.Id" />
                   <button type="submit" class="btn btn-sm btn-secondary">@(s.IsActive ? "Tắt" : "Bật")</button>
                 </form>
                 <form method="post" action="/admin/schedules/delete" onsubmit="return confirm('Xóa schedule @s.Name?')">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="scheduleId" value="@s.Id" />
                   <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>

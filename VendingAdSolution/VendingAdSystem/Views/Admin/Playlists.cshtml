@@ -65,6 +65,7 @@
               <div class="action-buttons">
                 <button class="btn btn-sm btn-secondary" onclick="toggleEdit(@playlist.Id)">Sửa</button>
                 <form method="post" action="/admin/playlists/delete" onsubmit="return confirm('Xóa playlist @playlist.Name?')">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="playlistId" value="@playlist.Id" />
                   <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>
@@ -74,6 +75,7 @@
           <tr id="edit-@playlist.Id" style="display: none;">
             <td colspan="7">
               <form method="post" action="/admin/playlists/update">
+                @Html.AntiForgeryToken()
                 <input type="hidden" name="playlistId" value="@playlist.Id" />
                 <div class="u-grid-2-gap">
                   <div class="form-group">

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
+using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
 
@@ -7,6 +8,8 @@ namespace VendingAdSystem.Infrastructure.Seed;
 
 public static class DatabaseSeeder
 {
+    private static readonly IPasswordHashingService PasswordHashingService = new PasswordHashingService();
+
     public static void Seed(AppDbContext db)
     {
         if (db.Database.IsSqlite())
@@ -15,6 +18,9 @@ public static class DatabaseSeeder
             EnsureColumn(db, "Devices", "UserId", "INTEGER NULL");
             EnsureColumn(db, "Devices", "ClaimCode", "TEXT NULL");
             EnsureColumn(db, "Devices", "ClaimedAt", "TEXT NULL");
+            EnsureColumn(db, "Devices", "DeviceSecretHash", "TEXT NULL");
+            EnsureColumn(db, "Devices", "DeviceSecretCreatedAt", "TEXT NULL");
+            EnsureColumn(db, "Devices", "DeviceSecretRevokedAt", "TEXT NULL");
             EnsureColumn(db, "Medias", "UserId", "INTEGER NULL");
             EnsurePlaybackScheduleColumns(db);
             MigratePlaylistsSchema(db);
@@ -53,15 +59,17 @@ public static class DatabaseSeeder
 
         if (users.Any() && !db.Devices.Any())
         {
+            var utcNow = DateTime.UtcNow;
             db.Devices.AddRange(
-                new Device { DeviceCode = "TAB-01", UserId = users[0].Id, Location = "Vincom Center", LastSeen = DateTime.UtcNow.AddMinutes(-2), IsActive = true },
-                new Device { DeviceCode = "TAB-02", UserId = users[0].Id, Location = "Ben Thanh Market", LastSeen = DateTime.UtcNow.AddMinutes(-5), IsActive = true }
+                new Device { DeviceCode = "TAB-01", UserId = users[0].Id, Location = "Vincom Center", LastSeen = utcNow.AddMinutes(-2), IsActive = true, DeviceSecretHash = HashPassword(GetDemoDeviceSecret("TAB-01")), DeviceSecretCreatedAt = utcNow },
+                new Device { DeviceCode = "TAB-02", UserId = users[0].Id, Location = "Ben Thanh Market", LastSeen = utcNow.AddMinutes(-5), IsActive = true, DeviceSecretHash = HashPassword(GetDemoDeviceSecret("TAB-02")), DeviceSecretCreatedAt = utcNow }
             );
             db.SaveChanges();
         }
 
         SeedClaimDevice(db, "CLAIM-TEST-290403", "Máy vending test 290403", "290403");
         SeedClaimDevice(db, "CLAIM-TEST-210603", "Máy vending test 210603", "210603");
+        EnsureDemoDeviceSecrets(db);
     }
 
     private static void SeedClaimDevice(AppDbContext db, string deviceCode, string location, string claimCode)
@@ -76,16 +84,41 @@ public static class DatabaseSeeder
             ClaimCode = claimCode,
             UserId = null,
             IsActive = true,
-            LastSeen = DateTime.UtcNow
+            LastSeen = DateTime.UtcNow,
+            DeviceSecretHash = HashPassword(GetDemoDeviceSecret(deviceCode)),
+            DeviceSecretCreatedAt = DateTime.UtcNow
         });
+        db.SaveChanges();
+    }
+
+    private static void EnsureDemoDeviceSecrets(AppDbContext db)
+    {
+        var demoDeviceCodes = new[] { "TAB-01", "TAB-02", "CLAIM-TEST-290403", "CLAIM-TEST-210603" };
+        var devices = db.Devices
+            .Where(d => demoDeviceCodes.Contains(d.DeviceCode) && string.IsNullOrEmpty(d.DeviceSecretHash))
+            .ToList();
+
+        if (!devices.Any())
+            return;
+
+        var utcNow = DateTime.UtcNow;
+        foreach (var device in devices)
+        {
+            device.DeviceSecretHash = HashPassword(GetDemoDeviceSecret(device.DeviceCode));
+            device.DeviceSecretCreatedAt = utcNow;
+        }
+
         db.SaveChanges();
     }
 
     private static string HashPassword(string password)
     {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
+        return PasswordHashingService.HashPassword(password);
+    }
+
+    private static string GetDemoDeviceSecret(string deviceCode)
+    {
+        return $"dev-secret-{deviceCode}";
     }
 
     private static void EnsureColumn(AppDbContext db, string tableName, string columnName, string columnDefinition)

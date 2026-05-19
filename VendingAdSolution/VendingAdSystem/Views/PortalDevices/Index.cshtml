@@ -1,8 +1,8 @@
 @model List<Device>
 @{ 
-    var totalDevices = ViewBag.TotalDevices;
-    var onlineCount = ViewBag.OnlineCount;
-    var offlineCount = ViewBag.OfflineCount;
+    var totalDevices = Convert.ToInt32(ViewBag.TotalDevices ?? Model.Count);
+    var onlineCount = Convert.ToInt32(ViewBag.OnlineCount ?? 0);
+    var offlineCount = Convert.ToInt32(ViewBag.OfflineCount ?? 0);
     var currentByDevice = ViewBag.CurrentScheduleByDevice as Dictionary<int, PlaybackSchedule> ?? new Dictionary<int, PlaybackSchedule>();
     var upcomingByDevice = ViewBag.UpcomingScheduleByDevice as Dictionary<int, PlaybackSchedule> ?? new Dictionary<int, PlaybackSchedule>();
     var playlists = ViewBag.Playlists as List<Playlist> ?? new List<Playlist>();
@@ -15,6 +15,12 @@
     var deviceSortBy = ViewBag.DeviceSortBy as string ?? "deviceCode";
     var deviceSortDir = ViewBag.DeviceSortDir as string ?? "asc";
     var onlineByDeviceCode = ViewBag.OnlineByDeviceCode as Dictionary<string, bool> ?? new Dictionary<string, bool>();
+    var deviceKpis = new List<KpiViewModel>
+    {
+        new() { Key = "total", Label = "Tổng thiết bị", Value = totalDevices.ToString(), Description = "Đã liên kết", Icon = "bi-pc-display", Tone = "primary" },
+        new() { Key = "online", Label = "Đang online", Value = onlineCount.ToString(), Description = "Sẵn sàng phát", Icon = "bi-wifi", Tone = "success" },
+        new() { Key = "offline", Label = "Ngoại tuyến", Value = offlineCount.ToString(), Description = "Cần kiểm tra", Icon = "bi-power", Tone = "danger" }
+    };
 
     string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
     string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
@@ -25,81 +31,116 @@
 <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="devices-page">
-  <header class="devices-topbar">
-    <div>
-      <nav class="dashboard-breadcrumb" aria-label="breadcrumb"><span>Danh mục</span><i class="bi bi-chevron-right"></i><span class="active">Thiết bị</span></nav>
-      <h1 class="dashboard-title">Quản lý Thiết bị</h1>
-      <p class="dashboard-subtitle">Theo dõi trạng thái thiết bị và thao tác phát nhanh theo thời gian thực.</p>
+  <section class="surface-card devices-toolbar">
+    <div class="devices-toolbar-head">
+      <div class="devices-toolbar-title">
+        <span class="devices-toolbar-icon"><i class="bi bi-hdd-network"></i></span>
+        <div>
+          <h2>Quản lý thiết bị</h2>
+          <p>Theo dõi trạng thái, vị trí và lịch phát trên từng thiết bị.</p>
+        </div>
+      </div>
+      <button type="button" class="btn-primary devices-add-btn" onclick="showAddModal()"><i class="bi bi-plus-lg"></i>Thêm thiết bị</button>
     </div>
-    <button type="button" class="video-upload-btn playlist-create-top" onclick="showAddModal()"><i class="bi bi-plus-lg"></i>Thêm thiết bị</button>
-  </header>
 
-  <form method="get" action="/portal/devices" id="deviceFilterForm" class="video-tools" style="margin-bottom:1rem; gap:.6rem;">
-    <div class="search-box"><i class="bi bi-search"></i><input type="text" name="q" value="@deviceQuery" placeholder="Tìm kiếm theo mã/vị trí..." /></div>
-    <select class="btn-soft fx-soft" name="status" onchange="document.getElementById('deviceFilterForm').submit()">
-      <option value="" selected="@(string.IsNullOrWhiteSpace(deviceStatus))">Tất cả trạng thái</option>
-      <option value="online" selected="@(deviceStatus == "online")">Trực tuyến</option>
-      <option value="offline" selected="@(deviceStatus == "offline")">Ngoại tuyến</option>
-    </select>
-    <select class="btn-soft fx-soft" name="sortBy" onchange="document.getElementById('deviceFilterForm').submit()">
-      <option value="deviceCode" selected="@(deviceSortBy == "deviceCode")">Mã thiết bị</option>
-      <option value="lastSeen" selected="@(deviceSortBy == "lastSeen")">Lần hoạt động cuối</option>
-    </select>
-    <select class="btn-soft fx-soft" name="sortDir" onchange="document.getElementById('deviceFilterForm').submit()">
-      <option value="asc" selected="@(deviceSortDir == "asc")">Tăng dần</option>
-      <option value="desc" selected="@(deviceSortDir == "desc")">Giảm dần</option>
-    </select>
-    <button type="submit" class="u-hidden" aria-hidden="true">submit</button>
-  </form>
+    <form method="get" action="/portal/devices" id="deviceFilterForm" class="devices-filter-form">
+      <div class="search-box"><i class="bi bi-search"></i><input type="text" name="q" value="@deviceQuery" placeholder="Tìm kiếm theo mã/vị trí..." /></div>
+      <select class="btn-soft fx-soft" name="status" onchange="document.getElementById('deviceFilterForm').submit()">
+        <option value="" selected="@(string.IsNullOrWhiteSpace(deviceStatus))">Tất cả trạng thái</option>
+        <option value="online" selected="@(deviceStatus == "online")">Trực tuyến</option>
+        <option value="offline" selected="@(deviceStatus == "offline")">Ngoại tuyến</option>
+      </select>
+      <select class="btn-soft fx-soft" name="sortBy" onchange="document.getElementById('deviceFilterForm').submit()">
+        <option value="deviceCode" selected="@(deviceSortBy == "deviceCode")">Mã thiết bị</option>
+        <option value="lastSeen" selected="@(deviceSortBy == "lastSeen")">Lần hoạt động cuối</option>
+      </select>
+      <select class="btn-soft fx-soft" name="sortDir" onchange="document.getElementById('deviceFilterForm').submit()">
+        <option value="asc" selected="@(deviceSortDir == "asc")">Tăng dần</option>
+        <option value="desc" selected="@(deviceSortDir == "desc")">Giảm dần</option>
+      </select>
+      <button type="submit" class="u-hidden" aria-hidden="true">submit</button>
+    </form>
+  </section>
 
-<div class="kpi-grid devices-kpi">
-  <div class="kpi-card"><div class="kpi-icon tone-primary"><i class="bi bi-pc-display"></i></div><div><h3 class="kpi-value">@totalDevices</h3><p class="kpi-label">Tổng thiết bị</p></div></div>
-  <div class="kpi-card"><div class="kpi-icon tone-success"><i class="bi bi-wifi"></i></div><div><h3 class="kpi-value">@onlineCount</h3><p class="kpi-label">Đang online</p></div></div>
-  <div class="kpi-card"><div class="kpi-icon tone-danger"><i class="bi bi-power"></i></div><div><h3 class="kpi-value">@offlineCount</h3><p class="kpi-label">Ngoại tuyến</p></div></div>
-</div>
+  <div class="devices-kpi-wrap">
+    @await Html.PartialAsync("~/Views/Shared/Components/_KpiCards.cshtml", deviceKpis)
+  </div>
+
+  <section class="surface-card device-section devices-library-section">
+    <header class="device-section-head">
+      <div>
+        <h2><i class="bi bi-pc-display"></i>Thiết bị đã liên kết</h2>
+        <p>Hiển thị @Model.Count thiết bị theo bộ lọc hiện tại.</p>
+      </div>
+      <span class="pill-counter">@Model.Count thiết bị</span>
+    </header>
 
 @if (!Model.Any())
 {
-    <div class="empty-state">
-    <div class="empty-state-icon">📱</div>
-    <p>Chưa có thiết bị nào</p>
-    <button class="btn btn-primary u-mt-1" onclick="showAddModal()">+ Thêm thiết bị</button>
-  </div>
+    <div class="empty-box devices-empty-box">
+      <i class="bi bi-phone"></i>
+      <span>Chưa có thiết bị phù hợp.</span>
+      <button type="button" class="btn-primary devices-empty-action" onclick="showAddModal()"><i class="bi bi-plus-lg"></i>Thêm thiết bị</button>
+    </div>
 }
 else
 {
-  <section class="surface-card device-section u-padding-1">
   <div class="device-grid">
     @foreach (var device in Model)
     {
       var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
       var currentSchedule = currentByDevice.ContainsKey(device.Id) ? currentByDevice[device.Id] : null;
       var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
-      <div class="device-card fx-card">
-        <header>
-          <div class="device-name"><i class="bi bi-phone"></i><strong>@device.DeviceCode</strong></div>
-          <span class="status-pill @(isOnline ? "online" : "offline")">@(isOnline ? "Đang online" : "Ngoại tuyến")</span>
+      var locationText = string.IsNullOrWhiteSpace(device.Location) ? "Chưa có vị trí" : device.Location;
+      var currentScheduleText = currentSchedule?.Name ?? "Chưa có";
+      var upcomingScheduleText = upcomingSchedule?.Name ?? "Chưa có";
+      var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
+      <article class="device-card device-card-compact fx-card @(isOnline ? "device-card-online" : "device-card-offline")">
+        <header class="device-card-head">
+          <div class="device-name">
+            <span class="device-icon"><i class="bi bi-phone"></i></span>
+            <span>
+              <strong>@device.DeviceCode</strong>
+              <small title="@locationText">@locationText</small>
+            </span>
+          </div>
+          <span class="status-pill @(isOnline ? "online" : "offline")">@(isOnline ? "Online" : "Offline")</span>
         </header>
-        <div class="device-body">
-          <p><i class="bi bi-geo-alt"></i>@(device.Location ?? "Chưa có")</p>
-          <p><span class="label">Đang phát</span><span class="soft-badge">@(currentSchedule?.Name ?? "Chưa có")</span></p>
-          <p><span class="label">Sắp phát</span><span class="soft-badge">@(upcomingSchedule?.Name ?? "Chưa có")</span></p>
+
+        <div class="device-status-list">
+          <div class="device-status-item current">
+            <span class="device-status-icon"><i class="bi bi-play-circle"></i></span>
+            <div>
+              <small>Đang phát</small>
+              <strong class="@(currentSchedule == null ? "is-muted" : "")" title="@currentScheduleText">@currentScheduleText</strong>
+            </div>
+          </div>
+          <div class="device-status-item upcoming">
+            <span class="device-status-icon"><i class="bi bi-calendar2-week"></i></span>
+            <div>
+              <small>Sắp phát</small>
+              <strong class="@(upcomingSchedule == null ? "is-muted" : "")" title="@upcomingScheduleText">@upcomingScheduleText</strong>
+            </div>
+          </div>
         </div>
-        <footer>
+
+        <footer class="device-card-footer">
+          <span class="last-active" title="Hoạt động cuối: @lastSeenVietnam"><i class="bi bi-activity"></i>@lastSeenVietnam</span>
           <div class="device-actions">
-            <button type="button" class="btn-primary" onclick="openQuickPlay(@device.Id); return false;">Phát nhanh</button>
-            <button type="button" class="btn-outline" onclick="openDeviceDetail(@device.Id); return false;">Chi tiết</button>
+            <button type="button" class="btn-primary" onclick="openQuickPlay(@device.Id); return false;" title="Phát nhanh"><i class="bi bi-play-fill"></i>Phát</button>
+            <button type="button" class="btn-outline icon-only" onclick="openDeviceDetail(@device.Id); return false;" title="Chi tiết" aria-label="Chi tiết thiết bị @device.DeviceCode"><i class="bi bi-info-circle"></i></button>
             <form method="post" action="/portal/devices/delete" class="u-inline">
+              @Html.AntiForgeryToken()
               <input type="hidden" name="deviceId" value="@device.Id" />
-              <button type="submit" class="btn-outline u-danger-text" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')">Xóa</button>
+              <button type="submit" class="btn-outline icon-only u-danger-text" title="Xóa" aria-label="Xóa thiết bị @device.DeviceCode" onclick="return confirm('Bạn có chắc muốn xóa thiết bị này?')"><i class="bi bi-trash3"></i></button>
             </form>
           </div>
         </footer>
-      </div>
+      </article>
     }
   </div>
-</section>
 }
+  </section>
 
 @foreach (var device in Model)
 {
@@ -108,58 +149,85 @@ else
   var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
   var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
   <div class="modal-overlay u-hidden" id="deviceDetail-@device.Id">
-    <div class="modal modal-wide">
-      <div class="modal-header">
-        <div>
-          <h3 class="modal-title">@device.DeviceCode</h3>
-          <p class="text-sm text-muted">Chi tiết thiết bị và lịch phát</p>
+    <div class="modal modal-wide detail-modal device-detail-modal">
+      <div class="detail-modal-header">
+        <div class="detail-title-group">
+          <span class="detail-title-icon device"><i class="bi bi-phone"></i></span>
+          <div>
+            <h3 class="modal-title">@device.DeviceCode</h3>
+            <p class="detail-subtitle">Trạng thái thiết bị và lịch phát liên quan.</p>
+          </div>
         </div>
-        <button class="modal-close" type="button" onclick="closeDeviceDetail(@device.Id)">&times;</button>
+        <button class="modal-close" type="button" onclick="closeDeviceDetail(@device.Id)" aria-label="Đóng"><i class="bi bi-x-lg"></i></button>
       </div>
-      <div class="grid grid-cols-2" style="gap: 1rem;">
-        <div class="card">
-          <div class="card-title">Thiết bị</div>
-          <div class="text-sm u-mt-05">Mã: @device.DeviceCode</div>
-          <div class="text-sm">Vị trí: @(device.Location ?? "Chưa có")</div>
-          <div class="text-sm">Trạng thái: @(isOnline ? "Đang online" : "Ngoại tuyến")</div>
-          <div class="text-sm">Lần hoạt động cuối: <span class="time-chip time-chip-date">@lastSeenVietnam</span></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Đang phát</div>
+      <div class="modal-body">
+        <div class="detail-summary-grid">
+          <section class="detail-panel">
+            <div class="detail-panel-head">
+              <span><i class="bi bi-info-circle"></i></span>
+              <h3>Thông tin thiết bị</h3>
+            </div>
+            <div class="detail-fact-list">
+              <div class="detail-fact"><span>Mã thiết bị</span><strong>@device.DeviceCode</strong></div>
+              <div class="detail-fact"><span>Vị trí</span><strong>@(device.Location ?? "Chưa có")</strong></div>
+              <div class="detail-fact"><span>Trạng thái</span><strong class="detail-status @(isOnline ? "active" : "danger")">@(isOnline ? "Đang online" : "Ngoại tuyến")</strong></div>
+              <div class="detail-fact"><span>Lần hoạt động cuối</span><strong>@lastSeenVietnam</strong></div>
+            </div>
+          </section>
+          <section class="detail-panel">
+            <div class="detail-panel-head">
+              <span><i class="bi bi-broadcast"></i></span>
+              <h3>Đang phát</h3>
+            </div>
           @if (currentSchedule == null)
           {
-            <div class="text-sm text-muted u-mt-05">Chưa có schedule đang phát.</div>
+            <div class="detail-empty-state"><i class="bi bi-broadcast-pin"></i><span>Chưa có schedule đang phát.</span></div>
           }
           else
           {
-            <div class="text-sm u-mt-05">@currentSchedule.Name</div>
-            <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(currentSchedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(currentSchedule)</span></div>
-            <div class="flex flex-wrap gap-2 u-mt-075">
+            <div class="detail-schedule-summary">
+              <strong>@currentSchedule.Name</strong>
+              <div class="detail-chip-row">
+                <span class="detail-chip primary"><i class="bi bi-calendar3"></i>@DateRangeText(currentSchedule)</span>
+                <span class="detail-chip"><i class="bi bi-clock"></i>@TimeRangeText(currentSchedule)</span>
+              </div>
+            </div>
+            <div class="detail-chip-row u-mt-075">
               @foreach (var item in currentSchedule.Items.OrderBy(i => i.OrderIndex))
               {
-                <span class="badge badge-secondary">#@(item.OrderIndex + 1) @item.Media.FileName</span>
+                <span class="detail-chip media">#@(item.OrderIndex + 1) @item.Media.FileName</span>
               }
             </div>
           }
+          </section>
         </div>
-      </div>
-      <div class="card u-mt-1">
-        <div class="card-title">Sắp phát</div>
+
+        <section class="detail-panel detail-panel-wide u-mt-1">
+          <div class="detail-panel-head">
+            <span><i class="bi bi-hourglass-split"></i></span>
+            <h3>Sắp phát</h3>
+          </div>
         @if (upcomingSchedule == null)
         {
-          <div class="text-sm text-muted u-mt-05">Chưa có schedule sắp tới.</div>
+          <div class="detail-empty-state"><i class="bi bi-calendar-event"></i><span>Chưa có schedule sắp tới.</span></div>
         }
         else
         {
-          <div class="text-sm u-mt-05">@upcomingSchedule.Name</div>
-          <div class="schedule-time-row"><span class="time-chip time-chip-date">@DateRangeText(upcomingSchedule)</span><span class="time-chip time-chip-clock">@TimeRangeText(upcomingSchedule)</span></div>
-          <div class="flex flex-wrap gap-2 u-mt-075">
+          <div class="detail-schedule-summary">
+            <strong>@upcomingSchedule.Name</strong>
+            <div class="detail-chip-row">
+              <span class="detail-chip primary"><i class="bi bi-calendar3"></i>@DateRangeText(upcomingSchedule)</span>
+              <span class="detail-chip"><i class="bi bi-clock"></i>@TimeRangeText(upcomingSchedule)</span>
+            </div>
+          </div>
+          <div class="detail-chip-row u-mt-075">
             @foreach (var item in upcomingSchedule.Items.OrderBy(i => i.OrderIndex))
             {
-              <span class="badge badge-secondary">#@(item.OrderIndex + 1) @item.Media.FileName</span>
+              <span class="detail-chip media">#@(item.OrderIndex + 1) @item.Media.FileName</span>
             }
           </div>
         }
+        </section>
       </div>
     </div>
   </div>
@@ -172,6 +240,7 @@ else
       <button class="modal-close" onclick="hideAddModal()">&times;</button>
     </div>
     <form method="post" action="/portal/devices">
+      @Html.AntiForgeryToken()
       <div class="form-group">
         <label class="form-label">Mã liên kết</label>
         <input type="text" name="claimCode" id="claimCodeInput" class="form-input" placeholder="VD: 483920" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required />
@@ -196,6 +265,7 @@ else
     </div>
 
     <form method="post" action="/portal/schedules/create" id="quickPlayForm">
+      @Html.AntiForgeryToken()
       <input type="hidden" name="actionType" value="immediate" />
       <input type="hidden" name="DeviceIds" id="quickPlayDeviceId" />
       <input type="hidden" name="Name" id="quickPlayName" />
@@ -265,6 +335,8 @@ else
       </div>
     </form>
   </div>
+</div>
+
 </div>
 
 <script>

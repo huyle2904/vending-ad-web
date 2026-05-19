@@ -12,50 +12,45 @@
 <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="video-page">
-  <header class="video-topbar">
-    <div>
-      <nav class="dashboard-breadcrumb" aria-label="breadcrumb">
-        <span>Danh mục</span><i class="bi bi-chevron-right"></i><span class="active">Thư viện video</span>
-      </nav>
-      <h1 class="dashboard-title">Thư viện video</h1>
-      <p class="dashboard-subtitle">Upload một lần, sử dụng cho playlist và lịch phát.</p>
-    </div>
-
-    <div class="video-stat-actions">
-      <article class="video-stat-card fx-card"><i class="bi bi-collection-play"></i><div><strong>@Model.Count</strong><span>Tổng video</span></div></article>
-      <article class="video-stat-card fx-card"><i class="bi bi-sd-card"></i><div><strong>@totalSizeMb MB</strong><span>Tổng dung lượng</span></div></article>
-    </div>
-  </header>
-
-  <section class="video-upload-board">
-    <div class="video-drop-area" id="dropZone" onclick="document.getElementById('videoFile').click()" ondragover="onDropDragOver(event)" ondragleave="onDropDragLeave(event)" ondrop="onDropFile(event)">
+  <section class="video-overview">
+    <div class="video-drop-area" id="dropZone" role="button" tabindex="0" aria-label="Tải video lên thư viện" onclick="openVideoPicker(event)" onkeydown="onDropZoneKeydown(event)" ondragover="onDropDragOver(event)" ondragleave="onDropDragLeave(event)" ondrop="onDropFile(event)">
       <input type="file" id="videoFile" accept="video/*" onchange="onFileSelect(this)" hidden />
       <div class="upload-circle"><i class="bi bi-cloud-arrow-up-fill"></i></div>
-      <h3>Kéo & thả video vào đây</h3>
-      <p>hoặc click để chọn file</p>
-      <small>Hỗ trợ: MP4, AVI, MOV · Tối đa 50MB</small>
-      <button type="button" class="video-select-btn">Chọn file từ máy</button>
+      <div class="video-drop-copy">
+        <h3>Kéo & thả video vào đây</h3>
+        <p>Tải video lên thư viện để dùng cho playlist và lịch phát.</p>
+        <div class="video-format-chips">
+          <span>MP4</span>
+          <span>AVI</span>
+          <span>MOV</span>
+          <span>Tối đa 50MB</span>
+        </div>
+      </div>
+      <div class="video-drop-actions">
+        <button type="button" class="video-select-btn" onclick="openVideoPicker(event)"><i class="bi bi-folder2-open"></i>Chọn file</button>
+        <small>hoặc thả file vào vùng này</small>
+      </div>
       <p id="fileName" class="media-selected-file"></p>
       <div id="uploadLoading" class="upload-loading u-hidden" style="display:none" aria-live="polite"><span class="upload-spinner"></span><span>Đang tải video...</span></div>
-      
     </div>
 
-    <aside class="video-guide">
-      <h3>Quy trình sử dụng</h3>
-      <ol>
-        <li>Tải video vào thư viện cá nhân.</li>
-        <li>Tạo danh sách phát nếu muốn tái sử dụng nhiều video.</li>
-        <li>Lên lịch phát và chọn thiết bị ở trang Lịch phát.</li>
-      </ol>
-      <div class="video-guide-note"><i class="bi bi-info-circle"></i>Thiết bị mobile/TV box sẽ tải video về local trước khi phát.</div>
-    </aside>
+    <div class="video-stat-actions video-metric-grid">
+      <article class="video-metric-card">
+        <span><i class="bi bi-collection-play"></i></span>
+        <div><strong>@Model.Count</strong><small>Tổng video</small></div>
+      </article>
+      <article class="video-metric-card">
+        <span><i class="bi bi-sd-card"></i></span>
+        <div><strong>@totalSizeMb MB</strong><small>Tổng dung lượng</small></div>
+      </article>
+    </div>
   </section>
 
   <section class="video-library-card">
     <header class="video-library-head">
       <div>
         <h2>Danh sách video (@Model.Count)</h2>
-        <p>Chọn nhiều để xóa, hoặc mở danh sách phát/lịch phát từ kho này.</p>
+        <p>Dùng xóa hàng loạt khi cần chọn nhiều video cùng lúc.</p>
       </div>
       <div class="video-tools">
         <form method="get" action="/portal/videos" id="videoFilterForm" class="video-tools" style="gap:.6rem;">
@@ -71,10 +66,11 @@
           </select>
           <button type="submit" class="u-hidden" aria-hidden="true">submit</button>
         </form>
-        <button class="btn-soft danger" type="button" id="toggleDeleteModeBtn" onclick="toggleDeleteMode()"><i class="bi bi-trash"></i>Xóa đã chọn</button>
-        <div id="deleteActions" class="u-hidden" style="gap:.5rem;">
+        <button class="btn-soft danger" type="button" id="toggleDeleteModeBtn" onclick="startBatchDeleteMode()" disabled="@(!Model.Any())"><i class="bi bi-trash3"></i>Xóa hàng loạt</button>
+        <div id="deleteActions" class="bulk-delete-actions" aria-live="polite">
+          <span id="selectedDeleteCount" class="bulk-delete-count">0 video đã chọn</span>
           <button type="button" class="btn-soft fx-soft" onclick="cancelDeleteMode()">Hủy</button>
-          <button type="button" class="btn-soft danger" onclick="confirmBatchDelete()">Xác nhận xóa</button>
+          <button type="button" class="btn-soft danger" onclick="confirmBatchDelete()"><i class="bi bi-trash3"></i>Xóa</button>
         </div>
       </div>
     </header>
@@ -85,35 +81,37 @@
     }
     else
     {
-      <div class="video-table-wrap">
-        <table class="video-table">
-          <tbody>
+      <div class="video-list">
           @foreach (var video in Model)
           {
             var playlists = video.PlaylistItems.Select(i => i.Playlist).DistinctBy(p => p.Id).ToList();
-            <tr class="fx-list-row">
-              <td class="col-check delete-col u-hidden"><input type="checkbox" class="delete-check" value="@video.Id" /></td>
-              <td class="col-media">
+            <article class="video-list-row fx-list-row" onclick="toggleRowSelection(event, this)">
+              <div class="col-check delete-col">
+                <label class="bulk-check" title="Chọn video để xóa hàng loạt" onclick="event.stopPropagation()">
+                  <input type="checkbox" class="delete-check" value="@video.Id" onchange="onDeleteCheckChange(this)" />
+                  <span class="bulk-check-box"><i class="bi bi-check2"></i></span>
+                </label>
+              </div>
+              <div class="col-media">
                 <img src="@(string.IsNullOrWhiteSpace(video.ThumbnailUrl) ? videoPlaceholder : video.ThumbnailUrl)" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="thumb" />
                 <div>
                   <strong>@video.FileName</strong>
                   <small>Video thư viện</small>
                 </div>
-              </td>
-              <td><strong>@(video.FileSize / 1024 / 1024) MB</strong><small>Dung lượng</small></td>
-              <td><strong>@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("dd/MM/yyyy")</strong><small>Ngày tải lên</small></td>
-              <td><strong>@playlists.Count playlist</strong><small>Đang sử dụng</small></td>
-              <td class="col-actions">
+              </div>
+              <div class="video-row-meta"><strong>@(video.FileSize / 1024 / 1024) MB</strong><small>Dung lượng</small></div>
+              <div class="video-row-meta"><strong>@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("dd/MM/yyyy")</strong><small>Ngày tải lên</small></div>
+              <div class="video-row-meta"><strong>@playlists.Count playlist</strong><small>Đang sử dụng</small></div>
+              <div class="col-actions">
                 <button class="icon-btn" title="Xem"><i class="bi bi-eye"></i></button>
                 <form method="post" action="/portal/videos/delete" class="u-inline">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="videoId" value="@video.Id" />
-                  <button class="icon-btn danger-outline" type="submit" onclick="return confirm('Bạn có chắc muốn xóa video này?')"><i class="bi bi-trash"></i></button>
+                  <button class="icon-btn danger-outline" type="submit" title="Xóa video" aria-label="Xóa video @video.FileName" onclick="return confirm('Bạn có chắc muốn xóa video này?')"><i class="bi bi-trash3"></i></button>
                 </form>
-              </td>
-            </tr>
+              </div>
+            </article>
           }
-          </tbody>
-        </table>
       </div>
       <div class="video-list-foot">Hiển thị 1 đến @Model.Count của @Model.Count video</div>
     }
@@ -121,7 +119,7 @@
 </div>
 
 <script>
-  var userId = @Context.Session.GetInt32("UserId");
+  const maxUploadBytes = 50 * 1024 * 1024;
 
   var uploadLoadingEl = document.getElementById('uploadLoading');
   if (uploadLoadingEl) {
@@ -129,27 +127,67 @@
     uploadLoadingEl.style.display = 'none';
   }
 
+  function openVideoPicker(event) {
+    if (event?.target?.id === 'videoFile') return;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var dropZone = document.getElementById('dropZone');
+    if (dropZone?.classList.contains('uploading')) return;
+    document.getElementById('videoFile')?.click();
+  }
+
+  function onDropZoneKeydown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      openVideoPicker(event);
+    }
+  }
+
   function onFileSelect(input) {
     var file = input.files[0];
     if (!file) return;
-    if (file.size > 50 * 1024 * 1024) { window.showToast('File phải nhỏ hơn 50MB', 'error'); input.value = ''; return; }
+    if (file.type && !file.type.startsWith('video/')) { window.showToast('Chỉ hỗ trợ file video', 'error'); input.value = ''; return; }
+    if (file.size > maxUploadBytes) { window.showToast('File phải nhỏ hơn 50MB', 'error'); input.value = ''; return; }
     document.getElementById('fileName').textContent = file.name;
     doUpload();
+  }
+
+  function setUploadState(isUploading) {
+    var loading = document.getElementById('uploadLoading');
+    var dropZone = document.getElementById('dropZone');
+    if (loading) {
+      loading.classList.toggle('u-hidden', !isUploading);
+      loading.style.display = isUploading ? 'flex' : 'none';
+    }
+    dropZone?.classList.toggle('uploading', isUploading);
+  }
+
+  function readUploadError(xhr) {
+    if (xhr.status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    if (xhr.status === 413) return 'File vượt quá dung lượng 50MB.';
+    try {
+      var data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      return data.message || 'Tải lên thất bại';
+    } catch {
+      return 'Tải lên thất bại';
+    }
   }
 
   async function doUpload() {
     var file = document.getElementById('videoFile').files[0];
     if (!file) return;
     var formData = new FormData();
-    formData.append('file', file); formData.append('userId', userId);
+    formData.append('file', file);
     var xhr = new XMLHttpRequest(); xhr.open('POST', '/api/portal/upload');
-    document.getElementById('uploadLoading').classList.remove('u-hidden'); document.getElementById('uploadLoading').style.display='flex';
-    document.getElementById('dropZone').classList.add('uploading');
+    var token = window.getRequestVerificationToken?.() || '';
+    if (token) xhr.setRequestHeader('RequestVerificationToken', token);
+    setUploadState(true);
     xhr.upload.onprogress = function(e) { };
     xhr.onload = async function(){
-      if(xhr.status===200){
+      if(xhr.status >= 200 && xhr.status < 300){
         try {
-          const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
           const html = await res.text();
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, 'text/html');
@@ -163,6 +201,8 @@
             const currentStats = document.querySelector('.video-stat-actions');
             if (currentStats) currentStats.replaceWith(newStats);
           }
+          window.refreshCustomSelects?.();
+          resetBatchDeleteMode();
           document.getElementById('videoFile').value = '';
           document.getElementById('fileName').textContent = '';
           window.showToast('Tải lên thành công', 'success');
@@ -170,13 +210,17 @@
           window.showToast('Tải lên thành công', 'success');
         }
       } else {
-        var data=xhr.responseText?JSON.parse(xhr.responseText):{};
-        window.showToast(data.message||'Tải lên thất bại','error');
+        window.showToast(readUploadError(xhr),'error');
       }
-      document.getElementById('uploadLoading').classList.add('u-hidden'); document.getElementById('uploadLoading').style.display='none';
-      document.getElementById('dropZone').classList.remove('uploading');
+      setUploadState(false);
     };
-    xhr.onerror = function(){ window.showToast('Lỗi mạng', 'error'); };
+    xhr.onerror = function(){
+      setUploadState(false);
+      window.showToast('Lỗi mạng', 'error');
+    };
+    xhr.onabort = function(){
+      setUploadState(false);
+    };
     xhr.send(formData);
   }
 
@@ -203,21 +247,57 @@
     onFileSelect(input);
   }
 
-  function toggleDeleteMode() {
-    document.querySelectorAll('.delete-col').forEach(el => el.style.display = 'table-cell');
-    document.getElementById('deleteActions').style.display = 'inline-flex';
-    document.getElementById('toggleDeleteModeBtn').style.display = 'none';
+  function startBatchDeleteMode() {
+    var card = document.querySelector('.video-library-card');
+    if (!card) return;
+    card.classList.add('batch-delete-mode');
+    updateBatchDeleteCount();
   }
+
   function cancelDeleteMode() {
-    document.querySelectorAll('.delete-col').forEach(el => el.style.display = 'none');
-    document.getElementById('deleteActions').style.display = 'none';
-    document.getElementById('toggleDeleteModeBtn').style.display = 'inline-flex';
     document.querySelectorAll('.delete-check').forEach(cb => cb.checked = false);
+    resetBatchDeleteMode();
   }
+
+  function resetBatchDeleteMode() {
+    document.querySelector('.video-library-card')?.classList.remove('batch-delete-mode');
+    document.querySelectorAll('.video-list-row.selected').forEach(row => row.classList.remove('selected'));
+    updateBatchDeleteCount();
+  }
+
+  function onDeleteCheckChange(input) {
+    input.closest('.video-list-row')?.classList.toggle('selected', input.checked);
+    updateBatchDeleteCount();
+  }
+
+  function toggleRowSelection(event, row) {
+    if (!document.querySelector('.video-library-card')?.classList.contains('batch-delete-mode')) return;
+    if (event.target.closest('button, a, input, label, form, .col-actions')) return;
+    var checkbox = row.querySelector('.delete-check');
+    if (!checkbox) return;
+    checkbox.checked = !checkbox.checked;
+    onDeleteCheckChange(checkbox);
+  }
+
+  function updateBatchDeleteCount() {
+    const selected = document.querySelectorAll('.delete-check:checked').length;
+    const countEl = document.getElementById('selectedDeleteCount');
+    if (countEl) countEl.textContent = selected + ' video đã chọn';
+  }
+
   function confirmBatchDelete() {
     const selected = Array.from(document.querySelectorAll('.delete-check:checked')).map(x => x.value);
     if (!selected.length) { window.showToast('Chọn ít nhất 1 video', 'error'); return; }
+    if (!confirm('Xóa ' + selected.length + ' video đã chọn?')) return;
     const form = document.createElement('form'); form.method = 'post'; form.action = '/portal/videos/batch-delete';
+    const token = window.getRequestVerificationToken?.() || '';
+    if (token) {
+      const csrf = document.createElement('input');
+      csrf.type = 'hidden';
+      csrf.name = '__RequestVerificationToken';
+      csrf.value = token;
+      form.appendChild(csrf);
+    }
     selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='videoIds'; i.value=id; form.appendChild(i); });
     document.body.appendChild(form); form.submit();
   }

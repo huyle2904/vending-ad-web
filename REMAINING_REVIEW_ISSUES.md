@@ -39,6 +39,24 @@ Portal device-wall endpoint vẫn cho user đã đăng nhập và sở hữu dev
 - Startup fail nếu bật demo seed ngoài môi trường `Development`
 - README local setup đã yêu cầu set environment variables rõ ràng
 
+### Security/integration test baseline đã có
+
+Đã thêm `WebApplicationFactory` tests cho:
+- Anonymous vào `/admin` bị redirect login.
+- User role không xem được admin dashboard.
+- Mobile API thiếu/wrong device secret trả `401`.
+- Portal upload bỏ qua `userId` giả từ form và dùng user id từ auth context.
+- Mobile device-info và portal playlist bị rate limit khi vượt quota theo `deviceCode`.
+
+### Device-facing API đã có rate limit rộng hơn
+
+Đã áp rate limit theo `deviceCode` cho:
+- `GET /api/mobile/devices/{deviceCode}`
+- `POST /api/mobile/heartbeat`
+- `GET /api/mobile/playback-state/{deviceCode}`
+- `GET /api/portal/playlist/{deviceCode}`
+- `POST /api/portal/heartbeat`
+
 ## 1. Mật khẩu mặc định cố định cho user mới/reset
 
 Vị trí liên quan:
@@ -48,6 +66,7 @@ Vị trí liên quan:
 Vấn đề:
 - Tạo user và reset password vẫn dùng chung mật khẩu `TD@12345`.
 - Với số user ít vẫn nguy hiểm, vì chỉ cần một user quên đổi password là có thể bị truy cập trái phép.
+- Chủ project đã quyết định chưa cần xử lý ở giai đoạn hiện tại.
 
 Nên làm tiếp:
 - Generate mật khẩu tạm thời ngẫu nhiên, chỉ hiển thị một lần cho admin.
@@ -64,12 +83,10 @@ Vị trí liên quan:
 Vấn đề còn lại:
 - Chưa có UI/API rotate secret khi thiết bị bị lộ secret.
 - Chưa có revoke riêng; hiện chỉ có thể vô hiệu hóa device.
-- Chưa áp rate limit cho mọi endpoint device.
 
 Nên làm tiếp:
 - Thêm admin action `Rotate device secret`, trả secret mới một lần.
 - Log audit khi register/rotate/revoke device secret.
-- Áp rate limit cho `GET /api/mobile/devices/{deviceCode}` và legacy portal device endpoints.
 
 ## 3. Session/manual auth check còn lẫn với Cookie Auth
 
@@ -104,15 +121,14 @@ Nên làm tiếp:
 ## 5. Thiếu security/integration tests
 
 Vấn đề:
-- Test hiện tại chủ yếu là service logic.
-- Các luồng auth/redirect/upload/device API cần test chống regression.
+- Đã có baseline integration tests cho auth boundary, mobile device secret, và upload không trust `userId`.
+- Vẫn thiếu coverage cho một số route/auth flow còn lại.
 
 Nên làm tiếp:
-- Thêm `WebApplicationFactory` tests.
-- Test anonymous vào `/admin` bị redirect login.
-- Test user thường không xem được admin data.
-- Test upload không nhận `userId` giả.
-- Test mobile API thiếu/wrong device secret trả `401`.
+- Test `/dashboard` redirect đúng theo role.
+- Test anonymous/user/admin trên các portal/admin route còn lại.
+- Test POST MVC thiếu anti-forgery token phải fail.
+- Test positive path mobile API với đúng device secret.
 
 ## 6. Audit log cho thao tác nhạy cảm
 

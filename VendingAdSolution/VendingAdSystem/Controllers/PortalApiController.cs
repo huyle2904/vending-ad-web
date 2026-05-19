@@ -5,6 +5,7 @@ using Microsoft.Extensions.Primitives;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
+using VendingAdSystem.Filters;
 
 namespace VendingAdSystem.Controllers;
 
@@ -76,6 +77,7 @@ public class PortalApiController : ControllerBase
     }
 
     [HttpGet("playlist/{deviceCode}")]
+    [MobileRateLimit(MobileRateLimitPolicy.Playlist)]
     public async Task<IActionResult> GetPlaylist(string deviceCode)
     {
         if (string.IsNullOrWhiteSpace(deviceCode))
@@ -93,6 +95,7 @@ public class PortalApiController : ControllerBase
     }
 
     [HttpPost("heartbeat")]
+    [MobileRateLimit(MobileRateLimitPolicy.Heartbeat)]
     public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.DeviceCode))

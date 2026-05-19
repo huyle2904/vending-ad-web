@@ -20,6 +20,7 @@ public class MobileApiController : ControllerBase
     }
 
     [HttpGet("devices/{deviceCode}")]
+    [MobileRateLimit(MobileRateLimitPolicy.DeviceInfo)]
     public async Task<IActionResult> GetDevice(string deviceCode)
     {
         if (string.IsNullOrWhiteSpace(deviceCode))

@@ -66,6 +66,9 @@ using (var scope = app.Services.CreateScope())
     var ensureCreatedOnStartup = builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup");
     var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
 
+    if (seedDemoData && !app.Environment.IsDevelopment())
+        throw new InvalidOperationException("Seed:EnableDemoData must be false outside Development.");
+
     if (db.Database.IsSqlServer())
     {
         if (applyMigrationsOnStartup)

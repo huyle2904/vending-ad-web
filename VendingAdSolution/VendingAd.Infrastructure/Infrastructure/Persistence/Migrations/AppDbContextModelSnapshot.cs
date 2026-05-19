@@ -75,6 +75,12 @@ namespace VendingAdSystem.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<DateTime?>("DeviceSecretCreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeviceSecretHash")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 

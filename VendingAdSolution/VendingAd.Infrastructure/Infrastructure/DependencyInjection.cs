@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IDeviceService, DeviceService>();
+        services.AddScoped<IDeviceCredentialService, DeviceCredentialService>();
         services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IMediaUploadService, MediaUploadService>();
         services.AddScoped<IPlaylistService, PlaylistService>();

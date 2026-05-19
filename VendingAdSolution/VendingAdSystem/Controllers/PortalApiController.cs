@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Primitives;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
@@ -16,8 +18,9 @@ public class PortalApiController : ControllerBase
     private readonly IPlaylistService _playlistService;
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly ICurrentSession _currentSession;
+    private readonly IDeviceCredentialService _deviceCredentialService;
 
-    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService, IDevicePresenceService devicePresenceService, ICurrentSession currentSession)
+    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService, IDevicePresenceService devicePresenceService, ICurrentSession currentSession, IDeviceCredentialService deviceCredentialService)
     {
         _deviceService = deviceService;
         _timeService = timeService;
@@ -25,9 +28,11 @@ public class PortalApiController : ControllerBase
         _playlistService = playlistService;
         _devicePresenceService = devicePresenceService;
         _currentSession = currentSession;
+        _deviceCredentialService = deviceCredentialService;
     }
 
     [HttpPost("upload")]
+    [Authorize(Roles = "User")]
     [RequestSizeLimit(52_428_800)] // 50 MiB max
     [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
     public async Task<IActionResult> Upload(IFormFile? file)
@@ -53,9 +58,10 @@ public class PortalApiController : ControllerBase
     }
 
     [HttpGet("devices")]
+    [Authorize(Roles = "User")]
     public async Task<IActionResult> GetDevices()
     {
-        var userId = HttpContext.Session.GetInt32("UserId");
+        var userId = _currentSession.UserId;
         if (userId == null)
             return Unauthorized();
 
@@ -72,6 +78,12 @@ public class PortalApiController : ControllerBase
     [HttpGet("playlist/{deviceCode}")]
     public async Task<IActionResult> GetPlaylist(string deviceCode)
     {
+        if (string.IsNullOrWhiteSpace(deviceCode))
+            return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
+
+        if (!await CanAccessDeviceEndpointAsync(deviceCode))
+            return Unauthorized(new { message = "Không có quyền truy cập thiết bị." });
+
         var items = await _playlistService.GetPlaylistAsync(deviceCode);
 
         if (items == null || !items.Any())
@@ -85,6 +97,9 @@ public class PortalApiController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.DeviceCode))
             return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
+
+        if (!await CanAccessDeviceEndpointAsync(req.DeviceCode))
+            return Unauthorized(new { message = "Không có quyền truy cập thiết bị." });
 
         var device = await _deviceService.Query()
             .FirstOrDefaultAsync(d => d.DeviceCode == req.DeviceCode);
@@ -105,6 +120,7 @@ public class PortalApiController : ControllerBase
     }
 
     [HttpPost("devices/register")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.DeviceCode))
@@ -115,6 +131,8 @@ public class PortalApiController : ControllerBase
         if (existing != null)
             return Conflict(new { message = "DeviceCode already exists." });
 
+        var utcNow = _timeService.UtcNow;
+        var deviceSecret = _deviceCredentialService.GenerateSecret();
         var device = new Device
         {
             DeviceCode = deviceCode,
@@ -122,8 +140,9 @@ public class PortalApiController : ControllerBase
             ClaimCode = await _deviceService.GenerateClaimCodeAsync(),
             UserId = null,
             IsActive = true,
-            LastSeen = _timeService.UtcNow
+            LastSeen = utcNow
         };
+        _deviceCredentialService.AssignSecret(device, deviceSecret, utcNow);
 
         await _deviceService.AddAsync(device);
         await _deviceService.SaveChangesAsync();
@@ -135,9 +154,43 @@ public class PortalApiController : ControllerBase
             device.DeviceCode,
             device.Location,
             device.ClaimCode,
+            DeviceSecret = deviceSecret,
             device.IsActive,
             device.LastSeen
         });
+    }
+
+    private async Task<bool> CanAccessDeviceEndpointAsync(string deviceCode)
+    {
+        var normalizedCode = deviceCode.Trim();
+        var userId = _currentSession.UserId;
+        if (userId.HasValue)
+        {
+            var ownsDevice = await _deviceService.Query()
+                .AsNoTracking()
+                .AnyAsync(d => d.DeviceCode == normalizedCode && d.UserId == userId.Value && d.IsActive);
+
+            if (ownsDevice)
+                return true;
+        }
+
+        return await _deviceCredentialService.ValidateSecretAsync(normalizedCode, GetDeviceSecret());
+    }
+
+    private string? GetDeviceSecret()
+    {
+        if (Request.Headers.TryGetValue("X-Device-Secret", out StringValues secretHeader))
+            return secretHeader.FirstOrDefault();
+
+        var authorization = Request.Headers.Authorization.FirstOrDefault();
+        const string bearerPrefix = "Bearer ";
+        if (!string.IsNullOrWhiteSpace(authorization) &&
+            authorization.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return authorization[bearerPrefix.Length..];
+        }
+
+        return null;
     }
 }
 

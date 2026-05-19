@@ -15,18 +15,10 @@
 }
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@500;600;700;800&display=swap" />
 <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="schedules-page">
-  <header class="schedules-topbar">
-    <div>
-      <nav class="dashboard-breadcrumb" aria-label="breadcrumb">
-        <span>Danh mục</span><i class="bi bi-chevron-right"></i><span class="active">Lịch phát</span>
-      </nav>
-      <h1 class="dashboard-title">Lịch phát video</h1>
-      <p class="dashboard-subtitle">Danh sách phát đang chạy. Phát nội dung mới ngay bây giờ hoặc lên lịch cho tương lai.</p>
-    </div>
+  <header class="schedules-topbar page-command-row">
     <div class="video-stat-actions">
       <article class="video-stat-card fx-card"><i class="bi bi-calendar3"></i><div><strong>@Model.Count</strong><span>Tổng lịch phát</span></div></article>
     </div>
@@ -367,40 +359,54 @@ else
       </article>
 
       <div class="modal-overlay u-hidden" id="scheduleDetail-@s.Id">
-        <div class="modal modal-wide schedule-detail-modal">
-          <div class="modal-header">
-            <div>
-              <div class="modal-title">@s.Name</div>
-              <p class="text-sm text-muted">Chi tiết và chỉnh live schedule</p>
+        <div class="modal modal-wide detail-modal schedule-detail-modal">
+          <div class="detail-modal-header">
+            <div class="detail-title-group">
+              <span class="detail-title-icon schedule"><i class="bi bi-calendar2-week"></i></span>
+              <div>
+                <div class="modal-title">@s.Name</div>
+                <p class="detail-subtitle">Quản lý lịch phát, thiết bị và thứ tự video.</p>
+              </div>
             </div>
-            <button class="modal-close" type="button" onclick="closeScheduleDetail(@s.Id)">×</button>
+            <button class="modal-close" type="button" onclick="closeScheduleDetail(@s.Id)" aria-label="Đóng"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-body">
-            <div class="grid grid-cols-2 u-gap-1">
-              <div class="card">
-                <div class="card-title">Thông tin</div>
-                <div class="text-sm u-mt-05">Trạng thái: @(s.IsActive ? "Đang hoạt động" : "Đã tắt")</div>
-                <div class="text-sm">Loại: @(s.IsImmediate ? "Phát ngay" : "Lịch thường")</div>
-                <div class="schedule-time-stack u-mt-05"><span class="time-chip time-chip-date">@DateRangeText(s)</span><span class="time-chip time-chip-clock">@TimeRangeText(s)</span></div>
-              </div>
-              <div class="card">
-                <div class="card-title">Thiết bị</div>
-                <div class="flex flex-wrap gap-2 u-mt-05">
+            <div class="detail-summary-grid">
+              <section class="detail-panel">
+                <div class="detail-panel-head">
+                  <span><i class="bi bi-info-circle"></i></span>
+                  <h3>Thông tin phát</h3>
+                </div>
+                <div class="detail-fact-list">
+                  <div class="detail-fact"><span>Trạng thái</span><strong class="detail-status @(s.IsActive ? "active" : "muted")">@(s.IsActive ? "Đang hoạt động" : "Đã tắt")</strong></div>
+                  <div class="detail-fact"><span>Kiểu phát</span><strong>@(s.IsImmediate ? "Phát ngay" : "Theo lịch")</strong></div>
+                  <div class="detail-fact"><span>Khung ngày</span><strong>@DateRangeText(s)</strong></div>
+                  <div class="detail-fact"><span>Khung giờ</span><strong>@TimeRangeText(s)</strong></div>
+                </div>
+              </section>
+              <section class="detail-panel">
+                <div class="detail-panel-head">
+                  <span><i class="bi bi-display"></i></span>
+                  <h3>Thiết bị nhận lịch</h3>
+                </div>
+                <div class="detail-chip-row">
                   @foreach (var d in s.Devices.OrderBy(x => x.Device.DeviceCode))
                   {
-                    <span class="badge badge-secondary">@d.Device.DeviceCode</span>
+                    <span class="detail-chip"><i class="bi bi-pc-display"></i>@d.Device.DeviceCode</span>
                   }
                 </div>
-              </div>
+              </section>
             </div>
 
-            <div class="card u-mt-1">
-              <div class="card-header u-flex-head">
+            <section class="detail-panel detail-panel-wide u-mt-1">
+              <div class="detail-panel-head split">
                 <div>
-                  <div class="card-title">Video phát</div>
-                  <div class="card-description">Thêm, xóa, đổi thứ tự ngay khi schedule đang chạy.</div>
+                  <span><i class="bi bi-collection-play"></i></span>
+                  <div>
+                    <h3>Video phát</h3>
+                    <p>Thêm, xóa, đổi thứ tự. Thiết bị đồng bộ sau 5 giây.</p>
+                  </div>
                 </div>
-                <div class="text-sm text-muted">Device sync sau vài giây.</div>
               </div>
 
               <div class="schedule-item-toolbar">
@@ -414,11 +420,11 @@ else
                       <option value="@media.Id">@media.FileName</option>
                     }
                   </select>
-                  <button type="submit" class="btn btn-primary fx-btn">Thêm</button>
+                  <button type="submit" class="btn btn-primary fx-btn"><i class="bi bi-plus-lg"></i>Thêm</button>
                 </form>
               </div>
 
-              <div class="table-wrapper u-mt-075">
+              <div class="table-wrapper detail-table-wrap u-mt-075">
                 <table class="table schedule-item-table">
                   <thead>
                     <tr class="fx-list-row"><th>Thứ tự</th><th>Tên video</th><th>Dung lượng</th><th>Thao tác</th></tr>
@@ -431,14 +437,14 @@ else
                           <span class="schedule-item-handle">☰</span>
                           <span>#@(item.OrderIndex + 1)</span>
                         </td>
-                        <td>@item.Media.FileName</td>
-                        <td>@(item.Media.FileSize / 1024 / 1024) MB</td>
+                        <td><span class="detail-media-name">@item.Media.FileName</span></td>
+                        <td><span class="detail-size-chip">@(item.Media.FileSize / 1024 / 1024) MB</span></td>
                         <td>
                           <div class="flex gap-2">
                             <form method="post" action="/portal/schedules/remove-item" onsubmit="return confirm('Xóa video khỏi schedule?')">
                               @Html.AntiForgeryToken()
                               <input type="hidden" name="scheduleItemId" value="@item.Id" />
-                              <button type="submit" class="btn btn-sm">Xóa</button>
+                              <button type="submit" class="detail-danger-btn"><i class="bi bi-trash"></i>Xóa</button>
                             </form>
                           </div>
                         </td>
@@ -447,7 +453,7 @@ else
                   </tbody>
                 </table>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       </div>
@@ -556,10 +562,10 @@ else
   .schedule-preview-chips { display:flex; flex-wrap:wrap; gap:.35rem; min-width:0; }
   .schedule-preview-chip { max-width: 190px; border:1px solid #dbe7f5; background:#fff; color:#334155; border-radius:999px; padding:.28rem .55rem; font-size:.76rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .schedule-preview-chip.muted { background:#f1f5f9; color:#64748b; }
-  .schedule-detail-modal .modal-body { max-height: 80vh; overflow-y: auto; }
+  .schedule-detail-modal .modal-body { max-height: 80vh; overflow-y: auto; overflow-x: hidden; }
   .schedule-item-toolbar { display:flex; justify-content:space-between; gap:1rem; margin-top: 1rem; flex-wrap: wrap; }
-  .schedule-add-item-form { display:flex; gap:.5rem; flex-wrap:wrap; width:100%; }
-  .schedule-add-item-form select { min-width: 240px; flex: 1; }
+  .schedule-add-item-form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:.5rem; width:100%; }
+  .schedule-add-item-form select { min-width:0; width:100%; }
   .schedule-item-table tbody tr { cursor: grab; }
   .schedule-item-table tbody tr.dragging { opacity: .5; }
   .schedule-order-cell { display:flex; align-items:center; gap:.5rem; }
@@ -589,6 +595,7 @@ else
     .schedule-action-btn { flex:1; justify-content:center; }
     .schedule-live-actions form { flex:1; }
     .schedule-live-actions form .schedule-action-btn { width:100%; }
+    .schedule-add-item-form { grid-template-columns:1fr; }
   }
 </style>
 

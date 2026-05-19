@@ -4,11 +4,15 @@
 <section class="kpi-grid">
 @foreach (var kpi in Model)
 {
-    <article class="kpi-card">
+    <article class="kpi-card tone-border-@kpi.Tone">
         <div class="kpi-icon tone-@kpi.Tone"><i class="bi @kpi.Icon"></i></div>
-        <div>
-            <h3 class="kpi-value">@kpi.Value</h3>
+        <div class="kpi-content">
             <p class="kpi-label">@kpi.Label</p>
+            <h3 class="kpi-value">@kpi.Value</h3>
+            @if (!string.IsNullOrWhiteSpace(kpi.Description))
+            {
+                <small class="kpi-note">@kpi.Description</small>
+            }
         </div>
     </article>
 }

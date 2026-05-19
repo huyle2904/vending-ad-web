@@ -316,6 +316,35 @@ public class PortalController : Controller
 
         var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
         var onlineCount = onlineByDeviceCode.Count(x => x.Value);
+        var visibleDevices = devices.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var keyword = q.Trim();
+            visibleDevices = visibleDevices.Where(d =>
+                d.DeviceCode.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrWhiteSpace(d.Location) && d.Location.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var statusKey = string.IsNullOrWhiteSpace(status) ? string.Empty : status.Trim().ToLowerInvariant();
+        visibleDevices = statusKey switch
+        {
+            "online" => visibleDevices.Where(d => onlineByDeviceCode.GetValueOrDefault(d.DeviceCode)),
+            "offline" => visibleDevices.Where(d => !onlineByDeviceCode.GetValueOrDefault(d.DeviceCode)),
+            _ => visibleDevices
+        };
+
+        var sortByKey = string.Equals(sortBy, "lastSeen", StringComparison.OrdinalIgnoreCase) ? "lastSeen" : "deviceCode";
+        var isAsc = !string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        visibleDevices = sortByKey switch
+        {
+            "lastSeen" => isAsc
+                ? visibleDevices.OrderBy(d => d.LastSeen ?? DateTime.MinValue)
+                : visibleDevices.OrderByDescending(d => d.LastSeen ?? DateTime.MinValue),
+            _ => isAsc
+                ? visibleDevices.OrderBy(d => d.DeviceCode)
+                : visibleDevices.OrderByDescending(d => d.DeviceCode)
+        };
+
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId);
         var medias = await _mediaService.Query()
             .AsNoTracking()
@@ -332,13 +361,13 @@ public class PortalController : Controller
         ViewBag.Medias = medias;
         ViewBag.UtcNow = now;
         ViewBag.DeviceQuery = q ?? string.Empty;
-        ViewBag.DeviceStatus = status ?? string.Empty;
-        ViewBag.DeviceSortBy = sortBy ?? "deviceCode";
-        ViewBag.DeviceSortDir = sortDir ?? "asc";
+        ViewBag.DeviceStatus = statusKey is "online" or "offline" ? statusKey : string.Empty;
+        ViewBag.DeviceSortBy = sortByKey;
+        ViewBag.DeviceSortDir = isAsc ? "asc" : "desc";
         ViewBag.VietnamNow = vietnamNow;
         ViewBag.OnlineByDeviceCode = onlineByDeviceCode;
 
-        return View("~/Views/PortalDevices/Index.cshtml", devices);
+        return View("~/Views/PortalDevices/Index.cshtml", visibleDevices.ToList());
     }
 
     [HttpGet("/portal/device-wall")]

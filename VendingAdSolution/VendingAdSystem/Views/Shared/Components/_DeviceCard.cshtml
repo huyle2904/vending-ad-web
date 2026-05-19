@@ -1,23 +1,46 @@
 @using VendingAdSystem.Application.DTOs
 @model DeviceViewModel
 
-<article class="device-card">
+<article class="device-card @(Model.IsOnline ? "device-card-online" : "device-card-offline")">
   <header>
-    <div class="device-name"><i class="bi bi-phone"></i><strong>@Model.DeviceCode</strong></div>
-    <span class="status-pill @(Model.IsOnline ? "online" : "offline")">@(Model.IsOnline ? "Đang online" : "Ngoại tuyến")</span>
+    <div class="device-name">
+      <span class="device-icon"><i class="bi bi-phone"></i></span>
+      <span>
+        <strong>@Model.DeviceCode</strong>
+        <small title="@Model.Location">@Model.Location</small>
+      </span>
+    </div>
+    <span class="status-pill @(Model.IsOnline ? "online" : "offline")">@(Model.IsOnline ? "Online" : "Offline")</span>
   </header>
 
-  <div class="device-body">
-    <p><i class="bi bi-geo-alt"></i>@Model.Location</p>
-    <p><span class="label">Đang phát</span><span class="soft-badge">@Model.CurrentPlaylist</span></p>
-    <p><span class="label">Sắp phát</span><span class="soft-badge">@Model.UpcomingPlaylist</span></p>
-    <p><span class="label">Nội dung</span><strong>@Model.ContentCount video</strong></p>
+  <div class="device-status-list">
+    <div class="device-status-item current">
+      <span class="device-status-icon"><i class="bi bi-play-circle"></i></span>
+      <div>
+        <small>Đang phát</small>
+        <strong class="@(Model.CurrentPlaylist == "Chưa có" ? "is-muted" : "")" title="@Model.CurrentPlaylist">@Model.CurrentPlaylist</strong>
+      </div>
+    </div>
+    <div class="device-status-item upcoming">
+      <span class="device-status-icon"><i class="bi bi-calendar2-week"></i></span>
+      <div>
+        <small>Sắp phát</small>
+        <strong class="@(Model.UpcomingPlaylist == "Chưa có" ? "is-muted" : "")" title="@Model.UpcomingPlaylist">@Model.UpcomingPlaylist</strong>
+      </div>
+    </div>
+    <div class="device-status-item content">
+      <span class="device-status-icon"><i class="bi bi-collection-play"></i></span>
+      <div>
+        <small>Nội dung</small>
+        <strong>@Model.ContentCount video</strong>
+      </div>
+    </div>
   </div>
 
   <footer>
     <span class="last-active">Hoạt động cuối: @Model.LastActiveText</span>
     <div class="device-actions">
-      <a class="btn-outline" href="/portal/devices">Chi tiết</a>
+      <a class="btn-outline" href="/portal/devices"><i class="bi bi-info-circle"></i>Chi tiết</a>
       <a class="btn-primary" href="/portal/devices"><i class="bi bi-play-fill"></i>Phát nhanh</a>
     </div>
   </footer>

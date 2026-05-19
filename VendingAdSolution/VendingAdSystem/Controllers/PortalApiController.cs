@@ -15,28 +15,31 @@ public class PortalApiController : ControllerBase
     private readonly IMediaUploadService _mediaUploadService;
     private readonly IPlaylistService _playlistService;
     private readonly IDevicePresenceService _devicePresenceService;
+    private readonly ICurrentSession _currentSession;
 
-    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService, IDevicePresenceService devicePresenceService)
+    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService, IDevicePresenceService devicePresenceService, ICurrentSession currentSession)
     {
         _deviceService = deviceService;
         _timeService = timeService;
         _mediaUploadService = mediaUploadService;
         _playlistService = playlistService;
         _devicePresenceService = devicePresenceService;
+        _currentSession = currentSession;
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(50_000_000)] // 50MB max
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] int userId)
+    [RequestSizeLimit(52_428_800)] // 50 MiB max
+    [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
+    public async Task<IActionResult> Upload(IFormFile? file)
     {
-        var sessionUserId = HttpContext.Session.GetInt32("UserId");
-        if (sessionUserId == null || sessionUserId != userId)
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
             return Unauthorized(new { message = "Invalid user session" });
 
         var result = await _mediaUploadService.UploadAsync(new UploadVideoRequest
         {
             File = file,
-            UserId = userId
+            UserId = userId.Value
         }, Request.Scheme, Request.Host);
 
         if (!result.Success)

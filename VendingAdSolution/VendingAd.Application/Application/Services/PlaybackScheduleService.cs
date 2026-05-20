@@ -55,14 +55,13 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         _messagePublisher = messagePublisher;
     }
 
-    public Task<IEnumerable<PlaybackSchedule>> GetAllAsync()
+    public async Task<IEnumerable<PlaybackSchedule>> GetAllAsync()
     {
-        return _playbackScheduleRepository.Query()
+        return await _playbackScheduleRepository.Query()
             .AsNoTracking()
             .Include(s => s.Devices).ThenInclude(d => d.Device)
             .Include(s => s.Items).ThenInclude(i => i.Media)
-            .ToListAsync()
-            .ContinueWith(t => (IEnumerable<PlaybackSchedule>)t.Result);
+            .ToListAsync();
     }
 
     public Task<PlaybackSchedule?> GetByIdAsync(int id)

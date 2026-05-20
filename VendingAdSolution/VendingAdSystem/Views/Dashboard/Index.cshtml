@@ -72,11 +72,11 @@
             </td>
             <td><strong style="color: var(--primary); font-family: monospace;">@device.DeviceCode</strong></td>
             <td class="text-muted"><span style="font-style: italic;">— dùng schedule —</span></td>
-            <td class="text-muted text-sm">
-              @(device.LastSeen.HasValue
-                ? TimeZoneInfo.ConvertTimeFromUtc(device.LastSeen.Value, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm:ss")
-                : "Chưa bao giờ")
-            </td>
+	            <td class="text-muted text-sm">
+	              @(device.LastSeen.HasValue
+	                ? VietnamTimeFormatter.FormatUtc(device.LastSeen.Value, "yyyy-MM-dd HH:mm:ss")
+	                : "Chưa bao giờ")
+	            </td>
           </tr>
         }
       </tbody>

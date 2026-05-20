@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.DTOs;
@@ -8,6 +9,8 @@ using VendingAdSystem.Infrastructure.Repositories.Interfaces;
 
 namespace VendingAdSystem.Controllers;
 
+[Authorize(Roles = "Admin")]
+[AutoValidateAntiforgeryToken]
 public class AdminController : Controller
 {
     private readonly ICurrentSession _currentSession;
@@ -19,6 +22,8 @@ public class AdminController : Controller
     private readonly IRepository<PlaylistItem> _playlistItems;
     private readonly IPlaybackScheduleService _playbackScheduleService;
     private readonly IDevicePresenceService _devicePresenceService;
+    private readonly IPasswordHashingService _passwordHashingService;
+    private readonly IDeviceCredentialService _deviceCredentialService;
 
     public AdminController(
         ICurrentSession currentSession,
@@ -29,7 +34,9 @@ public class AdminController : Controller
         IRepository<Playlist> playlists,
         IRepository<PlaylistItem> playlistItems,
         IPlaybackScheduleService playbackScheduleService,
-        IDevicePresenceService devicePresenceService)
+        IDevicePresenceService devicePresenceService,
+        IPasswordHashingService passwordHashingService,
+        IDeviceCredentialService deviceCredentialService)
     {
         _currentSession = currentSession;
         _userService = userService;
@@ -40,6 +47,8 @@ public class AdminController : Controller
         _playlistItems = playlistItems;
         _playbackScheduleService = playbackScheduleService;
         _devicePresenceService = devicePresenceService;
+        _passwordHashingService = passwordHashingService;
+        _deviceCredentialService = deviceCredentialService;
     }
 
     [HttpGet("/admin")]
@@ -408,7 +417,7 @@ public class AdminController : Controller
             Username = username,
             Email = email,
             FullName = fullName,
-            PasswordHash = HashPassword("TD@12345"),
+            PasswordHash = _passwordHashingService.HashPassword("TD@12345"),
             IsActive = true,
             CreatedAt = _timeService.UtcNow
         };
@@ -433,7 +442,7 @@ public class AdminController : Controller
             return RedirectToAction("Users");
         }
 
-        user.PasswordHash = HashPassword("TD@12345");
+        user.PasswordHash = _passwordHashingService.HashPassword("TD@12345");
         await _userService.SaveChangesAsync();
 
         TempData["Success"] = $"Password reset for {user.Username}";
@@ -497,6 +506,39 @@ public class AdminController : Controller
         return RedirectToAction("Devices");
     }
 
+    [HttpPost("/admin/devices/rotate-secret")]
+    public async Task<IActionResult> RotateDeviceSecret([FromForm] int deviceId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var result = await _deviceCredentialService.RotateSecretAsync(deviceId, _timeService.UtcNow);
+        if (!result.Success)
+        {
+            TempData["Error"] = result.Message;
+            return RedirectToAction("Devices");
+        }
+
+        TempData["Success"] = $"Đã cấp lại secret cho thiết bị {result.DeviceCode}. Secret chỉ hiển thị một lần.";
+        TempData["DeviceSecretDeviceCode"] = result.DeviceCode;
+        TempData["DeviceSecret"] = result.DeviceSecret;
+        return RedirectToAction("Devices");
+    }
+
+    [HttpPost("/admin/devices/revoke-secret")]
+    public async Task<IActionResult> RevokeDeviceSecret([FromForm] int deviceId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var result = await _deviceCredentialService.RevokeSecretAsync(deviceId, _timeService.UtcNow);
+        TempData[result.Success ? "Success" : "Error"] = result.Success
+            ? $"Đã thu hồi secret của thiết bị {result.DeviceCode}."
+            : result.Message;
+
+        return RedirectToAction("Devices");
+    }
+
     private bool IsScheduleRunningNow(PlaybackSchedule schedule, DateTime utcNow)
     {
         if (!schedule.IsActive || schedule.StartDate > utcNow || schedule.EndDate < utcNow)
@@ -504,13 +546,6 @@ public class AdminController : Controller
 
         var currentTime = _timeService.ToVietnamTime(utcNow).TimeOfDay;
         return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
-    }
-
-    private static string HashPassword(string password)
-    {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
     }
 
 }

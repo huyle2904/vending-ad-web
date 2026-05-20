@@ -9,33 +9,32 @@
 <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="playlist-page">
-  <header class="playlist-topbar">
-    <div>
-      <nav class="dashboard-breadcrumb" aria-label="breadcrumb">
-        <span>Danh mục</span><i class="bi bi-chevron-right"></i><span class="active">Danh sách phát</span>
-      </nav>
-      <h1 class="dashboard-title">Danh sách phát</h1>
-      <p class="dashboard-subtitle">Tạo template nội dung từ video đã upload, sau đó dùng lại khi lên lịch phát.</p>
-    </div>
-
-    <div class="video-stat-actions">
-      <article class="video-stat-card fx-card"><i class="bi bi-collection-play"></i><div><strong>@Model.Count</strong><span>Tổng playlist</span></div></article>
-      <article class="video-stat-card fx-card"><i class="bi bi-collection"></i><div><strong>@totalVideos</strong><span>Tổng video</span></div></article>
-    </div>
-  </header>
-
-  <section class="playlist-create-card">
-    <div class="playlist-create-head">
-      <span class="playlist-create-icon"><i class="bi bi-play-fill"></i></span>
-      <div>
-        <h3>Tạo playlist mới</h3>
-        <p>Playlist là mẫu nội dung, chưa gắn thiết bị hoặc khung giờ phát.</p>
+  <section class="playlist-overview">
+    <div class="playlist-create-card playlist-create-card-modern">
+      <div class="playlist-create-head">
+        <span class="playlist-create-icon"><i class="bi bi-play-fill"></i></span>
+        <div>
+          <h3>Tạo playlist mới</h3>
+          <p>Chuẩn bị mẫu nội dung để dùng lại khi lên lịch phát.</p>
+        </div>
       </div>
+      <form method="post" action="/portal/playlist/create" class="playlist-create-form playlist-create-form-modern">
+        @Html.AntiForgeryToken()
+        <input id="playlistNameInput" type="text" name="name" value="@ViewBag.PlaylistDraftName" placeholder="Nhập tên playlist mới..." required />
+        <button type="submit"><i class="bi bi-plus-lg"></i>Tạo playlist</button>
+      </form>
     </div>
-    <form method="post" action="/portal/playlist/create" class="playlist-create-form">
-      <input id="playlistNameInput" type="text" name="name" value="@ViewBag.PlaylistDraftName" placeholder="Nhập tên playlist mới..." required />
-      <button type="submit">Tạo playlist</button>
-    </form>
+
+    <div class="playlist-metric-grid">
+      <article class="playlist-metric-card">
+        <span><i class="bi bi-collection-play"></i></span>
+        <div><strong>@Model.Count</strong><small>Tổng playlist</small></div>
+      </article>
+      <article class="playlist-metric-card">
+        <span><i class="bi bi-collection"></i></span>
+        <div><strong>@totalVideos</strong><small>Tổng video</small></div>
+      </article>
+    </div>
   </section>
 
   @if (Model == null || !Model.Any())
@@ -53,75 +52,110 @@
   }
   else
   {
-    <section class="playlist-list-card">
-      @foreach (var playlist in Model)
-      {
-        var items = playlist.Items.OrderBy(i => i.OrderIndex).ToList();
-        <article class="playlist-item-card">
-          <header>
-            <div>
-              <h3>@playlist.Name</h3>
-              <p>Template nội dung có thể dùng lại khi tạo lịch phát.</p>
-            </div>
-            <div class="playlist-item-tools">
-              <span class="pill-counter">@items.Count video</span>
-              <button type="button" class="btn-soft fx-soft" onclick="openVideoModal(@playlist.Id)"><i class="bi bi-plus-circle"></i>Thêm video</button>
-              <form method="post" action="/portal/playlist/delete" onsubmit="return confirm('Xóa playlist @playlist.Name?')">
-                <input type="hidden" name="playlistId" value="@playlist.Id" />
-                <button type="submit" class="btn-soft danger"><i class="bi bi-trash"></i>Xóa</button>
-              </form>
-            </div>
-          </header>
+    <section class="playlist-library-card">
+      <header class="playlist-library-head">
+        <div>
+          <h2>Playlist đang có</h2>
+          <p>Kéo thả video trong từng playlist rồi lưu lại thứ tự phát.</p>
+        </div>
+        <button class="video-upload-btn playlist-save-btn" onclick="saveOrder()"><i class="bi bi-save"></i>Lưu thứ tự</button>
+      </header>
 
-          @if (!items.Any())
-          {
-            <div class="empty-box playlist-empty-min">Danh sách phát chưa có video.</div>
-          }
-          else
-          {
-            <div class="playlist-media-list" data-playlist-id="@playlist.Id">
-              @foreach (var item in items)
-              {
-                <div class="playlist-media-row" draggable="true" data-playlist-item-id="@item.Id">
-                  <span class="drag">⋮⋮</span>
-                  <span class="index">@(item.OrderIndex + 1)</span>
-                  <span class="name">@item.Media.FileName</span>
-                  <span class="size">@((item.Media.FileSize / 1024 / 1024).ToString()) MB</span>
-                  <form method="post" action="/portal/playlist/remove-item" onsubmit="return confirm('Xóa video này khỏi playlist?')">
-                    <input type="hidden" name="playlistItemId" value="@item.Id" />
-                    <button type="submit" class="btn-soft danger">Xóa</button>
-                  </form>
+      <div class="playlist-list-grid">
+        @foreach (var playlist in Model)
+        {
+          var items = playlist.Items.OrderBy(i => i.OrderIndex).ToList();
+          <article class="playlist-item-card playlist-item-card-modern">
+            <header>
+              <div class="playlist-title-group">
+                <span class="playlist-card-icon"><i class="bi bi-music-note-list"></i></span>
+                <div>
+                  <h3>@playlist.Name</h3>
+                  <p>@items.Count video trong mẫu nội dung này</p>
                 </div>
-              }
-            </div>
-          }
-        </article>
-      }
-      <div class="text-center playlist-save-order"><button class="video-upload-btn playlist-save-btn" onclick="saveOrder()">Lưu tất cả thay đổi thứ tự</button></div>
+              </div>
+              <div class="playlist-item-tools">
+                <span class="pill-counter"><i class="bi bi-play-circle"></i>@items.Count video</span>
+                <button type="button" class="btn-soft fx-soft" onclick="openVideoModal(@playlist.Id)"><i class="bi bi-plus-circle"></i>Thêm video</button>
+                <form method="post" action="/portal/playlist/delete" onsubmit="return confirm('Xóa playlist @playlist.Name?')">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="playlistId" value="@playlist.Id" />
+                  <button type="submit" class="btn-soft danger"><i class="bi bi-trash"></i>Xóa</button>
+                </form>
+              </div>
+            </header>
+
+            @if (!items.Any())
+            {
+              <div class="empty-box playlist-empty-min"><i class="bi bi-collection-play"></i><span>Danh sách phát chưa có video.</span></div>
+            }
+            else
+            {
+              <div class="playlist-media-list" data-playlist-id="@playlist.Id">
+                @foreach (var item in items)
+                {
+                  <div class="playlist-media-row" draggable="true" data-playlist-item-id="@item.Id">
+                    <span class="drag" aria-label="Kéo để đổi thứ tự"><i class="bi bi-grip-vertical"></i></span>
+                    <span class="index">@(item.OrderIndex + 1)</span>
+                    <span class="name"><i class="bi bi-film"></i>@item.Media.FileName</span>
+                    <span class="size">@((item.Media.FileSize / 1024 / 1024).ToString()) MB</span>
+                    <form method="post" action="/portal/playlist/remove-item" onsubmit="return confirm('Xóa video này khỏi playlist?')">
+                      @Html.AntiForgeryToken()
+                      <input type="hidden" name="playlistItemId" value="@item.Id" />
+                      <button type="submit" class="btn-soft danger"><i class="bi bi-trash"></i>Xóa</button>
+                    </form>
+                  </div>
+                }
+              </div>
+            }
+          </article>
+        }
+      </div>
     </section>
   }
 </div>
 
 <div class="modal-overlay u-hidden" id="videoModal">
-  <div class="modal modal-wide">
-    <div class="modal-header">
-      <div><div class="modal-title">Thêm video từ thư viện</div><p class="text-sm text-muted">Chọn một hoặc nhiều video đã upload.</p></div>
-      <button class="modal-close" type="button" onclick="closeVideoModal()">×</button>
+  <div class="modal modal-wide detail-modal playlist-video-modal">
+    <div class="detail-modal-header">
+      <div class="detail-title-group">
+        <span class="detail-title-icon schedule"><i class="bi bi-plus-circle"></i></span>
+        <div>
+          <div class="modal-title">Thêm video từ thư viện</div>
+          <p class="detail-subtitle">Chọn một hoặc nhiều video đã upload.</p>
+        </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeVideoModal()" aria-label="Đóng"><i class="bi bi-x-lg"></i></button>
     </div>
     <form method="post" action="/portal/playlist/add-video">
+      @Html.AntiForgeryToken()
       <input type="hidden" name="playlistId" id="modalPlaylistId" />
       <div class="modal-body">
         @if (!medias.Any())
-        {<div class="empty-state">Chưa có video trong thư viện.</div>}
+        {
+          <div class="detail-empty-state"><i class="bi bi-collection-play"></i><span>Chưa có video trong thư viện.</span></div>
+        }
         else
         {
-          <div class="table-wrapper"><table class="table"><thead><tr class="fx-list-row"><th class="u-w-56">Chọn</th><th>Video</th><th>Dung lượng</th></tr></thead><tbody>
-          @foreach (var media in medias)
-          {<tr class="fx-list-row"><td><input type="checkbox" name="mediaIds" value="@media.Id" /></td><td>@media.FileName</td><td>@(media.FileSize / 1024 / 1024) MB</td></tr>}
-          </tbody></table></div>
+          <div class="playlist-video-picker">
+            @foreach (var media in medias)
+            {
+              <label class="playlist-video-option">
+                <input type="checkbox" name="mediaIds" value="@media.Id" />
+                <span class="playlist-video-option-icon"><i class="bi bi-film"></i></span>
+                <span>
+                  <strong>@media.FileName</strong>
+                  <small>@(media.FileSize / 1024 / 1024) MB</small>
+                </span>
+              </label>
+            }
+          </div>
         }
       </div>
-      <div class="flex justify-between" style="margin-top: 1rem; gap: 1rem;"><button type="button" class="btn btn-secondary fx-soft" onclick="closeVideoModal()">Hủy</button><button type="submit" class="btn btn-primary fx-btn">Thêm video</button></div>
+      <div class="playlist-modal-actions">
+        <button type="button" class="btn btn-secondary fx-soft" onclick="closeVideoModal()">Hủy</button>
+        <button type="submit" class="btn btn-primary fx-btn"><i class="bi bi-plus-lg"></i>Thêm video</button>
+      </div>
     </form>
   </div>
 </div>
@@ -141,7 +175,7 @@
     const lists=document.querySelectorAll('.playlist-media-list');
     for(const list of lists){
       const updates=[]; list.querySelectorAll('.playlist-media-row').forEach((item,i)=>updates.push({playlistItemId:parseInt(item.dataset.playlistItemId),orderIndex:i}));
-      const resp=await fetch('/portal/playlist/update-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({playlistId:parseInt(list.dataset.playlistId),updates})});
+      const resp=await fetch('/portal/playlist/update-order',{method:'POST',headers:{'Content-Type':'application/json','RequestVerificationToken':window.getRequestVerificationToken?.() || ''},body:JSON.stringify({playlistId:parseInt(list.dataset.playlistId),updates})});
       if(!resp.ok){ window.showToast('Lưu thứ tự thất bại','error'); return; }
     }
     window.showToast('Thứ tự playlist đã được lưu!','success');

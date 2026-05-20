@@ -13,6 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\VendingAd.Application\VendingAd.Application.csproj" />
     <ProjectReference Include="..\VendingAd.Contracts\VendingAd.Contracts.csproj" />
+    <ProjectReference Include="..\VendingAd.Infrastructure\VendingAd.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

@@ -65,11 +65,12 @@
             </td>
             <td><span class="text-muted">Lịch phát</span></td>
             <td>@(video.FileSize / 1024 / 1024) MB</td>
-            <td class="text-muted text-sm">@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm")</td>
+	            <td class="text-muted text-sm">@VietnamTimeFormatter.FormatUtc(video.UploadedAt, "yyyy-MM-dd HH:mm")</td>
             <td>
               <div class="action-buttons">
                 <a class="btn btn-sm btn-secondary" href="@video.FileUrl" target="_blank">Xem</a>
                 <form method="post" action="/admin/videos/delete" onsubmit="return confirm('Xóa video @video.FileName?')">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="videoId" value="@video.Id" />
                   <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>

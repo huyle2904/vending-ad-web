@@ -1,0 +1,20 @@
+bin/
+obj/
+*.db
+*.user
+*.suo
+*.db-shm
+*.db-wal
+.vs/
+.vscode/
+opencode.json
+VendingAdSolution/VendingAdSystem/wwwroot/uploads/*
+!VendingAdSolution/VendingAdSystem/wwwroot/uploads/.gitkeep
+
+# Local AI tooling / skills (do not track)
+.agents/
+.opencode/skills/
+skills-lock.json
+
+# Local architecture notes for future sessions
+VENDING-AD/

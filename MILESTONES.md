@@ -2,6 +2,16 @@
 
 This file tracks the main technical milestones implemented in the VendingAd project and the next production-readiness steps.
 
+Last updated: 2026-05-20 (UTC)
+
+## Current Snapshot (for session handoff)
+
+- Working branch: `dev`
+- Latest integration commit: `9a957c9` (merge `main` into `dev` to resolve PR conflicts)
+- External sync repo: `huyle2904/vending-ad-web`
+- PR status on sync repo: `#15` merged (`dev -> main`) at `2026-05-19T09:45:04Z` with merge commit `b6c73c4`
+- Post-merge baseline: `dotnet build` and `dotnet test` passed
+
 ## Done
 
 ### Milestone 0: Mobile/TV Box API Foundation
@@ -330,11 +340,12 @@ Implemented:
 
 Key files:
 
-- `Application/Messaging/IntegrationEvents.cs`
-- `Application/Messaging/MessagePublisher.cs`
-- `Application/Services/PlaybackScheduleService.cs`
-- `Infrastructure/DependencyInjection.cs`
-- `appsettings.json`
+- `VendingAd.Contracts/IntegrationEvents.cs`
+- `VendingAd.Application/Application/Messaging/MessagePublisher.cs`
+- `VendingAd.Application/Application/Services/PlaybackScheduleService.cs`
+- `VendingAd.Infrastructure/Infrastructure/Messaging/MessagePublisherImplementations.cs`
+- `VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSystem/appsettings.json`
 
 Notes:
 
@@ -362,9 +373,10 @@ Implemented:
 Key files:
 
 - `VendingAd.Contracts/IntegrationEvents.cs`
+- `VendingAdWorker/Program.cs`
 - `VendingAdWorker/Worker.cs`
-- `VendingAdWorker/RabbitMqWorkerOptions.cs`
 - `VendingAdWorker/appsettings.json`
+- `VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
 - `VendingAdSolution.sln`
 
 Validation:
@@ -383,15 +395,151 @@ Deferred:
 
 ### Milestone 9: Event-Driven Schedule Cache Invalidation
 
-Status: Planned
+Status: Done
 
 Goal: Move schedule cache warm/invalidate flow from web request to RabbitMQ + Worker.
 
-Planned:
+Implemented:
 
-- Publish `ScheduleChangedEvent` after DB changes
-- Worker warms `mobile:schedule-content:*`
-- Worker invalidates device playback caches
+- Split shared code into layered class libraries:
+  - `VendingAd.Domain`
+  - `VendingAd.Application`
+  - `VendingAd.Infrastructure`
+- Web schedule write flows save DB changes first, then publish `ScheduleChangedEvent`.
+- Removed direct web-request calls to schedule cache refresh.
+- `ScheduleChangedEvent.AffectedDeviceCodes` now means all devices affected before or after the change.
+- Schedule reassignment publishes the union of old and new device codes.
+- Worker consumes `ScheduleChangedEvent` and delegates cache handling to `IScheduleCacheEventHandler`.
+- Worker invalidates per-device playback cache keys for every affected device.
+- Worker warms `mobile:schedule-content:*` only for schedules that still exist and are active.
+- Deleted or inactive schedules skip cache warm.
+- Handler logs cache failures and does not throw back into RabbitMQ processing; worker acknowledges and relies on TTL fallback.
+- Worker infrastructure fails fast if Redis is not enabled.
+- Added focused xUnit tests for cache handler behavior, cache key invalidation, and schedule reassignment event semantics.
+- Added separate CI/publish flow for web and worker artifacts.
+- Added `global.json` pinned to .NET 8 with roll-forward.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Application/Application/Services/PlaybackScheduleService.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Services/ScheduleCacheEventHandler.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Services/MobilePlaybackCacheService.cs`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSolution/VendingAdWorker/Worker.cs`
+- `VendingAdSolution/VendingAd.Tests/`
+- `.github/workflows/ci.yml`
+- `.github/workflows/publish.yml`
+
+Validation:
+
+- `dotnet restore`
+- `dotnet build`
+- `dotnet test`
+- publish web artifact
+- publish worker artifact
+
+---
+
+### Milestone 9.5: E2E Stabilization and Health Checks
+
+Status: Done
+
+Goal: Make the event-driven cache flow testable end-to-end and expose production-style dependency health.
+
+Implemented:
+
+- Added web health endpoints:
+  - `GET /health/live`
+  - `GET /health/ready`
+- Readiness checks cover:
+  - Database connectivity
+  - Redis connectivity when `Redis:Enabled=true`
+  - RabbitMQ connectivity when `RabbitMQ:Enabled=true`
+- Local quick-start remains healthy when Redis/RabbitMQ are disabled by configuration.
+- Worker now validates startup dependencies before consuming messages:
+  - Database reachable
+  - Redis reachable
+  - RabbitMQ reachable
+- Worker validates required RabbitMQ options on startup.
+- Added JSON health response output for easier manual and automated checks.
+- Documented E2E verification commands for Redis + RabbitMQ + worker cache invalidation.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Health/`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSolution/VendingAdSystem/Program.cs`
+- `VendingAdSolution/VendingAdWorker/Program.cs`
+- `PROJECT_CONTEXT.md`
+
+Validation:
+
+- `dotnet restore`
+- `dotnet build --configuration Release`
+- `dotnet test --configuration Release --no-build`
+
+---
+
+### Milestone 9.6: Local SQL Server Readiness
+
+Status: Done
+
+Goal: Make the project easy to clone and run locally with SQL Server, Redis, RabbitMQ, web, and worker.
+
+Implemented:
+
+- Added explicit startup flags:
+  - `Database:ApplyMigrationsOnStartup`
+  - `Database:EnsureCreatedOnStartup`
+  - `Seed:EnableDemoData`
+- Web startup now runs migrations, `EnsureCreated()`, and demo seed only when enabled by config.
+- Added local SQL Server example configs for web and worker.
+- Updated solution README with current local setup commands.
+- Unified RabbitMQ config by using shared `RabbitMqOptions` for both web and worker.
+- Removed unused `NullCacheService`.
+- Removed unused worker health-check registration while keeping worker startup dependency validation.
+
+Key files:
+
+- `VendingAdSolution/README.md`
+- `VendingAdSolution/VendingAdSystem/appsettings.Development.example.json`
+- `VendingAdSolution/VendingAdWorker/appsettings.Development.example.json`
+- `VendingAdSolution/VendingAdSystem/Program.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Messaging/MessagePublisher.cs`
+- `VendingAdSolution/VendingAdWorker/Worker.cs`
+
+---
+
+### Milestone 9.7: Security Hardening Baseline and SQL Server Migration Stability
+
+Status: Done
+
+Goal: Close practical security gaps for device-facing APIs/uploads and ensure SQL Server clean-start works after the recent refactor.
+
+Implemented:
+
+- Device/mobile APIs now require `X-Device-Secret` or `Authorization: Bearer <secret>`.
+- Expanded device-code based rate limiting to key mobile and portal device endpoints.
+- Portal upload no longer trusts client `userId`; user ownership is taken from authenticated session.
+- Added ffprobe-based upload validation and codec allow-list, with duration capture into `Media.DurationSeconds`.
+- Added admin rotate/revoke device secret lifecycle and related tests.
+- Added security integration tests for auth boundary, device secret, rate limit, and upload ownership checks.
+- Fixed SQL Server clean-database startup issue by registering device-secret migrations with `DbContext` metadata.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Application/Application/Services/DeviceCredentialService.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Services/MediaUploadService.cs`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Persistence/Migrations/20260519000000_AddDeviceSecrets.cs`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Persistence/Migrations/20260519001000_AddDeviceSecretRevocation.cs`
+- `VendingAdSolution/VendingAdSystem/Controllers/MobileApiController.cs`
+- `VendingAdSolution/VendingAd.Tests/SecurityIntegrationTests.cs`
+
+Validation:
+
+- `dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release`
+- `dotnet test VendingAdSolution/VendingAd.Tests/VendingAd.Tests.csproj --configuration Release --no-build`
+- Codespaces smoke test with SQL Server + Redis + RabbitMQ + web + worker passed
 
 ---
 

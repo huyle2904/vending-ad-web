@@ -2,15 +2,14 @@
 @{
     var users = (List<User>)ViewBag.Users;
     var devices = (List<Device>)ViewBag.Devices;
-    int? selectedUserId = ViewBag.SelectedUserId;
-    int? selectedDeviceId = ViewBag.SelectedDeviceId;
-    string? keyword = ViewBag.Keyword;
-    ViewData["Title"] = "Quản lý lịch phát";
-    var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
-    string VietnamDate(DateTime utcDate) => TimeZoneInfo.ConvertTimeFromUtc(utcDate, vietnamTimeZone).ToString("dd/MM/yyyy");
-    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
-    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
-}
+	    int? selectedUserId = ViewBag.SelectedUserId;
+	    int? selectedDeviceId = ViewBag.SelectedDeviceId;
+	    string? keyword = ViewBag.Keyword;
+	    ViewData["Title"] = "Quản lý lịch phát";
+	    string VietnamDate(DateTime utcDate) => VietnamTimeFormatter.FormatUtc(utcDate, "dd/MM/yyyy");
+	    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
+	    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
+	}
 
 <div class="page-header">
   <h1 class="page-title">Quản lý lịch phát</h1>
@@ -85,10 +84,12 @@
             <td>
               <div class="action-buttons">
                 <form method="post" action="/admin/schedules/toggle">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="scheduleId" value="@s.Id" />
                   <button type="submit" class="btn btn-sm btn-secondary">@(s.IsActive ? "Tắt" : "Bật")</button>
                 </form>
                 <form method="post" action="/admin/schedules/delete" onsubmit="return confirm('Xóa schedule @s.Name?')">
+                  @Html.AntiForgeryToken()
                   <input type="hidden" name="scheduleId" value="@s.Id" />
                   <button type="submit" class="btn btn-sm btn btn-sm u-btn-danger-soft">Xóa</button>
                 </form>

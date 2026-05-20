@@ -25,6 +25,7 @@ services:
         value: "true"
       - key: Seed__AllowDemoDataOutsideDevelopment
         value: "true"
+
 databases:
   - name: vending-ad-db
     plan: free

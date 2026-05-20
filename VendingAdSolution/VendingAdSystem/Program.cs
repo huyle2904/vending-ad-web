@@ -68,9 +68,15 @@ using (var scope = app.Services.CreateScope())
     var resetOnStartup = builder.Configuration.GetValue<bool>("Database:ResetOnStartup");
     var resetSchemaOnStartup = builder.Configuration.GetValue<bool>("Database:ResetSchemaOnStartup");
     var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
+    var allowDemoDataOutsideDevelopment = builder.Configuration.GetValue<bool>("Seed:AllowDemoDataOutsideDevelopment");
 
     if (seedDemoData && !app.Environment.IsDevelopment())
-        throw new InvalidOperationException("Seed:EnableDemoData must be false outside Development.");
+    {
+        if (!allowDemoDataOutsideDevelopment)
+            throw new InvalidOperationException("Seed:EnableDemoData must be false outside Development unless Seed:AllowDemoDataOutsideDevelopment=true.");
+
+        app.Logger.LogWarning("Demo seed data is enabled outside Development.");
+    }
 
     if (resetOnStartup)
     {
@@ -181,7 +187,6 @@ static async Task DropAllTablesAsync(AppDbContext db)
                 FOR r IN (
                     SELECT tablename FROM pg_tables
                     WHERE schemaname = 'public'
-                    AND tablename != '__EFMigrationsHistory'
                 ) LOOP
                     EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
                 END LOOP;

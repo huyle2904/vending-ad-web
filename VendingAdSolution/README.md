@@ -152,12 +152,23 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 - Intended for disposable/test databases only.
 - Keep `false` in normal environments.
 
+`Database:ResetSchemaOnStartup`
+
+- `true`: drops PostgreSQL public tables, including EF migration history, then reruns migrations.
+- Intended for disposable/test databases only.
+- Keep `false` in normal environments.
+
 `Seed:EnableDemoData`
 
 - `true`: seeds demo/admin accounts and sample data.
 - Good for local/dev.
 - Defaults to `false` in committed production config.
-- Startup fails if this is enabled outside `Development`.
+- Startup fails outside `Development` unless `Seed:AllowDemoDataOutsideDevelopment=true`.
+
+`Seed:AllowDemoDataOutsideDevelopment`
+
+- `true`: allows demo/admin account seeding in non-Development environments.
+- Intended only for disposable demo environments such as the current Render test deployment.
 
 `VideoValidation:FfprobeEnabled`
 
@@ -175,5 +186,7 @@ If Render login works but dashboard returns HTTP 500 after schema changes, reset
    - `Database__ResetOnStartup=true`
    - `Database__ApplyMigrationsOnStartup=true`
    - `Database__EnsureCreatedOnStartup=false`
+   - `Seed__EnableDemoData=true`
+   - `Seed__AllowDemoDataOutsideDevelopment=true`
 2. Redeploy once.
 3. After successful boot, set `Database__ResetOnStartup=false` and redeploy again.

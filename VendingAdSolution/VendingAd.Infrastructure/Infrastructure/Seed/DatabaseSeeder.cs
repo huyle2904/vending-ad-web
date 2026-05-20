@@ -36,10 +36,33 @@ public static class DatabaseSeeder
         if (users.Any() && !db.Devices.Any())
         {
             var utcNow = DateTime.UtcNow;
-            db.Devices.AddRange(
-                new Device { DeviceCode = "TAB-01", UserId = users[0].Id, Location = "Vincom Center", LastSeen = utcNow.AddMinutes(-2), IsActive = true, DeviceSecretHash = HashPassword(GetDemoDeviceSecret("TAB-01")), DeviceSecretCreatedAt = utcNow },
-                new Device { DeviceCode = "TAB-02", UserId = users[0].Id, Location = "Ben Thanh Market", LastSeen = utcNow.AddMinutes(-5), IsActive = true, DeviceSecretHash = HashPassword(GetDemoDeviceSecret("TAB-02")), DeviceSecretCreatedAt = utcNow }
-            );
+            var devices = new List<Device>();
+            var locations = new[]
+            {
+                "Vincom Center", "Ben Thanh Market", "Bitexco Tower", "Landmark 81",
+                "Saigon Centre", "Diamond Plaza", "Crescent Mall", "SC VivoCity",
+                "AEON Mall Binh Tan", "AEON Mall Tan Phu Celadon", "Emart Go Vap",
+                "Lotte Mart Thu Duc", "Co.op Mart Nguyen Dinh Chieu", "Big C An Suong",
+                "Vincom Mega Mall Thao Dien", "Parkson Hung Vuong", "Nowzone Fashion Mall",
+                "Takashi Shopping Mall", "Sense City", "Indochina Plaza"
+            };
+
+            for (int i = 1; i <= 20; i++)
+            {
+                var deviceCode = $"TAB-{i:D2}";
+                devices.Add(new Device
+                {
+                    DeviceCode = deviceCode,
+                    UserId = users[0].Id,
+                    Location = locations[i - 1],
+                    LastSeen = utcNow.AddMinutes(-i),
+                    IsActive = true,
+                    DeviceSecretHash = HashPassword(GetDemoDeviceSecret(deviceCode)),
+                    DeviceSecretCreatedAt = utcNow
+                });
+            }
+
+            db.Devices.AddRange(devices);
             db.SaveChanges();
         }
 
@@ -69,9 +92,12 @@ public static class DatabaseSeeder
 
     private static void EnsureDemoDeviceSecrets(AppDbContext db)
     {
-        var demoDeviceCodes = new[] { "TAB-01", "TAB-02", "CLAIM-TEST-290403", "CLAIM-TEST-210603" };
+        var demoDeviceCodes = new[] { "CLAIM-TEST-290403", "CLAIM-TEST-210603" };
+        var allTabDevices = Enumerable.Range(1, 20).Select(i => $"TAB-{i:D2}").ToArray();
+        var deviceCodesToCheck = demoDeviceCodes.Concat(allTabDevices).ToArray();
+
         var devices = db.Devices
-            .Where(d => demoDeviceCodes.Contains(d.DeviceCode) && string.IsNullOrEmpty(d.DeviceSecretHash))
+            .Where(d => deviceCodesToCheck.Contains(d.DeviceCode) && string.IsNullOrEmpty(d.DeviceSecretHash))
             .ToList();
 
         if (!devices.Any())

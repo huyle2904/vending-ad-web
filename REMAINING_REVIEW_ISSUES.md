@@ -1,6 +1,16 @@
 # Remaining Review Issues
 
-Ngày cập nhật: 2026-05-19
+Ngày cập nhật: 2026-05-20
+
+## Session Handoff Snapshot
+
+- Nhánh local đang làm việc: `dev`, commit mới nhất: `9a957c9`.
+- PR đồng bộ sang repo đích `huyle2904/vending-ad-web`:
+  - PR `#15`: `https://github.com/huyle2904/vending-ad-web/pull/15`
+  - Trạng thái: `MERGED`
+  - Merge commit: `b6c73c4`
+- Build/test baseline hiện tại đã pass sau khi resolve conflict `main <- dev`.
+- Migrations SQL Server cho device secret/revocation đã được fix metadata để clean database startup không lỗi cột thiếu.
 
 Context vận hành hiện tại: hệ thống chưa hướng tới nhiều user; dự kiến 5-10 user, nhưng mỗi user có thể có 50+ thiết bị. Vì vậy ưu tiên các rủi ro có thể làm lộ dữ liệu thiết bị/user hoặc làm deploy nhầm config. Các hạng mục enterprise như object storage, SIEM, OpenTelemetry đầy đủ, outbox/DLQ nâng cao chưa cần đẩy lên đầu.
 
@@ -172,3 +182,9 @@ Nên làm tiếp:
 - Dùng environment variables, user-secrets local, hoặc secret manager theo nền tảng deploy.
 - Không commit `appsettings.Development.json` chứa secret thật.
 - CI/CD set `ConnectionStrings`, RabbitMQ, Redis qua repository/environment secrets.
+
+## Đề xuất ưu tiên cho session kế tiếp
+
+1. Bắt đầu từ Issue 6: thêm `AuditLogs` cho login, create/reset user, rotate/revoke secret, upload/delete video, và schedule changes.
+2. Sau đó xử lý Issue 3: chuẩn hóa authorization theo policy/role, giảm manual `_currentSession` check.
+3. Mở rộng Issue 5: bổ sung integration tests cho anti-forgery và coverage route auth còn thiếu.

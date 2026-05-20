@@ -14,6 +14,20 @@
 - Active branch: `dev`
 - Primary product: CMS for managing video playback schedules on vending machine displays / TV box devices
 
+## Current Delivery Snapshot (2026-05-20)
+
+- Local working branch is `dev`, latest integration commit is `9a957c9`.
+- Sync PR to external repo `huyle2904/vending-ad-web` is merged:
+  - PR: `#15`
+  - URL: `https://github.com/huyle2904/vending-ad-web/pull/15`
+  - Merged at: `2026-05-19T09:45:04Z`
+  - Merge commit: `b6c73c4`
+- Current implementation baseline is completed through Milestone 9.7 in `MILESTONES.md`.
+- Verified baseline after merge:
+  - `dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release`
+  - `dotnet test VendingAdSolution/VendingAd.Tests/VendingAd.Tests.csproj --configuration Release --no-build`
+  - Codespaces smoke test with SQL Server + Redis + RabbitMQ + web + worker passed.
+
 ## Communication
 
 - Talk to the user in Vietnamese.

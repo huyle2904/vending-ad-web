@@ -2,6 +2,16 @@
 
 This file tracks the main technical milestones implemented in the VendingAd project and the next production-readiness steps.
 
+Last updated: 2026-05-20 (UTC)
+
+## Current Snapshot (for session handoff)
+
+- Working branch: `dev`
+- Latest integration commit: `9a957c9` (merge `main` into `dev` to resolve PR conflicts)
+- External sync repo: `huyle2904/vending-ad-web`
+- PR status on sync repo: `#15` merged (`dev -> main`) at `2026-05-19T09:45:04Z` with merge commit `b6c73c4`
+- Post-merge baseline: `dotnet build` and `dotnet test` passed
+
 ## Done
 
 ### Milestone 0: Mobile/TV Box API Foundation
@@ -330,11 +340,12 @@ Implemented:
 
 Key files:
 
-- `Application/Messaging/IntegrationEvents.cs`
-- `Application/Messaging/MessagePublisher.cs`
-- `Application/Services/PlaybackScheduleService.cs`
-- `Infrastructure/DependencyInjection.cs`
-- `appsettings.json`
+- `VendingAd.Contracts/IntegrationEvents.cs`
+- `VendingAd.Application/Application/Messaging/MessagePublisher.cs`
+- `VendingAd.Application/Application/Services/PlaybackScheduleService.cs`
+- `VendingAd.Infrastructure/Infrastructure/Messaging/MessagePublisherImplementations.cs`
+- `VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
+- `VendingAdSystem/appsettings.json`
 
 Notes:
 
@@ -362,9 +373,10 @@ Implemented:
 Key files:
 
 - `VendingAd.Contracts/IntegrationEvents.cs`
+- `VendingAdWorker/Program.cs`
 - `VendingAdWorker/Worker.cs`
-- `VendingAdWorker/RabbitMqWorkerOptions.cs`
 - `VendingAdWorker/appsettings.json`
+- `VendingAd.Infrastructure/Infrastructure/DependencyInjection.cs`
 - `VendingAdSolution.sln`
 
 Validation:
@@ -495,6 +507,39 @@ Key files:
 - `VendingAdSolution/VendingAdSystem/Program.cs`
 - `VendingAdSolution/VendingAd.Application/Application/Messaging/MessagePublisher.cs`
 - `VendingAdSolution/VendingAdWorker/Worker.cs`
+
+---
+
+### Milestone 9.7: Security Hardening Baseline and SQL Server Migration Stability
+
+Status: Done
+
+Goal: Close practical security gaps for device-facing APIs/uploads and ensure SQL Server clean-start works after the recent refactor.
+
+Implemented:
+
+- Device/mobile APIs now require `X-Device-Secret` or `Authorization: Bearer <secret>`.
+- Expanded device-code based rate limiting to key mobile and portal device endpoints.
+- Portal upload no longer trusts client `userId`; user ownership is taken from authenticated session.
+- Added ffprobe-based upload validation and codec allow-list, with duration capture into `Media.DurationSeconds`.
+- Added admin rotate/revoke device secret lifecycle and related tests.
+- Added security integration tests for auth boundary, device secret, rate limit, and upload ownership checks.
+- Fixed SQL Server clean-database startup issue by registering device-secret migrations with `DbContext` metadata.
+
+Key files:
+
+- `VendingAdSolution/VendingAd.Application/Application/Services/DeviceCredentialService.cs`
+- `VendingAdSolution/VendingAd.Application/Application/Services/MediaUploadService.cs`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Persistence/Migrations/20260519000000_AddDeviceSecrets.cs`
+- `VendingAdSolution/VendingAd.Infrastructure/Infrastructure/Persistence/Migrations/20260519001000_AddDeviceSecretRevocation.cs`
+- `VendingAdSolution/VendingAdSystem/Controllers/MobileApiController.cs`
+- `VendingAdSolution/VendingAd.Tests/SecurityIntegrationTests.cs`
+
+Validation:
+
+- `dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release`
+- `dotnet test VendingAdSolution/VendingAd.Tests/VendingAd.Tests.csproj --configuration Release --no-build`
+- Codespaces smoke test with SQL Server + Redis + RabbitMQ + web + worker passed
 
 ---
 

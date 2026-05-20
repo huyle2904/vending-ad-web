@@ -1,156 +1,81 @@
-# Authentication API Documentation
+# Authentication Notes
 
-## Overview
-The authentication system provides register and login endpoints for both User and Admin roles with JWT-like token generation and password hashing.
+This project has two authentication surfaces:
 
-## API Endpoints
+- MVC login for the CMS portal: `GET/POST /account/login`
+- JSON API endpoints for user registration/login: `/api/auth/*`
 
-### User Authentication
+Admin CMS login uses the MVC login page and falls back to admin authentication after user authentication fails. The current JSON `AuthController` exposes user endpoints only.
 
-#### Register User
-- **POST** `api/auth/register/user`
-- **Request Body:**
+## MVC Login
+
+Endpoint:
+
+- `POST /account/login`
+
+Form fields:
+
+```text
+username=<username-or-email>
+password=<password>
+returnUrl=<optional-local-url>
+```
+
+Behavior:
+
+- Tries user login first.
+- Falls back to admin login.
+- Signs in with ASP.NET Core cookie authentication.
+- Stores minimal session values used by existing controllers.
+- Redirects users to `Portal/Dashboard`.
+- Redirects admins to `Admin/Index`.
+
+## JSON API
+
+Register user:
+
+```http
+POST /api/auth/register/user
+Content-Type: application/json
+```
+
 ```json
 {
-  "email": "user@example.com",
+  "username": "demo",
+  "email": "demo@example.com",
   "password": "password123",
   "confirmPassword": "password123",
-  "fullName": "John Doe"
-}
-```
-- **Response (Success):**
-```json
-{
-  "success": true,
-  "message": "User registered successfully.",
-  "token": null,
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "fullName": "John Doe",
-    "role": "User"
-  }
+  "fullName": "Demo User"
 }
 ```
 
-#### Login User
-- **POST** `api/auth/login/user`
-- **Request Body:**
+Login user:
+
+```http
+POST /api/auth/login/user
+Content-Type: application/json
+```
+
 ```json
 {
-  "email": "user@example.com",
+  "username": "demo@example.com",
   "password": "password123"
 }
 ```
-- **Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Login successful.",
-  "token": {
-    "accessToken": "base64encodedtoken",
-    "refreshToken": "base64refreshtoken",
-    "expiresAt": "2024-05-08T12:34:56Z"
-  },
-  "user": {
-    "id": 1,
-    "email": "user@example.com",
-    "fullName": "John Doe",
-    "role": "User"
-  }
-}
-```
 
-### Admin Authentication
+`LoginRequest.username` accepts either username or email. `LoginRequest.email` remains for backwards compatibility with older clients.
 
-#### Register Admin
-- **POST** `api/auth/register/admin`
-- **Request Body:**
-```json
-{
-  "email": "admin@example.com",
-  "password": "adminpassword123",
-  "confirmPassword": "adminpassword123",
-  "fullName": "Admin User"
-}
-```
-- **Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Admin registered successfully.",
-  "token": null,
-  "user": {
-    "id": 1,
-    "email": "admin@example.com",
-    "fullName": "Admin User",
-    "role": "Admin"
-  }
-}
-```
+## Security Notes
 
-#### Login Admin
-- **POST** `api/auth/login/admin`
-- **Request Body:**
-```json
-{
-  "email": "admin@example.com",
-  "password": "adminpassword123"
-}
-```
-- **Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Login successful.",
-  "token": {
-    "accessToken": "base64encodedtoken",
-    "refreshToken": "base64refreshtoken",
-    "expiresAt": "2024-05-08T12:34:56Z"
-  },
-  "user": {
-    "id": 1,
-    "email": "admin@example.com",
-    "fullName": "Admin User",
-    "role": "Admin"
-  }
-}
-```
-
-## Features
-
-✅ **Password Security**: Passwords are hashed with ASP.NET Core `PasswordHasher`; legacy SHA256 hashes are rehashed after successful login
-✅ **Email Validation**: Ensures unique email addresses
-✅ **Password Requirements**: Minimum 6 characters
-✅ **Token Generation**: JWT-like access tokens with 24-hour expiration
-✅ **Role-based**: Separate User and Admin models and authentication flows
-✅ **Input Validation**: Request validation for all endpoints
-✅ **Error Handling**: Clear error messages for validation failures
-
-## Database Schema
-
-### User Table
-- Id (Primary Key)
-- Email (Unique)
-- PasswordHash
-- FullName
-- CreatedAt
-- IsActive
-
-### Admin Table
-- Id (Primary Key)
-- Email (Unique)
-- PasswordHash
-- FullName
-- Role (Admin, SuperAdmin)
-- CreatedAt
-- IsActive
+- Passwords are hashed with ASP.NET Core `PasswordHasher`.
+- Legacy SHA256 hashes are accepted only to allow rehash after a successful login.
+- CMS authorization uses cookie roles (`Admin`, `User`) plus existing session helpers.
+- Admin-created users still receive the temporary default password `TD@12345`; this is tracked in `REMAINING_REVIEW_ISSUES.md`.
 
 ## Implementation Files
 
-1. **Models/Models.cs** - User and Admin models
-2. **Data/AppDbContext.cs** - Database context with User and Admin DbSets
-3. **DTOs/AuthDtos.cs** - Data transfer objects for requests/responses
-4. **Services/AuthService.cs** - Authentication business logic
-5. **Controllers/AuthController.cs** - API endpoints
-6. **Program.cs** - Dependency injection setup
+- `VendingAd.Application/Application/DTOs/AuthDtos.cs`
+- `VendingAd.Application/Application/Services/AuthService.cs`
+- `VendingAdSystem/Controllers/AccountController.cs`
+- `VendingAdSystem/Controllers/AuthController.cs`
+- `VendingAd.Infrastructure/Infrastructure/Persistence/AppDbContext.cs`

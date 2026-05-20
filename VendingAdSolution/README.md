@@ -53,6 +53,7 @@ $env:ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=Vendin
 $env:Database__ApplyMigrationsOnStartup="true"
 $env:Database__EnsureCreatedOnStartup="false"
 $env:Database__ResetOnStartup="false"
+$env:Database__ResetSchemaOnStartup="false"
 $env:Seed__EnableDemoData="true"
 $env:Redis__Enabled="true"
 $env:RabbitMQ__Enabled="true"
@@ -189,4 +190,5 @@ If Render login works but dashboard returns HTTP 500 after schema changes, reset
    - `Seed__EnableDemoData=true`
    - `Seed__AllowDemoDataOutsideDevelopment=true`
 2. Redeploy once.
-3. After successful boot, set `Database__ResetOnStartup=false` and redeploy again.
+3. After successful boot, set `Database__ResetOnStartup=false`.
+4. Keep `Database__ResetSchemaOnStartup=false` unless you intentionally want to rebuild the temporary database again.

@@ -96,9 +96,9 @@
                 <span class="badge badge-danger"><span class="status-dot status-offline"></span>Ngoại tuyến</span>
               }
             </td>
-            <td class="text-muted text-sm">
-               @(device.LastSeen.HasValue ? TimeZoneInfo.ConvertTimeFromUtc(device.LastSeen.Value, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("yyyy-MM-dd HH:mm") : "Chưa bao giờ")
-            </td>
+	            <td class="text-muted text-sm">
+	               @(device.LastSeen.HasValue ? VietnamTimeFormatter.FormatUtc(device.LastSeen.Value, "yyyy-MM-dd HH:mm") : "Chưa bao giờ")
+	            </td>
             <td>
               <div class="action-buttons">
                 @if (!device.UserId.HasValue)

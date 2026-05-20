@@ -100,7 +100,7 @@
                 </div>
               </div>
               <div class="video-row-meta"><strong>@(video.FileSize / 1024 / 1024) MB</strong><small>Dung lượng</small></div>
-              <div class="video-row-meta"><strong>@TimeZoneInfo.ConvertTimeFromUtc(video.UploadedAt, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time")).ToString("dd/MM/yyyy")</strong><small>Ngày tải lên</small></div>
+	              <div class="video-row-meta"><strong>@VietnamTimeFormatter.FormatUtc(video.UploadedAt, "dd/MM/yyyy")</strong><small>Ngày tải lên</small></div>
               <div class="video-row-meta"><strong>@playlists.Count playlist</strong><small>Đang sử dụng</small></div>
               <div class="col-actions">
                 <button class="icon-btn" title="Xem"><i class="bi bi-eye"></i></button>

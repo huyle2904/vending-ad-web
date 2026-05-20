@@ -4,13 +4,12 @@ Ngày cập nhật: 2026-05-20
 
 ## Session Handoff Snapshot
 
-- Nhánh local đang làm việc: `dev`, commit mới nhất: `9a957c9`.
-- PR đồng bộ sang repo đích `huyle2904/vending-ad-web`:
-  - PR `#15`: `https://github.com/huyle2904/vending-ad-web/pull/15`
-  - Trạng thái: `MERGED`
-  - Merge commit: `b6c73c4`
-- Build/test baseline hiện tại đã pass sau khi resolve conflict `main <- dev`.
+- Nhánh local đang làm việc: `main`.
+- `origin/main` và `origin/dev` hiện đang align.
+- Baseline commit đã verify trước lượt cleanup này: `0259088`.
+- Build/test baseline hiện tại đã pass.
 - Migrations SQL Server cho device secret/revocation đã được fix metadata để clean database startup không lỗi cột thiếu.
+- Render đang là môi trường demo DB tạm. Không để `Database__ResetSchemaOnStartup=true` lâu dài nếu muốn giữ data qua deploy/restart.
 
 Context vận hành hiện tại: hệ thống chưa hướng tới nhiều user; dự kiến 5-10 user, nhưng mỗi user có thể có 50+ thiết bị. Vì vậy ưu tiên các rủi ro có thể làm lộ dữ liệu thiết bị/user hoặc làm deploy nhầm config. Các hạng mục enterprise như object storage, SIEM, OpenTelemetry đầy đủ, outbox/DLQ nâng cao chưa cần đẩy lên đầu.
 
@@ -46,7 +45,7 @@ Portal device-wall endpoint vẫn cho user đã đăng nhập và sở hữu dev
 Đã đổi:
 - `Seed:EnableDemoData=false` trong `appsettings.json`
 - RabbitMQ username/password mặc định không còn nằm trong web/worker `appsettings.json`
-- Startup fail nếu bật demo seed ngoài môi trường `Development`
+- Startup fail nếu bật demo seed ngoài môi trường `Development` mà không bật rõ `Seed:AllowDemoDataOutsideDevelopment=true`
 - README local setup đã yêu cầu set environment variables rõ ràng
 
 ### Security/integration test baseline đã có
@@ -188,3 +187,4 @@ Nên làm tiếp:
 1. Bắt đầu từ Issue 6: thêm `AuditLogs` cho login, create/reset user, rotate/revoke secret, upload/delete video, và schedule changes.
 2. Sau đó xử lý Issue 3: chuẩn hóa authorization theo policy/role, giảm manual `_currentSession` check.
 3. Mở rộng Issue 5: bổ sung integration tests cho anti-forgery và coverage route auth còn thiếu.
+4. Khi các phần trên ổn định, chuyển sang Milestone 10: video metadata/thumbnail pipeline.

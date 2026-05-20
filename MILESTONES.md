@@ -6,11 +6,12 @@ Last updated: 2026-05-20 (UTC)
 
 ## Current Snapshot (for session handoff)
 
-- Working branch: `dev`
-- Latest integration commit: `9a957c9` (merge `main` into `dev` to resolve PR conflicts)
+- Working branch: `main`
+- Remote state: `origin/main` and `origin/dev` are aligned.
+- Latest verified baseline commit before this cleanup: `0259088`
 - External sync repo: `huyle2904/vending-ad-web`
-- PR status on sync repo: `#15` merged (`dev -> main`) at `2026-05-19T09:45:04Z` with merge commit `b6c73c4`
-- Post-merge baseline: `dotnet build` and `dotnet test` passed
+- Current implementation baseline is completed through Milestone 9.7.
+- Latest baseline checks: `dotnet build` and `dotnet test` passed.
 
 ## Done
 
@@ -555,6 +556,13 @@ Planned:
 - Worker uses FFmpeg/ffprobe or equivalent
 - Fill `Media.ThumbnailUrl`
 - Fill duration/checksum fields later
+
+Before starting Milestone 10, finish the remaining production-readiness cleanup:
+
+- Add audit logs for sensitive actions.
+- Normalize authorization around cookie roles/policies and reduce manual session checks.
+- Expand route/anti-forgery integration test coverage.
+- Remove stale/dead files and keep deploy docs current.
 
 ---
 

@@ -20,7 +20,7 @@ services:
       - key: Database__ApplyMigrationsOnStartup
         value: "true"
       - key: Database__ResetSchemaOnStartup
-        value: "true"
+        value: "false"
       - key: Seed__EnableDemoData
         value: "true"
       - key: Seed__AllowDemoDataOutsideDevelopment

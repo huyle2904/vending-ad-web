@@ -11,22 +11,18 @@
 - Application library: `VendingAdSolution/VendingAd.Application/VendingAd.Application.csproj`
 - Infrastructure library: `VendingAdSolution/VendingAd.Infrastructure/VendingAd.Infrastructure.csproj`
 - Stack: ASP.NET Core MVC/Web API on .NET 8
-- Active branch: `dev`
+- Active branch: `main`
 - Primary product: CMS for managing video playback schedules on vending machine displays / TV box devices
 
 ## Current Delivery Snapshot (2026-05-20)
 
-- Local working branch is `dev`, latest integration commit is `9a957c9`.
-- Sync PR to external repo `huyle2904/vending-ad-web` is merged:
-  - PR: `#15`
-  - URL: `https://github.com/huyle2904/vending-ad-web/pull/15`
-  - Merged at: `2026-05-19T09:45:04Z`
-  - Merge commit: `b6c73c4`
+- Local working branch is `main`.
+- `origin/main` and `origin/dev` are aligned.
+- Latest verified baseline commit before this cleanup: `0259088`.
 - Current implementation baseline is completed through Milestone 9.7 in `MILESTONES.md`.
-- Verified baseline after merge:
+- Verified baseline:
   - `dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release`
   - `dotnet test VendingAdSolution/VendingAd.Tests/VendingAd.Tests.csproj --configuration Release --no-build`
-  - Codespaces smoke test with SQL Server + Redis + RabbitMQ + web + worker passed.
 
 ## Communication
 
@@ -87,9 +83,14 @@
 - Startup behavior is controlled by config:
   - `Database:ApplyMigrationsOnStartup`
   - `Database:EnsureCreatedOnStartup`
+  - `Database:ResetOnStartup`
+  - `Database:ResetSchemaOnStartup`
   - `Seed:EnableDemoData`
+  - `Seed:AllowDemoDataOutsideDevelopment`
 - SQL Server local/dev should use migrations.
 - SQLite quick-dev mode can use `EnsureCreated()`.
+- Render currently uses PostgreSQL with demo seed enabled for a disposable test deployment.
+- Keep `Database__ResetSchemaOnStartup=false` by default; only turn it on temporarily when intentionally rebuilding the temporary Render database.
 
 ## Mobile API State
 

@@ -17,6 +17,10 @@ services:
           property: connectionString
       - key: UploadsPath
         value: /data/uploads
+      - key: Database__ApplyMigrationsOnStartup
+        value: "true"
+      - key: Database__ResetOnStartup
+        value: "true"
 databases:
   - name: vending-ad-db
     plan: free

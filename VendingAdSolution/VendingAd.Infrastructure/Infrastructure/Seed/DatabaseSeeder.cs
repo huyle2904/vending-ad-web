@@ -29,7 +29,7 @@ public static class DatabaseSeeder
         {
             db.Users.AddRange(new User { Username = "test", Email = "test@test", PasswordHash = HashPassword("test@test"), FullName = "Demo User", IsActive = true });
             db.SaveChanges();
-        }
+        }   
 
         var users = db.Users.OrderBy(u => u.Id).ToList();
 

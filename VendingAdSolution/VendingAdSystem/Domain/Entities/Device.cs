@@ -7,6 +7,9 @@ public class Device
     public string? Location { get; set; }
     public string? ClaimCode { get; set; }
     public DateTime? ClaimedAt { get; set; }
+    public string? DeviceSecretHash { get; set; }
+    public DateTime? DeviceSecretCreatedAt { get; set; }
+    public DateTime? DeviceSecretRevokedAt { get; set; }
     public DateTime? LastSeen { get; set; }
     public bool IsActive { get; set; } = true;
 

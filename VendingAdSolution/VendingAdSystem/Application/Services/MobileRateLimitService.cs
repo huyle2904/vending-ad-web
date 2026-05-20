@@ -6,14 +6,18 @@ namespace VendingAdSystem.Application.Services;
 public class MobileRateLimitOptions
 {
     public int WindowSeconds { get; set; } = 60;
+    public int DeviceInfoPermitLimit { get; set; } = 20;
     public int HeartbeatPermitLimit { get; set; } = 10;
     public int PlaybackStatePermitLimit { get; set; } = 30;
+    public int PlaylistPermitLimit { get; set; } = 30;
 }
 
 public enum MobileRateLimitPolicy
 {
+    DeviceInfo,
     Heartbeat,
-    PlaybackState
+    PlaybackState,
+    Playlist
 }
 
 public record MobileRateLimitResult(bool IsAllowed, int RetryAfterSeconds);
@@ -37,9 +41,14 @@ public class MobileRateLimitService : IMobileRateLimitService
     {
         var normalizedCode = string.IsNullOrWhiteSpace(deviceCode) ? "unknown" : deviceCode.Trim();
         var window = TimeSpan.FromSeconds(Math.Max(1, _options.WindowSeconds));
-        var limit = policy == MobileRateLimitPolicy.Heartbeat
-            ? Math.Max(1, _options.HeartbeatPermitLimit)
-            : Math.Max(1, _options.PlaybackStatePermitLimit);
+        var limit = policy switch
+        {
+            MobileRateLimitPolicy.DeviceInfo => Math.Max(1, _options.DeviceInfoPermitLimit),
+            MobileRateLimitPolicy.Heartbeat => Math.Max(1, _options.HeartbeatPermitLimit),
+            MobileRateLimitPolicy.PlaybackState => Math.Max(1, _options.PlaybackStatePermitLimit),
+            MobileRateLimitPolicy.Playlist => Math.Max(1, _options.PlaylistPermitLimit),
+            _ => Math.Max(1, _options.PlaybackStatePermitLimit)
+        };
         var key = $"{policy}:{normalizedCode}";
 
         CleanupExpiredCounters(utcNow);

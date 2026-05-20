@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
@@ -65,6 +66,7 @@ using (var scope = app.Services.CreateScope())
     var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
     var ensureCreatedOnStartup = builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup");
     var resetOnStartup = builder.Configuration.GetValue<bool>("Database:ResetOnStartup");
+    var resetSchemaOnStartup = builder.Configuration.GetValue<bool>("Database:ResetSchemaOnStartup");
     var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
 
     if (seedDemoData && !app.Environment.IsDevelopment())
@@ -81,11 +83,36 @@ using (var scope = app.Services.CreateScope())
         db.Database.EnsureDeleted();
     }
 
-    if (applyMigrationsOnStartup)
+    if (resetSchemaOnStartup && !resetOnStartup)
+    {
+        if (!app.Environment.IsDevelopment())
+            app.Logger.LogWarning("Database:ResetSchemaOnStartup is enabled. All tables will be dropped and recreated via migrations.");
+
+        await DropAllTablesAsync(db);
+
+        if (applyMigrationsOnStartup)
+        {
+            db.Database.Migrate();
+        }
+        else if (ensureCreatedOnStartup)
+        {
+            db.Database.EnsureCreated();
+        }
+    }
+    else if (applyMigrationsOnStartup)
     {
         if (db.Database.IsRelational())
         {
-            db.Database.Migrate();
+            try
+            {
+                db.Database.Migrate();
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+            {
+                app.Logger.LogWarning("Tables already exist but migration history is out of sync. Dropping and recreating schema.");
+                await DropAllTablesAsync(db);
+                db.Database.Migrate();
+            }
         }
         else if (ensureCreatedOnStartup)
         {
@@ -135,5 +162,36 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.Run();
+
+static async Task DropAllTablesAsync(AppDbContext db)
+{
+    var connection = db.Database.GetDbConnection() as NpgsqlConnection;
+    if (connection == null) return;
+
+    var shouldClose = connection.State != System.Data.ConnectionState.Open;
+    if (shouldClose) await connection.OpenAsync();
+
+    try
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = @"
+            DO $$ DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (
+                    SELECT tablename FROM pg_tables
+                    WHERE schemaname = 'public'
+                    AND tablename != '__EFMigrationsHistory'
+                ) LOOP
+                    EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+                END LOOP;
+            END $$;";
+        await cmd.ExecuteNonQueryAsync();
+    }
+    finally
+    {
+        if (shouldClose) await connection.CloseAsync();
+    }
+}
 
 public partial class Program { }

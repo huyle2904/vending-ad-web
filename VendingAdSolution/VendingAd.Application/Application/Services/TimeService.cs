@@ -18,7 +18,7 @@ public class TimeService : ITimeService
         if (utc.Kind == DateTimeKind.Unspecified)
             utc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
 
-        return TimeZoneInfo.ConvertTimeFromUtc(utc.ToUniversalTime(), VietnamTimeZone);
+        return TimeZoneInfo.ConvertTimeFromUtc(utc, VietnamTimeZone);
     }
 
     public DateTime ToUtc(DateTime local)

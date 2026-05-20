@@ -4,7 +4,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /account/login
+    healthCheckPath: /health/live
     autoDeploy: true
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -19,7 +19,7 @@ services:
         value: /data/uploads
       - key: Database__ApplyMigrationsOnStartup
         value: "true"
-      - key: Database__ResetOnStartup
+      - key: Database__ResetSchemaOnStartup
         value: "true"
 databases:
   - name: vending-ad-db

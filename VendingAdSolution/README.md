@@ -52,6 +52,7 @@ $env:DatabaseProvider="SqlServer"
 $env:ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;"
 $env:Database__ApplyMigrationsOnStartup="true"
 $env:Database__EnsureCreatedOnStartup="false"
+$env:Database__ResetOnStartup="false"
 $env:Seed__EnableDemoData="true"
 $env:Redis__Enabled="true"
 $env:RabbitMQ__Enabled="true"
@@ -136,7 +137,7 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 
 `Database:ApplyMigrationsOnStartup`
 
-- `true`: web app runs EF Core migrations for SQL Server during startup.
+- `true`: web app runs EF Core migrations for relational databases during startup (SQL Server/PostgreSQL/SQLite).
 - Good for local/dev.
 - Consider `false` for production and run migrations in deployment.
 
@@ -144,6 +145,12 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 
 - `true`: web app calls `EnsureCreated()` for quick SQLite startup.
 - Do not use for SQL Server migration-based environments.
+
+`Database:ResetOnStartup`
+
+- `true`: web app calls `EnsureDeleted()` first, then recreates schema using migrations or `EnsureCreated`.
+- Intended for disposable/test databases only.
+- Keep `false` in normal environments.
 
 `Seed:EnableDemoData`
 
@@ -158,3 +165,15 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 - If `ffprobe` is present and rejects the file, upload fails.
 - `VideoValidation:RequireFfprobe=true` makes uploads fail closed when `ffprobe` is missing.
 - `VideoValidation:AllowedVideoCodecs` defaults to `h264`, `hevc`, `vp8`, `vp9`, and `av1`.
+
+## Render Quick Recovery (Disposable DB)
+
+If Render login works but dashboard returns HTTP 500 after schema changes, reset and recreate the temporary PostgreSQL DB:
+
+1. Set env vars in Render:
+   - `DatabaseProvider=Postgres`
+   - `Database__ResetOnStartup=true`
+   - `Database__ApplyMigrationsOnStartup=true`
+   - `Database__EnsureCreatedOnStartup=false`
+2. Redeploy once.
+3. After successful boot, set `Database__ResetOnStartup=false` and redeploy again.

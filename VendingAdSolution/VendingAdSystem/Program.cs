@@ -58,21 +58,39 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Dev startup keeps SQLite simple, while SQL Server uses migrations.
+// Startup database initialization strategy.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
     var ensureCreatedOnStartup = builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup");
+    var resetOnStartup = builder.Configuration.GetValue<bool>("Database:ResetOnStartup");
     var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
 
     if (seedDemoData && !app.Environment.IsDevelopment())
         throw new InvalidOperationException("Seed:EnableDemoData must be false outside Development.");
 
-    if (db.Database.IsSqlServer())
+    if (resetOnStartup)
     {
-        if (applyMigrationsOnStartup)
+        if (!app.Environment.IsDevelopment())
+            app.Logger.LogWarning("Database:ResetOnStartup is enabled outside Development. The configured database will be deleted and recreated.");
+
+        if (!applyMigrationsOnStartup && !ensureCreatedOnStartup)
+            throw new InvalidOperationException("Database:ResetOnStartup requires Database:ApplyMigrationsOnStartup=true or Database:EnsureCreatedOnStartup=true.");
+
+        db.Database.EnsureDeleted();
+    }
+
+    if (applyMigrationsOnStartup)
+    {
+        if (db.Database.IsRelational())
+        {
             db.Database.Migrate();
+        }
+        else if (ensureCreatedOnStartup)
+        {
+            db.Database.EnsureCreated();
+        }
     }
     else if (ensureCreatedOnStartup)
     {

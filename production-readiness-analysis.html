@@ -1518,6 +1518,7 @@ builder.Services.AddSession(options =>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                     <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <div id="phase-1-count" style="font-size: 2em; font-weight: bold; color: #e74c3c;">5/15</div>
+                        <div id="phase-1-count" style="font-size: 2em; font-weight: bold; color: #e74c3c;">5/15</div>
                         <div style="color: #666; margin-top: 5px;">Phase 1: Critical</div>
                     </div>
                     <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -2991,6 +2992,7 @@ public async Task&lt;string&gt; GenerateThumbnailAsync(string videoPath)
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const storageKey = 'vendingad-todo-state';
+                const completedTaskIds = new Set(['task-1-1', 'task-1-2', 'task-1-4', 'task-1-5', 'task-1-6']);
                 const completedTaskIds = new Set(['task-1-1', 'task-1-2', 'task-1-4', 'task-1-5', 'task-1-6']);
                 const phaseTotals = { 1: 15, 2: 12, 3: 10, 4: 8 };
                 const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));

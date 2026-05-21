@@ -8,7 +8,10 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Prometheus;
 using Serilog;
+using VendingAdSystem.Application.Services;
+using VendingAdSystem.Metrics;
 using VendingAdSystem.Middleware;
 
 // Configure Serilog from appsettings.json
@@ -35,6 +38,8 @@ try
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<IApplicationMetrics, PrometheusApplicationMetrics>();
+builder.Services.AddHostedService<ActiveDeviceMetricsCollector>();
 
 builder.Services.AddSession(options =>
 {
@@ -181,6 +186,10 @@ if (!string.IsNullOrWhiteSpace(uploadsPath))
     });
 }
 app.UseRouting();
+app.UseHttpMetrics(options =>
+{
+    options.ReduceStatusCodeCardinality();
+});
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -190,6 +199,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllers();
+app.MapMetrics();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live"),

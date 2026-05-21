@@ -1517,8 +1517,7 @@ builder.Services.AddSession(options =>
                 <h3 style="margin-top: 0;">📊 Progress Tracker</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                     <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <div id="phase-1-count" style="font-size: 2em; font-weight: bold; color: #e74c3c;">5/15</div>
-                        <div id="phase-1-count" style="font-size: 2em; font-weight: bold; color: #e74c3c;">5/15</div>
+                        <div id="phase-1-count" style="font-size: 2em; font-weight: bold; color: #e74c3c;">6/15</div>
                         <div style="color: #666; margin-top: 5px;">Phase 1: Critical</div>
                     </div>
                     <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -1537,9 +1536,9 @@ builder.Services.AddSession(options =>
                 <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px;">
                     <strong>Overall Progress:</strong>
                     <div style="background: #ecf0f1; height: 30px; border-radius: 15px; margin-top: 10px; overflow: hidden;">
-                        <div id="overall-progress-bar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 11%; transition: width 0.3s;"></div>
+                        <div id="overall-progress-bar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 13%; transition: width 0.3s;"></div>
                     </div>
-                    <div id="overall-progress-text" style="text-align: center; margin-top: 10px; font-size: 1.2em; font-weight: bold;">5/45 tasks completed (11%)</div>
+                    <div id="overall-progress-text" style="text-align: center; margin-top: 10px; font-size: 1.2em; font-weight: bold;">6/45 tasks completed (13%)</div>
                 </div>
             </div>
 
@@ -1827,9 +1826,9 @@ public class LocalFileStorageService : IFileStorageService
                     </div>
 
                     <!-- Task 1.7 -->
-                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                    <div class="task-item is-complete" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
                         <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="task-1-7" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <input type="checkbox" id="task-1-7" checked style="width: 20px; height: 20px; margin-right: 10px;">
                             <label for="task-1-7" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
                                 1.7. Setup Basic Prometheus Metrics
                             </label>
@@ -2992,8 +2991,7 @@ public async Task&lt;string&gt; GenerateThumbnailAsync(string videoPath)
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const storageKey = 'vendingad-todo-state';
-                const completedTaskIds = new Set(['task-1-1', 'task-1-2', 'task-1-4', 'task-1-5', 'task-1-6']);
-                const completedTaskIds = new Set(['task-1-1', 'task-1-2', 'task-1-4', 'task-1-5', 'task-1-6']);
+                const completedTaskIds = new Set(['task-1-1', 'task-1-2', 'task-1-4', 'task-1-5', 'task-1-6', 'task-1-7']);
                 const phaseTotals = { 1: 15, 2: 12, 3: 10, 4: 8 };
                 const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
                 const tabButtons = Array.from(document.querySelectorAll('.page-tab'));

@@ -20,6 +20,7 @@ public class MobilePlaybackService : IMobilePlaybackService
     private readonly ICacheService _cacheService;
     private readonly IMobilePlaybackCacheService _playbackCache;
     private readonly IDevicePresenceService _devicePresence;
+    private readonly IApplicationMetrics _metrics;
 
     public MobilePlaybackService(
         IRepository<Device> devices,
@@ -27,7 +28,8 @@ public class MobilePlaybackService : IMobilePlaybackService
         ITimeService timeService,
         ICacheService cacheService,
         IMobilePlaybackCacheService playbackCache,
-        IDevicePresenceService devicePresence)
+        IDevicePresenceService devicePresence,
+        IApplicationMetrics metrics)
     {
         _devices = devices;
         _playbackSchedules = playbackSchedules;
@@ -35,15 +37,20 @@ public class MobilePlaybackService : IMobilePlaybackService
         _cacheService = cacheService;
         _playbackCache = playbackCache;
         _devicePresence = devicePresence;
+        _metrics = metrics;
     }
 
     public async Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode)
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
-        var device = await _devices.Query()
-            .AsNoTracking()
-            .Include(d => d.User)
-            .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        Device? device;
+        using (_metrics.ObserveDatabaseQuery("mobile_get_device"))
+        {
+            device = await _devices.Query()
+                .AsNoTracking()
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        }
 
         return device == null ? null : ToDeviceResponse(device);
     }
@@ -51,8 +58,12 @@ public class MobilePlaybackService : IMobilePlaybackService
     public async Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode)
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
-        var device = await _devices.Query()
-            .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        Device? device;
+        using (_metrics.ObserveDatabaseQuery("mobile_heartbeat_lookup"))
+        {
+            device = await _devices.Query()
+                .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        }
 
         if (device == null)
             return null;
@@ -80,11 +91,20 @@ public class MobilePlaybackService : IMobilePlaybackService
         var cacheKey = _playbackCache.PlaybackStateKey(normalizedCode);
         var cached = await _cacheService.GetAsync<MobilePlaybackStateResponse>(cacheKey);
         if (cached != null)
+        {
+            _metrics.RecordCacheHit("playback_state");
             return cached;
+        }
 
-        var device = await _devices.Query()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        _metrics.RecordCacheMiss("playback_state");
+
+        Device? device;
+        using (_metrics.ObserveDatabaseQuery("mobile_playback_device_lookup"))
+        {
+            device = await _devices.Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        }
 
         if (device == null)
             return null;
@@ -104,14 +124,18 @@ public class MobilePlaybackService : IMobilePlaybackService
         var vietnamNow = _timeService.ToVietnamTime(utcNow);
         var currentTime = vietnamNow.TimeOfDay;
         var activeScheduleKey = _playbackCache.DeviceActiveScheduleKey(normalizedCode);
-        var candidates = await _playbackSchedules.Query()
-            .AsNoTracking()
-            .Include(s => s.Devices).ThenInclude(d => d.Device)
-            .Include(s => s.Items).ThenInclude(i => i.Media)
-            .Where(s => s.IsActive)
-            .Where(s => s.StartDate <= utcNow && s.EndDate >= utcNow)
-            .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
-            .ToListAsync();
+        List<PlaybackSchedule> candidates;
+        using (_metrics.ObserveDatabaseQuery("mobile_playback_schedule_candidates"))
+        {
+            candidates = await _playbackSchedules.Query()
+                .AsNoTracking()
+                .Include(s => s.Devices).ThenInclude(d => d.Device)
+                .Include(s => s.Items).ThenInclude(i => i.Media)
+                .Where(s => s.IsActive)
+                .Where(s => s.StartDate <= utcNow && s.EndDate >= utcNow)
+                .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
+                .ToListAsync();
+        }
 
         var schedule = candidates
             .Where(s => IsScheduleActiveNow(s, utcNow, currentTime))

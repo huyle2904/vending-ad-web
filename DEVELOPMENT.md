@@ -91,6 +91,8 @@ docker compose -f docker-compose.infra.yml up -d sqlserver
 | RabbitMQ | `localhost:5672` | `vendingad` / `vendingad@123` |
 | RabbitMQ UI | `http://localhost:15672` | `vendingad` / `vendingad@123` |
 | Seq | `http://localhost:5341` | — |
+| Prometheus | `http://localhost:9090` | — |
+| Grafana | `http://localhost:3000` | `admin` / `vendingad@123` |
 
 ## Useful Commands
 
@@ -276,4 +278,4 @@ Web (schedule change)
 ### Communication
 
 - Nói chuyện với user bằng tiếng Việt
-- Code identifiers giữ tiếng Anh
+- Code identifiers bằng tiếng Việt

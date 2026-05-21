@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Serilog;
+using VendingAdSystem.Middleware;
 
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
@@ -70,11 +71,14 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 // ── App ───────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
+app.UseMiddleware<CorrelationIdMiddleware>();
+
 // Enable Serilog request logging
 app.UseSerilogRequestLogging(options =>
 {
     options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
     {
+        diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
         diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
         diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
         diagnosticContext.Set("UserAgent", httpContext.Request.Headers["User-Agent"].ToString());

@@ -16,12 +16,41 @@ using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Repositories.Implementations;
+using VendingAdSystem.Middleware;
 using Xunit;
 
 namespace VendingAd.Tests;
 
 public class SecurityIntegrationTests
 {
+    [Fact]
+    public async Task RequestWithoutCorrelationId_ReturnsGeneratedHeader()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/account/login");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues(CorrelationIdMiddleware.CorrelationIdHeader, out var values));
+        Assert.Matches("^[a-f0-9]{32}$", Assert.Single(values));
+    }
+
+    [Fact]
+    public async Task RequestWithCorrelationId_PreservesIncomingHeader()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/account/login");
+        request.Headers.Add(CorrelationIdMiddleware.CorrelationIdHeader, "test-correlation-id");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues(CorrelationIdMiddleware.CorrelationIdHeader, out var values));
+        Assert.Equal("test-correlation-id", Assert.Single(values));
+    }
+
     [Fact]
     public async Task AnonymousAdminRequest_RedirectsToLogin()
     {

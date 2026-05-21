@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -31,8 +30,8 @@ public class MediaUploadService : IMediaUploadService
         [".webm"] = new[] { "video/webm" }
     };
 
-    private readonly IWebHostEnvironment _env;
     private readonly IConfiguration _configuration;
+    private readonly IFileStorageService _fileStorageService;
     private readonly IMediaService _mediaService;
     private readonly ITimeService _timeService;
     private readonly IPlaylistManagementService _playlistManagementService;
@@ -41,10 +40,10 @@ public class MediaUploadService : IMediaUploadService
     private readonly IAuditService _auditService;
     private readonly ILogger<MediaUploadService> _logger;
 
-    public MediaUploadService(IWebHostEnvironment env, IConfiguration configuration, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems, IAuditService auditService, ILogger<MediaUploadService> logger)
+    public MediaUploadService(IConfiguration configuration, IFileStorageService fileStorageService, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems, IAuditService auditService, ILogger<MediaUploadService> logger)
     {
-        _env = env;
         _configuration = configuration;
+        _fileStorageService = fileStorageService;
         _mediaService = mediaService;
         _timeService = timeService;
         _playlistManagementService = playlistManagementService;
@@ -60,37 +59,13 @@ public class MediaUploadService : IMediaUploadService
         if (!validation.Success)
             return new UploadVideoResult { Success = false, Message = validation.Message };
 
-        var uploadFile = request.File!;
-        var uploadsPath = GetUploadsPath();
-        Directory.CreateDirectory(uploadsPath);
+        var storedMedia = await CreateStoredMediaAsync(request.File!, request.UserId, validation.Extension);
+        if (!storedMedia.Success)
+            return new UploadVideoResult { Success = false, Message = storedMedia.Message };
 
-        var uniqueName = $"{Guid.NewGuid():N}{validation.Extension}";
-        var filePath = Path.Combine(uploadsPath, uniqueName);
-
+        var media = storedMedia.Media!;
         try
         {
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await uploadFile.CopyToAsync(stream);
-
-            var probeResult = await ValidateWithFfprobeAsync(filePath);
-            if (!probeResult.Success)
-            {
-                if (File.Exists(filePath))
-                    File.Delete(filePath);
-
-                return new UploadVideoResult { Success = false, Message = probeResult.Message };
-            }
-
-            var media = new Media
-            {
-                FileName = Path.GetFileName(uploadFile.FileName),
-                FileUrl = $"/uploads/{uniqueName}",
-                FileSize = uploadFile.Length,
-                DurationSeconds = probeResult.DurationSeconds,
-                UserId = request.UserId,
-                UploadedAt = _timeService.UtcNow
-            };
-
             await _mediaService.AddAsync(media);
             await _mediaService.SaveChangesAsync();
             await _auditService.LogAsync(new AuditLogEntry
@@ -117,9 +92,7 @@ public class MediaUploadService : IMediaUploadService
         }
         catch
         {
-            if (File.Exists(filePath))
-                File.Delete(filePath);
-
+            await CleanupStoredMediaAsync(media);
             throw;
         }
     }
@@ -166,14 +139,7 @@ public class MediaUploadService : IMediaUploadService
 
         foreach (var video in videos)
         {
-            var filePathPart = Uri.TryCreate(video.FileUrl, UriKind.Absolute, out var fileUri)
-                ? fileUri.LocalPath
-                : video.FileUrl;
-            var fileName = Path.GetFileName(filePathPart);
-            var filePath = Path.Combine(GetUploadsPath(), fileName);
-            if (File.Exists(filePath))
-                File.Delete(filePath);
-
+            await _fileStorageService.DeleteAsync(video.FileUrl);
             _mediaService.Remove(video);
         }
 
@@ -207,36 +173,13 @@ public class MediaUploadService : IMediaUploadService
         if (playlist == null)
             return new UploadVideoResult { Success = false, Message = "Không tìm thấy danh sách phát" };
 
-        var uploadsPath = GetUploadsPath();
-        Directory.CreateDirectory(uploadsPath);
+        var storedMedia = await CreateStoredMediaAsync(uploadFile, userId, validation.Extension);
+        if (!storedMedia.Success)
+            return new UploadVideoResult { Success = false, Message = storedMedia.Message };
 
-        var uniqueName = $"{Guid.NewGuid():N}{validation.Extension}";
-        var filePath = Path.Combine(uploadsPath, uniqueName);
-
+        var media = storedMedia.Media!;
         try
         {
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await uploadFile.CopyToAsync(stream);
-
-            var probeResult = await ValidateWithFfprobeAsync(filePath);
-            if (!probeResult.Success)
-            {
-                if (File.Exists(filePath))
-                    File.Delete(filePath);
-
-                return new UploadVideoResult { Success = false, Message = probeResult.Message };
-            }
-
-            var media = new Media
-            {
-                FileName = Path.GetFileName(uploadFile.FileName),
-                FileUrl = $"/uploads/{uniqueName}",
-                FileSize = uploadFile.Length,
-                DurationSeconds = probeResult.DurationSeconds,
-                UserId = userId,
-                UploadedAt = _timeService.UtcNow
-            };
-
             await _mediaService.AddAsync(media);
             await _mediaService.SaveChangesAsync();
 
@@ -270,10 +213,42 @@ public class MediaUploadService : IMediaUploadService
         }
         catch
         {
-            if (File.Exists(filePath))
-                File.Delete(filePath);
-
+            await CleanupStoredMediaAsync(media);
             throw;
+        }
+    }
+
+    private async Task<StoredMediaResult> CreateStoredMediaAsync(IFormFile uploadFile, int userId, string extension)
+    {
+        var uniqueName = $"{Guid.NewGuid():N}{extension}";
+        var tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}{extension}");
+
+        try
+        {
+            await using (var stream = new FileStream(tempFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                await uploadFile.CopyToAsync(stream);
+            }
+
+            var probeResult = await ValidateWithFfprobeAsync(tempFilePath);
+            if (!probeResult.Success)
+                return StoredMediaResult.Invalid(probeResult.Message);
+
+            var storedFile = await _fileStorageService.SaveAsync(tempFilePath, uniqueName);
+
+            return StoredMediaResult.Valid(new Media
+            {
+                FileName = Path.GetFileName(uploadFile.FileName),
+                FileUrl = storedFile.FileUrl,
+                FileSize = uploadFile.Length,
+                DurationSeconds = probeResult.DurationSeconds,
+                UserId = userId,
+                UploadedAt = _timeService.UtcNow
+            });
+        }
+        finally
+        {
+            TryDeleteTempFile(tempFilePath);
         }
     }
 
@@ -495,18 +470,54 @@ public class MediaUploadService : IMediaUploadService
         }
     }
 
-    private string GetUploadsPath()
+    private static void TryDeleteTempFile(string filePath)
     {
-        var configuredPath = _configuration["UploadsPath"];
-        return string.IsNullOrWhiteSpace(configuredPath)
-            ? Path.Combine(_env.WebRootPath, "uploads")
-            : configuredPath;
+        try
+        {
+            if (File.Exists(filePath))
+                File.Delete(filePath);
+        }
+        catch
+        {
+            // Best-effort cleanup for staged upload files.
+        }
+    }
+
+    private async Task CleanupStoredMediaAsync(Media media)
+    {
+        try
+        {
+            await _fileStorageService.DeleteAsync(media.FileUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to clean up stored file '{FileUrl}' after upload failure.", media.FileUrl);
+        }
+
+        if (media.Id <= 0)
+            return;
+
+        try
+        {
+            _mediaService.Remove(media);
+            await _mediaService.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to roll back media record {MediaId} after upload failure.", media.Id);
+        }
     }
 
     private sealed record VideoFileValidationResult(bool Success, string Message, string Extension)
     {
         public static VideoFileValidationResult Valid(string extension) => new(true, string.Empty, extension);
         public static VideoFileValidationResult Invalid(string message) => new(false, message, string.Empty);
+    }
+
+    private sealed record StoredMediaResult(bool Success, string Message, Media? Media)
+    {
+        public static StoredMediaResult Valid(Media media) => new(true, string.Empty, media);
+        public static StoredMediaResult Invalid(string message) => new(false, message, null);
     }
 
     private sealed record VideoProbeResult(bool Success, string Message, int? DurationSeconds)

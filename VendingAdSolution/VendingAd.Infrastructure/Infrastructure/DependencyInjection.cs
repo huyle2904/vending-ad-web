@@ -10,6 +10,7 @@ using VendingAdSystem.Infrastructure.Messaging;
 using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Repositories.Implementations;
 using VendingAdSystem.Infrastructure.Repositories.Interfaces;
+using VendingAdSystem.Infrastructure.Storage;
 
 namespace VendingAdSystem.Infrastructure;
 
@@ -32,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<IDeviceCredentialService, DeviceCredentialService>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IMediaUploadService, MediaUploadService>();
         services.AddScoped<IPlaylistService, PlaylistService>();

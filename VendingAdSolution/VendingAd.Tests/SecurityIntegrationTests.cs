@@ -306,6 +306,53 @@ public class SecurityIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task MediaUploadDeleteVideos_RemovesStoredFileFromStorage()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
+        await factory.SeedUserAsync(1);
+        var client = factory.CreateClient();
+        client.UseTestUser(role: "User", userId: 1);
+
+        using (var form = new MultipartFormDataContent())
+        {
+            var file = new ByteArrayContent(CreateMinimalMp4Header());
+            file.Headers.ContentType = MediaTypeHeaderValue.Parse("video/mp4");
+            form.Add(file, "file", "cleanup.mp4");
+
+            var response = await client.PostAsync("/api/portal/upload", form);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        int mediaId;
+        string fileUrl;
+        await using (var uploadScope = factory.Services.CreateAsyncScope())
+        {
+            var db = uploadScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var media = await db.Medias.AsNoTracking().OrderByDescending(m => m.Id).FirstAsync();
+            mediaId = media.Id;
+            fileUrl = media.FileUrl;
+        }
+
+        var storedFilePath = GetStoredFilePath(factory.UploadsPath, fileUrl);
+        Assert.True(File.Exists(storedFilePath));
+
+        await using (var deleteScope = factory.Services.CreateAsyncScope())
+        {
+            var uploadService = deleteScope.ServiceProvider.GetRequiredService<IMediaUploadService>();
+            var result = await uploadService.DeleteVideosAsync(new[] { mediaId }, 1);
+
+            Assert.True(result.Success);
+        }
+
+        Assert.False(File.Exists(storedFilePath));
+
+        await using var verifyScope = factory.Services.CreateAsyncScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await verifyDb.Medias.AnyAsync(m => m.Id == mediaId));
+    }
+
     private static byte[] CreateMinimalMp4Header()
     {
         return new byte[]
@@ -317,6 +364,15 @@ public class SecurityIntegrationTests
         };
     }
 
+    private static string GetStoredFilePath(string uploadsPath, string fileUrl)
+    {
+        var path = Uri.TryCreate(fileUrl, UriKind.Absolute, out var absoluteUri)
+            ? absoluteUri.AbsolutePath
+            : fileUrl;
+
+        return Path.Combine(uploadsPath, Path.GetFileName(path));
+    }
+
     private sealed class VendingAdWebApplicationFactory : WebApplicationFactory<Program>
     {
         private readonly bool _useTestAuth;
@@ -326,6 +382,8 @@ public class SecurityIntegrationTests
         private readonly bool _ffprobeEnabled;
         private readonly bool _requireFfprobe;
         private readonly string? _ffprobePath;
+
+        public string UploadsPath => _uploadsPath;
 
         public VendingAdWebApplicationFactory(
             bool useTestAuth,

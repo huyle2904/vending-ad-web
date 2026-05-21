@@ -125,6 +125,34 @@ dotnet ef database update \
   --startup-project VendingAdSolution/VendingAdSystem
 ```
 
+## Load Testing (k6)
+
+```bash
+# Cài k6
+brew install k6  # macOS
+# hoặc: https://k6.io/docs/get-started/installation/
+
+# Smoke test (1 VU, 1 phút — sanity check)
+k6 run k6/smoke.js
+
+# Load test (ramp lên 50 VUs, ~10 phút)
+k6 run k6/load.js
+
+# Stress test (ramp lên 200 VUs — tìm breaking point)
+k6 run k6/stress.js
+
+# Chạy với app trên server khác
+BASE_URL=https://your-app.onrender.com DEVICE_CODE=ABC123 DEVICE_SECRET=secret k6 run k6/load.js
+```
+
+| Script | VUs | Duration | Mục đích |
+|---|---|---|---|
+| `smoke.js` | 1 | 1m | Sanity check sau deploy |
+| `load.js` | 50 | ~10m | Kiểm tra normal load |
+| `stress.js` | 200 | ~17m | Tìm breaking point |
+
+Thresholds mặc định: p95 < 2s, error rate < 5%.
+
 ## Health Checks
 
 ```bash

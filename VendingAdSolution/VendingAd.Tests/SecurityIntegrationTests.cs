@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
@@ -52,6 +53,39 @@ public class SecurityIntegrationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.TryGetValues(CorrelationIdMiddleware.CorrelationIdHeader, out var values));
         Assert.Equal("test-correlation-id", Assert.Single(values));
+    }
+
+    [Fact]
+    public async Task MetricsEndpoint_ExposesHttpAndCustomPrometheusMetrics()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        await factory.SeedDeviceAsync("DEVICE-METRICS", "correct-secret");
+        var client = factory.CreateClient();
+
+        var loginPageResponse = await client.GetAsync("/account/login");
+        Assert.Equal(HttpStatusCode.OK, loginPageResponse.StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var playbackService = scope.ServiceProvider.GetRequiredService<IMobilePlaybackService>();
+            var first = await playbackService.GetPlaybackStateAsync("DEVICE-METRICS");
+            var second = await playbackService.GetPlaybackStateAsync("DEVICE-METRICS");
+
+            Assert.NotNull(first);
+            Assert.NotNull(second);
+        }
+
+        var metricsResponse = await client.GetAsync("/metrics");
+        var metricsContent = await metricsResponse.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, metricsResponse.StatusCode);
+        Assert.Equal("text/plain", metricsResponse.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("http_request_duration_seconds", metricsContent);
+        Assert.Contains("vendingad_active_devices", metricsContent);
+        Assert.Contains("vendingad_cache_operations_total", metricsContent);
+        Assert.Contains("area=\"playback_state\",result=\"hit\"", metricsContent);
+        Assert.Contains("area=\"playback_state\",result=\"miss\"", metricsContent);
+        Assert.Contains("vendingad_database_query_duration_seconds", metricsContent);
     }
 
     [Fact]

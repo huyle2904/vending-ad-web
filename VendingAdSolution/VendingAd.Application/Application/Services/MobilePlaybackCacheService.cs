@@ -23,12 +23,14 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
     private readonly ICacheService _cache;
     private readonly IRepository<PlaybackSchedule> _schedules;
     private readonly ITimeService _timeService;
+    private readonly IApplicationMetrics _metrics;
 
-    public MobilePlaybackCacheService(ICacheService cache, IRepository<PlaybackSchedule> schedules, ITimeService timeService)
+    public MobilePlaybackCacheService(ICacheService cache, IRepository<PlaybackSchedule> schedules, ITimeService timeService, IApplicationMetrics metrics)
     {
         _cache = cache;
         _schedules = schedules;
         _timeService = timeService;
+        _metrics = metrics;
     }
 
     public string PlaybackStateKey(string deviceCode) => $"mobile:playback-state:{deviceCode}";
@@ -45,7 +47,12 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
         var key = ScheduleContentKey(schedule.Id, version);
         var cached = await _cache.GetAsync<MobileScheduleContentCache>(key);
         if (cached != null)
+        {
+            _metrics.RecordCacheHit("schedule_content");
             return cached;
+        }
+
+        _metrics.RecordCacheMiss("schedule_content");
 
         var lockKey = $"lock:{key}";
         var lockToken = Guid.NewGuid().ToString("N");
@@ -60,7 +67,10 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
                 await Task.Delay(120);
                 cached = await _cache.GetAsync<MobileScheduleContentCache>(key);
                 if (cached != null)
+                {
+                    _metrics.RecordCacheHit("schedule_content");
                     return cached;
+                }
             }
 
             var content = BuildScheduleContent(schedule, orderedItems, version, vietnamNow);
@@ -76,10 +86,14 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
 
     public async Task WarmScheduleContentAsync(int scheduleId)
     {
-        var schedule = await _schedules.Query()
-            .AsNoTracking()
-            .Include(s => s.Items).ThenInclude(i => i.Media)
-            .FirstOrDefaultAsync(s => s.Id == scheduleId && s.IsActive);
+        PlaybackSchedule? schedule;
+        using (_metrics.ObserveDatabaseQuery("warm_schedule_content"))
+        {
+            schedule = await _schedules.Query()
+                .AsNoTracking()
+                .Include(s => s.Items).ThenInclude(i => i.Media)
+                .FirstOrDefaultAsync(s => s.Id == scheduleId && s.IsActive);
+        }
 
         if (schedule == null)
             return;
@@ -91,11 +105,15 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
     {
         // When a schedule changes, every attached device must stop using its old
         // per-device playback cache and resolve the new schedule version on next poll.
-        var deviceCodes = await _schedules.Query()
-            .AsNoTracking()
-            .Where(s => s.Id == scheduleId)
-            .SelectMany(s => s.Devices.Select(d => d.Device.DeviceCode))
-            .ToListAsync();
+        List<string> deviceCodes;
+        using (_metrics.ObserveDatabaseQuery("invalidate_schedule_devices"))
+        {
+            deviceCodes = await _schedules.Query()
+                .AsNoTracking()
+                .Where(s => s.Id == scheduleId)
+                .SelectMany(s => s.Devices.Select(d => d.Device.DeviceCode))
+                .ToListAsync();
+        }
 
         await InvalidateDevicePlaybackCachesAsync(deviceCodes);
     }

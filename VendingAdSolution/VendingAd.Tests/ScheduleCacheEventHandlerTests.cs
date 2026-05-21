@@ -88,7 +88,8 @@ public class ScheduleCacheEventHandlerTests
         var service = new MobilePlaybackCacheService(
             cache,
             new EmptyRepository<PlaybackSchedule>(),
-            new FixedTimeService());
+            new FixedTimeService(),
+            new NullApplicationMetrics());
 
         await service.InvalidateDevicePlaybackCachesAsync(new[] { " DEV-1 ", "dev-1", "DEV-2", "" });
 

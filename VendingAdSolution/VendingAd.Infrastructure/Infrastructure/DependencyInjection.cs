@@ -25,6 +25,7 @@ public static class DependencyInjection
         services.Configure<MobileRateLimitOptions>(configuration.GetSection("MobileRateLimiting"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
 
+        services.AddSingleton<IApplicationMetrics, NullApplicationMetrics>();
         services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuditService, AuditService>();
@@ -59,6 +60,7 @@ public static class DependencyInjection
         services.AddCache(configuration, requireRedis: true);
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
 
+        services.AddSingleton<IApplicationMetrics, NullApplicationMetrics>();
         services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();
         services.AddScoped<IScheduleCacheEventHandler, ScheduleCacheEventHandler>();

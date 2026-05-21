@@ -24,6 +24,7 @@ public class AdminController : Controller
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly IDeviceCredentialService _deviceCredentialService;
+    private readonly IFileStorageService _fileStorageService;
     private readonly IAuditService _auditService;
 
     public AdminController(
@@ -38,6 +39,7 @@ public class AdminController : Controller
         IDevicePresenceService devicePresenceService,
         IPasswordHashingService passwordHashingService,
         IDeviceCredentialService deviceCredentialService,
+        IFileStorageService fileStorageService,
         IAuditService auditService)
     {
         _currentSession = currentSession;
@@ -51,6 +53,7 @@ public class AdminController : Controller
         _devicePresenceService = devicePresenceService;
         _passwordHashingService = passwordHashingService;
         _deviceCredentialService = deviceCredentialService;
+        _fileStorageService = fileStorageService;
         _auditService = auditService;
     }
 
@@ -177,10 +180,7 @@ public class AdminController : Controller
         foreach (var item in media.PlaylistItems.ToList())
             _playlistItems.Delete(item);
 
-        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", media.FileUrl.TrimStart('/'));
-        if (System.IO.File.Exists(filePath))
-            System.IO.File.Delete(filePath);
-
+        await _fileStorageService.DeleteAsync(media.FileUrl);
         _mediaService.Remove(media);
         await _mediaService.SaveChangesAsync();
         await _auditService.LogAsync(new AuditLogEntry

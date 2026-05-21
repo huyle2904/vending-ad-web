@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -221,6 +223,54 @@ public class SecurityIntegrationTests
     }
 
     [Fact]
+    public async Task ApiUnhandledException_ReturnsStandardizedJsonError()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/__test/exceptions/throw");
+        request.Headers.Add(CorrelationIdMiddleware.CorrelationIdHeader, "test-exception-api");
+
+        var response = await client.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(content);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.True(response.Headers.TryGetValues(CorrelationIdMiddleware.CorrelationIdHeader, out var values));
+        Assert.Equal("test-exception-api", Assert.Single(values));
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Đã xảy ra lỗi. Vui lòng thử lại sau.", document.RootElement.GetProperty("message").GetString());
+        Assert.Equal("test-exception-api", document.RootElement.GetProperty("correlationId").GetString());
+        Assert.DoesNotContain("API test boom", content);
+        Assert.DoesNotContain("InvalidOperationException", content);
+    }
+
+    [Fact]
+    public async Task PageUnhandledException_ReturnsSafeHtmlErrorPage()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var request = new HttpRequestMessage(HttpMethod.Get, "/__test/exceptions/page");
+        request.Headers.Add(CorrelationIdMiddleware.CorrelationIdHeader, "test-exception-page");
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+
+        var response = await client.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.True(response.Headers.TryGetValues(CorrelationIdMiddleware.CorrelationIdHeader, out var values));
+        Assert.Equal("test-exception-page", Assert.Single(values));
+        Assert.Contains("Đã xảy ra lỗi", content);
+        Assert.Contains("test-exception-page", content);
+        Assert.DoesNotContain("Page test boom", content);
+        Assert.DoesNotContain("InvalidOperationException", content);
+    }
+
+    [Fact]
     public async Task PortalUpload_WhenFfprobeEnabled_StoresVideoDuration()
     {
         var ffprobePath = CreateFakeFfprobe();
@@ -327,6 +377,8 @@ public class SecurityIntegrationTests
                 {
                     options.UseSqlite($"Data Source={_databasePath}");
                 });
+                services.AddControllersWithViews()
+                    .AddApplicationPart(typeof(TestExceptionApiController).Assembly);
 
                 if (_useTestAuth)
                 {
@@ -463,6 +515,27 @@ public class SecurityIntegrationTests
         }
 
         return scriptPath;
+    }
+}
+
+[ApiController]
+[Route("api/__test/exceptions")]
+public sealed class TestExceptionApiController : ControllerBase
+{
+    [HttpGet("throw")]
+    public IActionResult Throw()
+    {
+        throw new InvalidOperationException("API test boom");
+    }
+}
+
+[Route("__test/exceptions")]
+public sealed class TestExceptionPageController : Controller
+{
+    [HttpGet("page")]
+    public IActionResult Throw()
+    {
+        throw new InvalidOperationException("Page test boom");
     }
 }
 

@@ -71,6 +71,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 // ── App ───────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 
 // Enable Serilog request logging
@@ -89,7 +90,6 @@ app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 

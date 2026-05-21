@@ -34,6 +34,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
     private readonly IRepository<Media> _medias;
     private readonly ITimeService _timeService;
     private readonly IMessagePublisher _messagePublisher;
+    private readonly IAuditService _auditService;
 
     public PlaybackScheduleService(
         IRepository<PlaybackSchedule> playbackScheduleRepository,
@@ -43,7 +44,8 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         IRepository<Playlist> playlists,
         IRepository<Media> medias,
         ITimeService timeService,
-        IMessagePublisher messagePublisher)
+        IMessagePublisher messagePublisher,
+        IAuditService auditService)
     {
         _playbackScheduleRepository = playbackScheduleRepository;
         _scheduleDevices = scheduleDevices;
@@ -53,6 +55,7 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         _medias = medias;
         _timeService = timeService;
         _messagePublisher = messagePublisher;
+        _auditService = auditService;
     }
 
     public async Task<IEnumerable<PlaybackSchedule>> GetAllAsync()
@@ -118,6 +121,21 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.CreateSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId,
+                schedule.IsImmediate,
+                DeviceIds = request.DeviceIds.Distinct().ToList(),
+                MediaIds = request.MediaIds.Distinct().ToList(),
+                request.PlaylistId
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule.Id, ScheduleChangeType.Created);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã tạo lịch phát" };
     }
@@ -146,6 +164,21 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         await _playbackScheduleRepository.AddAsync(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
         await AddScheduleLinksAsync(schedule.Id, request);
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.CreateSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId,
+                schedule.IsImmediate,
+                DeviceIds = request.DeviceIds.Distinct().ToList(),
+                MediaIds = request.MediaIds.Distinct().ToList(),
+                request.PlaylistId
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule.Id, ScheduleChangeType.Created);
         return new PlaybackScheduleActionResult { Success = true, Message = "Immediate playback started." };
     }
@@ -198,6 +231,21 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         }
 
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.UpdateSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId,
+                DeviceIds = request.DeviceIds.Distinct().ToList(),
+                MediaIds = request.MediaIds.Distinct().ToList(),
+                request.PlaylistId,
+                schedule.IsActive
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule.Id, ScheduleChangeType.Updated, oldAffectedDeviceCodes.Concat(newAffectedDeviceCodes));
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã cập nhật lịch phát" };
     }
@@ -210,6 +258,17 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         if (schedule == null) return false;
         _playbackScheduleRepository.Delete(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.DeleteSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Deleted);
         return true;
     }
@@ -222,6 +281,18 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         if (schedule == null) return false;
         schedule.IsActive = !schedule.IsActive;
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.ToggleSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId,
+                schedule.IsActive
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Toggled);
         return true;
     }
@@ -234,6 +305,17 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         if (schedule == null) return false;
         _playbackScheduleRepository.Delete(schedule);
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.DeleteSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Deleted);
         return true;
     }
@@ -246,6 +328,18 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         if (schedule == null) return false;
         schedule.IsActive = !schedule.IsActive;
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.ToggleSchedule,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = schedule.Id,
+            Details = new
+            {
+                schedule.Name,
+                schedule.UserId,
+                schedule.IsActive
+            }
+        });
         await PublishScheduleChangedEventAsync(schedule, ScheduleChangeType.Toggled);
         return true;
     }
@@ -272,6 +366,17 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         });
 
         await _playbackScheduleRepository.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.AddScheduleItem,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = scheduleId,
+            Details = new
+            {
+                ScheduleId = scheduleId,
+                MediaId = mediaId
+            }
+        });
         await PublishScheduleChangedEventAsync(scheduleId, ScheduleChangeType.ItemAdded);
         return new PlaybackScheduleActionResult { Success = true, Message = "Đã thêm video vào lịch phát" };
     }
@@ -290,6 +395,18 @@ public class PlaybackScheduleService : IPlaybackScheduleService
         await _scheduleItems.SaveChangesAsync();
 
         await NormalizeScheduleItemOrderAsync(scheduleId);
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.RemoveScheduleItem,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = scheduleId,
+            Details = new
+            {
+                ScheduleId = scheduleId,
+                ScheduleItemId = scheduleItemId,
+                item.MediaId
+            }
+        });
         await PublishScheduleChangedEventAsync(scheduleId, ScheduleChangeType.ItemRemoved);
         return true;
     }
@@ -315,6 +432,21 @@ public class PlaybackScheduleService : IPlaybackScheduleService
 
         await _scheduleItems.SaveChangesAsync();
         await NormalizeScheduleItemOrderAsync(scheduleId);
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.ReorderScheduleItems,
+            TargetType = AuditTargets.PlaybackSchedule,
+            TargetId = scheduleId,
+            Details = new
+            {
+                ScheduleId = scheduleId,
+                Updates = updates.Select(update => new
+                {
+                    update.ScheduleItemId,
+                    update.OrderIndex
+                }).ToList()
+            }
+        });
         await PublishScheduleChangedEventAsync(scheduleId, ScheduleChangeType.Reordered);
         return true;
     }

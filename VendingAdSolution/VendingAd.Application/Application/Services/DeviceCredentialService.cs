@@ -24,11 +24,13 @@ public sealed class DeviceCredentialService : IDeviceCredentialService
     private const string SecretPrefix = "vad_";
     private readonly IRepository<Device> _devices;
     private readonly IPasswordHashingService _passwordHashingService;
+    private readonly IAuditService _auditService;
 
-    public DeviceCredentialService(IRepository<Device> devices, IPasswordHashingService passwordHashingService)
+    public DeviceCredentialService(IRepository<Device> devices, IPasswordHashingService passwordHashingService, IAuditService auditService)
     {
         _devices = devices;
         _passwordHashingService = passwordHashingService;
+        _auditService = auditService;
     }
 
     public string GenerateSecret()
@@ -61,6 +63,16 @@ public sealed class DeviceCredentialService : IDeviceCredentialService
         var secret = GenerateSecret();
         AssignSecret(device, secret, utcNow);
         await _devices.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.RotateDeviceSecret,
+            TargetType = AuditTargets.Device,
+            TargetId = device.Id,
+            Details = new
+            {
+                device.DeviceCode
+            }
+        });
 
         return new DeviceSecretRotationResult(
             true,
@@ -79,6 +91,16 @@ public sealed class DeviceCredentialService : IDeviceCredentialService
         device.DeviceSecretHash = null;
         device.DeviceSecretRevokedAt = utcNow;
         await _devices.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.RevokeDeviceSecret,
+            TargetType = AuditTargets.Device,
+            TargetId = device.Id,
+            Details = new
+            {
+                device.DeviceCode
+            }
+        });
 
         return new DeviceSecretRevokeResult(
             true,

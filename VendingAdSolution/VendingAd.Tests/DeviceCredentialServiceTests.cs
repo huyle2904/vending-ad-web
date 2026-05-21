@@ -25,7 +25,8 @@ public class DeviceCredentialServiceTests
 
         var service = new DeviceCredentialService(
             new Repository<Device>(context),
-            new PasswordHashingService());
+            new PasswordHashingService(),
+            NullAuditService.Instance);
 
         var secret = service.GenerateSecret();
         var device = new Device
@@ -57,9 +58,11 @@ public class DeviceCredentialServiceTests
         await using var context = new AppDbContext(options);
         await context.Database.EnsureCreatedAsync();
 
+        var auditService = new RecordingAuditService();
         var service = new DeviceCredentialService(
             new Repository<Device>(context),
-            new PasswordHashingService());
+            new PasswordHashingService(),
+            auditService);
 
         const string oldSecret = "old-secret";
         var device = new Device
@@ -86,5 +89,8 @@ public class DeviceCredentialServiceTests
         var reloaded = await context.Devices.SingleAsync(d => d.DeviceCode == "DEV-ROTATE");
         Assert.NotNull(reloaded.DeviceSecretRevokedAt);
         Assert.Null(reloaded.DeviceSecretHash);
+        Assert.Equal(
+            new[] { AuditActions.RotateDeviceSecret, AuditActions.RevokeDeviceSecret },
+            auditService.Entries.Select(entry => entry.Action).ToArray());
     }
 }

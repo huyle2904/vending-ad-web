@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
@@ -40,15 +39,11 @@ public class PasswordHashingServiceTests
     [Fact]
     public async Task LoginUserAsync_WhenHashIsLegacySha256_RehashesPassword()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connection)
+            .UseInMemoryDatabase($"password-hashing-{Guid.NewGuid():N}")
             .Options;
 
         await using var context = new AppDbContext(options);
-        await context.Database.EnsureCreatedAsync();
 
         var passwordHashingService = new PasswordHashingService();
         var legacyHash = CreateLegacySha256Hash("legacy-password");

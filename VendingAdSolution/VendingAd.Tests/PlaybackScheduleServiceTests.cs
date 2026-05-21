@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using VendingAd.Contracts;
 using VendingAdSystem.Application.DTOs;
@@ -60,11 +59,8 @@ public class PlaybackScheduleServiceTests
 
     private sealed class TestDatabase : IAsyncDisposable
     {
-        private readonly SqliteConnection _connection;
-
-        private TestDatabase(SqliteConnection connection, AppDbContext context)
+        private TestDatabase(AppDbContext context)
         {
-            _connection = connection;
             Context = context;
         }
 
@@ -72,24 +68,19 @@ public class PlaybackScheduleServiceTests
 
         public static async Task<TestDatabase> CreateAsync()
         {
-            var connection = new SqliteConnection("Data Source=:memory:");
-            await connection.OpenAsync();
-
             var options = new DbContextOptionsBuilder<AppDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase($"playback-schedules-{Guid.NewGuid():N}")
                 .Options;
 
             var context = new AppDbContext(options);
-            await context.Database.EnsureCreatedAsync();
             await SeedAsync(context);
 
-            return new TestDatabase(connection, context);
+            return new TestDatabase(context);
         }
 
         public async ValueTask DisposeAsync()
         {
             await Context.DisposeAsync();
-            await _connection.DisposeAsync();
         }
 
         private static async Task SeedAsync(AppDbContext context)

@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
@@ -13,15 +12,11 @@ public class DeviceCredentialServiceTests
     [Fact]
     public async Task ValidateSecretAsync_ReturnsTrueOnlyForAssignedDeviceSecret()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connection)
+            .UseInMemoryDatabase($"device-credentials-{Guid.NewGuid():N}")
             .Options;
 
         await using var context = new AppDbContext(options);
-        await context.Database.EnsureCreatedAsync();
 
         var service = new DeviceCredentialService(
             new Repository<Device>(context),
@@ -48,15 +43,11 @@ public class DeviceCredentialServiceTests
     [Fact]
     public async Task RotateAndRevokeSecretAsync_InvalidatesOldSecretAndCanRevokeCurrentSecret()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connection)
+            .UseInMemoryDatabase($"device-credentials-{Guid.NewGuid():N}")
             .Options;
 
         await using var context = new AppDbContext(options);
-        await context.Database.EnsureCreatedAsync();
 
         var auditService = new RecordingAuditService();
         var service = new DeviceCredentialService(

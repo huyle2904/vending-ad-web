@@ -409,8 +409,8 @@ public class SecurityIntegrationTests
 
     private sealed class VendingAdWebApplicationFactory : WebApplicationFactory<Program>
     {
+        private readonly string _databaseName = $"vendingad-tests-{Guid.NewGuid():N}";
         private readonly bool _useTestAuth;
-        private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"vendingad-tests-{Guid.NewGuid():N}.db");
         private readonly string _uploadsPath = Path.Combine(Path.GetTempPath(), $"vendingad-uploads-{Guid.NewGuid():N}");
 
         private readonly bool _ffprobeEnabled;
@@ -438,10 +438,8 @@ public class SecurityIntegrationTests
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["DatabaseProvider"] = "Sqlite",
-                    ["ConnectionStrings:DefaultConnection"] = $"Data Source={_databasePath}",
+                    ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=unused-for-tests;Trusted_Connection=True;TrustServerCertificate=True",
                     ["Database:ApplyMigrationsOnStartup"] = "false",
-                    ["Database:EnsureCreatedOnStartup"] = "true",
                     ["Seed:EnableDemoData"] = "false",
                     ["Redis:Enabled"] = "false",
                     ["RabbitMQ:Enabled"] = "false",
@@ -467,7 +465,7 @@ public class SecurityIntegrationTests
                 services.RemoveAll<DbContextOptions<AppDbContext>>();
                 services.AddDbContext<AppDbContext>(options =>
                 {
-                    options.UseSqlite($"Data Source={_databasePath}");
+                    options.UseInMemoryDatabase(_databaseName);
                 });
                 services.AddControllersWithViews()
                     .AddApplicationPart(typeof(TestExceptionApiController).Assembly);
@@ -532,9 +530,6 @@ public class SecurityIntegrationTests
         public override async ValueTask DisposeAsync()
         {
             await base.DisposeAsync();
-
-            if (File.Exists(_databasePath))
-                File.Delete(_databasePath);
 
             if (Directory.Exists(_uploadsPath))
                 Directory.Delete(_uploadsPath, recursive: true);

@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<Admin> Admins => Set<Admin>();
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<Media> Medias => Set<Media>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Playlist> Playlists => Set<Playlist>();
     public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
     public DbSet<PlaybackSchedule> PlaybackSchedules => Set<PlaybackSchedule>();
@@ -44,6 +45,39 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Username)
             .IsUnique();
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(a => a.Timestamp);
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(a => new { a.ActorType, a.ActorId, a.Timestamp });
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(a => new { a.TargetType, a.TargetId, a.Timestamp });
+
+        modelBuilder.Entity<AuditLog>()
+            .Property(a => a.ActorType)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<AuditLog>()
+            .Property(a => a.Action)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AuditLog>()
+            .Property(a => a.TargetType)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<AuditLog>()
+            .Property(a => a.CorrelationId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<AuditLog>()
+            .Property(a => a.IpAddress)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<AuditLog>()
+            .Property(a => a.UserAgent)
+            .HasMaxLength(512);
 
         modelBuilder.Entity<Media>()
             .HasIndex(m => m.UserId);

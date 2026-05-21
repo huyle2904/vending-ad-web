@@ -14,11 +14,13 @@ public class AccountController : Controller
 {
     private readonly IAuthService _authService;
     private readonly IUserService _userService;
+    private readonly IAuditService _auditService;
 
-    public AccountController(IAuthService authService, IUserService userService)
+    public AccountController(IAuthService authService, IUserService userService, IAuditService auditService)
     {
         _authService = authService;
         _userService = userService;
+        _auditService = auditService;
     }
 
     [HttpGet("/account/login")]
@@ -72,6 +74,20 @@ public class AccountController : Controller
                 displayName,
                 "User",
                 "UserId");
+            await _auditService.LogAsync(new AuditLogEntry
+            {
+                ActorType = AuditActorTypes.User,
+                ActorId = userResponse.User.Id,
+                Action = AuditActions.Login,
+                TargetType = AuditTargets.User,
+                TargetId = userResponse.User.Id,
+                Details = new
+                {
+                    Login = ResolveLoginIdentifier(request),
+                    Channel = "Mvc",
+                    ReturnUrl = returnUrl
+                }
+            });
 
             return RedirectToLocal(returnUrl, "User");
         }
@@ -99,10 +115,37 @@ public class AccountController : Controller
                 string.IsNullOrWhiteSpace(adminResponse.User.Username) ? adminResponse.User.Email : adminResponse.User.Username,
                 "Admin",
                 "AdminId");
+            await _auditService.LogAsync(new AuditLogEntry
+            {
+                ActorType = AuditActorTypes.Admin,
+                ActorId = adminResponse.User.Id,
+                Action = AuditActions.Login,
+                TargetType = AuditTargets.Admin,
+                TargetId = adminResponse.User.Id,
+                Details = new
+                {
+                    Login = ResolveLoginIdentifier(request),
+                    Channel = "Mvc",
+                    ReturnUrl = returnUrl
+                }
+            });
 
             return RedirectToLocal(returnUrl, "Admin");
         }
 
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            ActorType = AuditActorTypes.Anonymous,
+            Action = AuditActions.LoginFailed,
+            TargetType = AuditTargets.Account,
+            Details = new
+            {
+                Login = ResolveLoginIdentifier(request),
+                Channel = "Mvc",
+                ReturnUrl = returnUrl,
+                userResponse.Message
+            }
+        });
         ModelState.AddModelError(string.Empty, userResponse.Message);
         return View(request);
     }
@@ -111,6 +154,15 @@ public class AccountController : Controller
     [HttpPost("/account/logout")]
     public async Task<IActionResult> Logout()
     {
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.Logout,
+            TargetType = User.IsInRole("Admin") ? AuditTargets.Admin : AuditTargets.User,
+            Details = new
+            {
+                Channel = "Mvc"
+            }
+        });
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         HttpContext.Session.Clear();
         return RedirectToAction("Login");
@@ -181,5 +233,12 @@ public class AccountController : Controller
                 || path.StartsWith("/settings", StringComparison.OrdinalIgnoreCase);
 
         return !path.StartsWith("/admin", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveLoginIdentifier(LoginRequest request)
+    {
+        return !string.IsNullOrWhiteSpace(request.Username)
+            ? request.Username.Trim()
+            : request.Email.Trim();
     }
 }

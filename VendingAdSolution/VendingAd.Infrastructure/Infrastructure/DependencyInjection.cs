@@ -26,6 +26,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ICurrentSession, CurrentSession>();
         services.AddScoped<ITimeService, TimeService>();
         services.AddScoped<IUserService, UserService>();

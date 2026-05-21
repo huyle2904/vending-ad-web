@@ -18,7 +18,8 @@ public class PlaybackScheduleServiceTests
     {
         await using var database = await TestDatabase.CreateAsync();
         var publisher = new RecordingMessagePublisher();
-        var service = CreateService(database.Context, publisher);
+        var auditService = new RecordingAuditService();
+        var service = CreateService(database.Context, publisher, auditService);
 
         var result = await service.UpdateAsync(1, new PlaybackScheduleRequest
         {
@@ -37,9 +38,13 @@ public class PlaybackScheduleServiceTests
         var message = Assert.Single(publisher.PublishedEvents.OfType<ScheduleChangedEvent>());
         Assert.Equal(ScheduleChangeType.Updated, message.ChangeType);
         Assert.Equal(new[] { "DEVICE-NEW", "DEVICE-OLD" }, message.AffectedDeviceCodes.OrderBy(code => code));
+        var auditEntry = Assert.Single(auditService.Entries);
+        Assert.Equal(AuditActions.UpdateSchedule, auditEntry.Action);
+        Assert.Equal(AuditTargets.PlaybackSchedule, auditEntry.TargetType);
+        Assert.Equal(100, auditEntry.TargetId);
     }
 
-    private static PlaybackScheduleService CreateService(AppDbContext context, IMessagePublisher publisher)
+    private static PlaybackScheduleService CreateService(AppDbContext context, IMessagePublisher publisher, IAuditService? auditService = null)
     {
         return new PlaybackScheduleService(
             new Repository<PlaybackSchedule>(context),
@@ -49,7 +54,8 @@ public class PlaybackScheduleServiceTests
             new Repository<Playlist>(context),
             new Repository<Media>(context),
             new FixedTimeService(),
-            publisher);
+            publisher,
+            auditService ?? NullAuditService.Instance);
     }
 
     private sealed class TestDatabase : IAsyncDisposable

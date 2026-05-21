@@ -24,6 +24,7 @@ public class AdminController : Controller
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly IPasswordHashingService _passwordHashingService;
     private readonly IDeviceCredentialService _deviceCredentialService;
+    private readonly IAuditService _auditService;
 
     public AdminController(
         ICurrentSession currentSession,
@@ -36,7 +37,8 @@ public class AdminController : Controller
         IPlaybackScheduleService playbackScheduleService,
         IDevicePresenceService devicePresenceService,
         IPasswordHashingService passwordHashingService,
-        IDeviceCredentialService deviceCredentialService)
+        IDeviceCredentialService deviceCredentialService,
+        IAuditService auditService)
     {
         _currentSession = currentSession;
         _userService = userService;
@@ -49,6 +51,7 @@ public class AdminController : Controller
         _devicePresenceService = devicePresenceService;
         _passwordHashingService = passwordHashingService;
         _deviceCredentialService = deviceCredentialService;
+        _auditService = auditService;
     }
 
     [HttpGet("/admin")]
@@ -180,6 +183,17 @@ public class AdminController : Controller
 
         _mediaService.Remove(media);
         await _mediaService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.DeleteVideo,
+            TargetType = AuditTargets.Media,
+            TargetId = media.Id,
+            Details = new
+            {
+                media.FileName,
+                media.UserId
+            }
+        });
 
         TempData["Success"] = "Đã xóa video.";
         return RedirectToAction("Videos");
@@ -365,6 +379,18 @@ public class AdminController : Controller
         user.FullName = fullName;
 
         await _userService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.UpdateUser,
+            TargetType = AuditTargets.User,
+            TargetId = user.Id,
+            Details = new
+            {
+                user.Username,
+                user.Email,
+                user.FullName
+            }
+        });
         TempData["Success"] = $"User {username} updated";
         return RedirectToAction("Users");
     }
@@ -384,6 +410,17 @@ public class AdminController : Controller
 
         user.IsActive = !user.IsActive;
         await _userService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.ToggleUserActive,
+            TargetType = AuditTargets.User,
+            TargetId = user.Id,
+            Details = new
+            {
+                user.Username,
+                user.IsActive
+            }
+        });
 
         TempData["Success"] = user.IsActive ? $"User {user.Username} activated" : $"User {user.Username} disabled";
         return RedirectToAction("Users");
@@ -424,6 +461,18 @@ public class AdminController : Controller
 
         await _userService.AddAsync(user);
         await _userService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.CreateUser,
+            TargetType = AuditTargets.User,
+            TargetId = user.Id,
+            Details = new
+            {
+                user.Username,
+                user.Email,
+                user.FullName
+            }
+        });
 
         TempData["Success"] = $"User {username} created with default password TD@12345";
         return RedirectToAction("Users");
@@ -444,6 +493,16 @@ public class AdminController : Controller
 
         user.PasswordHash = _passwordHashingService.HashPassword("TD@12345");
         await _userService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.ResetPassword,
+            TargetType = AuditTargets.User,
+            TargetId = user.Id,
+            Details = new
+            {
+                user.Username
+            }
+        });
 
         TempData["Success"] = $"Password reset for {user.Username}";
         return RedirectToAction("Users");

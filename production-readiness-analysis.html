@@ -1,0 +1,3109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Phân Tích Production Readiness - VendingAd System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; margin-bottom: 30px; }
+        h2 { color: #2980b9; margin-top: 40px; margin-bottom: 20px; border-left: 4px solid #3498db; padding-left: 15px; }
+        h3 { color: #34495e; margin-top: 25px; margin-bottom: 15px; }
+        h4 { color: #555; margin-top: 20px; margin-bottom: 10px; }
+        .meta { background: #ecf0f1; padding: 15px; border-radius: 5px; margin-bottom: 30px; }
+        .meta p { margin: 5px 0; }
+        .severity { display: inline-block; padding: 3px 10px; border-radius: 3px; font-weight: bold; font-size: 0.85em; }
+        .critical { background: #e74c3c; color: white; }
+        .high { background: #e67e22; color: white; }
+        .medium { background: #f39c12; color: white; }
+        .low { background: #95a5a6; color: white; }
+        .good { background: #27ae60; color: white; }
+        .issue { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+        .recommendation { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 15px 0; }
+        .keep { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 15px 0; }
+        .remove { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 15px 0; }
+        ul, ol { margin-left: 25px; margin-top: 10px; margin-bottom: 10px; }
+        li { margin: 8px 0; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; margin: 15px 0; }
+        .summary-box { background: #e8f4f8; border: 2px solid #3498db; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-card h3 { color: white; margin: 0; font-size: 2em; }
+        .stat-card p { margin: 5px 0 0 0; opacity: 0.9; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #3498db; color: white; font-weight: 600; }
+        tr:hover { background: #f5f5f5; }
+        .toc { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0; }
+        .toc ul { list-style: none; margin-left: 0; }
+        .toc a { color: #2980b9; text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        .page-tabs {
+            display: flex;
+            gap: 12px;
+            margin: 30px 0 24px;
+            padding: 8px;
+            background: #eef2f7;
+            border-radius: 10px;
+            flex-wrap: wrap;
+        }
+        .page-tab {
+            border: none;
+            background: transparent;
+            color: #51606f;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 12px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .page-tab.active {
+            background: #ffffff;
+            color: #1f2937;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .task-item.is-complete {
+            background: #eefaf1 !important;
+            border-left-color: #27ae60 !important;
+        }
+        .task-item.is-complete label { color: #1f5f38; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Báo Cáo Phân Tích Production Readiness</h1>
+        <h2 style="margin-top: 0; color: #7f8c8d;">VendingAd CMS System</h2>
+
+        <div class="meta">
+            <p><strong>Ngày phân tích:</strong> 21/05/2026</p>
+            <p><strong>Phiên bản:</strong> Milestone 9.6 (Post Event-Driven Architecture)</p>
+            <p><strong>Người phân tích:</strong> Senior Software Architect / Principal Engineer</p>
+            <p><strong>Mục tiêu:</strong> Đánh giá độ sẵn sàng production và đưa ra roadmap cải thiện</p>
+        </div>
+
+        <div class="toc">
+            <h3>📑 Mục Lục</h3>
+            <ul>
+                <li><a href="#overview">1. Tổng Quan Hệ Thống</a></li>
+                <li><a href="#architecture">2. Kiến Trúc & Thiết Kế</a></li>
+                <li><a href="#code-quality">3. Chất Lượng Code</a></li>
+                <li><a href="#security">4. Bảo Mật</a></li>
+                <li><a href="#performance">5. Hiệu Năng & Khả Năng Mở Rộng</a></li>
+                <li><a href="#reliability">6. Độ Tin Cậy & Error Handling</a></li>
+                <li><a href="#observability">7. Observability & Monitoring</a></li>
+                <li><a href="#testing">8. Testing</a></li>
+                <li><a href="#deployment">9. Deployment & Infrastructure</a></li>
+                <li><a href="#issues">10. Vấn Đề Cần Xử Lý</a></li>
+                <li><a href="#keep">11. Những Gì Nên Giữ Lại</a></li>
+                <li><a href="#remove">12. Những Gì Nên Bỏ/Thay Đổi</a></li>
+                <li><a href="#roadmap">13. Kế Hoạch Hành Động</a></li>
+            </ul>
+        </div>
+
+        <div class="page-tabs" role="tablist" aria-label="Production readiness sections">
+            <button type="button" class="page-tab active" data-tab="analysis-tab" role="tab" aria-selected="true">
+                Bao Cao Phan Tich
+            </button>
+            <button type="button" class="page-tab" data-tab="todo-tab" role="tab" aria-selected="false">
+                TODO Roadmap
+            </button>
+        </div>
+
+        <div id="analysis-tab" class="tab-panel active">
+
+        <div id="overview">
+            <h2>1. 🎯 Tổng Quan Hệ Thống</h2>
+
+            <div class="summary-box">
+                <h3>Giới Thiệu Dự Án</h3>
+                <p><strong>VendingAd System</strong> là một CMS (Content Management System) để quản lý lịch phát video trên màn hình máy bán hàng tự động và TV box. Hệ thống cho phép người dùng upload video, tạo playlist, và lên lịch phát nội dung cho nhiều thiết bị.</p>
+
+                <p style="margin-top: 15px;"><strong>Quy mô triển khai dự kiến:</strong></p>
+                <ul>
+                    <li>5-10 người dùng (user)</li>
+                    <li>Mỗi user có thể quản lý 50+ thiết bị</li>
+                    <li>Tổng cộng khoảng 200-500 thiết bị đồng thời</li>
+                    <li>Thiết bị poll API mỗi 30-60 giây</li>
+                </ul>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>88</h3>
+                    <p>File C# (.cs)</p>
+                </div>
+                <div class="stat-card">
+                    <h3>7</h3>
+                    <p>Projects trong Solution</p>
+                </div>
+                <div class="stat-card">
+                    <h3>9</h3>
+                    <p>Domain Entities</p>
+                </div>
+                <div class="stat-card">
+                    <h3>18</h3>
+                    <p>Application Services</p>
+                </div>
+            </div>
+
+            <h3>Stack Công Nghệ</h3>
+            <table>
+                <tr>
+                    <th>Thành Phần</th>
+                    <th>Công Nghệ</th>
+                    <th>Phiên Bản</th>
+                </tr>
+                <tr>
+                    <td>Framework</td>
+                    <td>ASP.NET Core</td>
+                    <td>.NET 8.0</td>
+                </tr>
+                <tr>
+                    <td>Database (Dev)</td>
+                    <td>SQLite</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Database (Production Target)</td>
+                    <td>SQL Server / PostgreSQL</td>
+                    <td>2022 / 16+</td>
+                </tr>
+                <tr>
+                    <td>ORM</td>
+                    <td>Entity Framework Core</td>
+                    <td>8.0.0</td>
+                </tr>
+                <tr>
+                    <td>Cache</td>
+                    <td>Redis / In-Memory</td>
+                    <td>7.x / Built-in</td>
+                </tr>
+                <tr>
+                    <td>Message Queue</td>
+                    <td>RabbitMQ</td>
+                    <td>3.x (Client 6.8.1)</td>
+                </tr>
+                <tr>
+                    <td>Authentication</td>
+                    <td>Cookie Authentication</td>
+                    <td>Built-in</td>
+                </tr>
+                <tr>
+                    <td>Frontend</td>
+                    <td>ASP.NET MVC Razor Views</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Deployment</td>
+                    <td>Docker / Render.com</td>
+                    <td>-</td>
+                </tr>
+            </table>
+
+            <h3>Cấu Trúc Solution</h3>
+            <pre>VendingAdSolution/
+├── VendingAd.Domain/              # Domain entities, không phụ thuộc gì
+├── VendingAd.Contracts/           # Integration event contracts (shared)
+├── VendingAd.Application/         # Business logic, DTOs, Services
+├── VendingAd.Infrastructure/      # EF Core, Redis, RabbitMQ, Health checks
+├── VendingAdSystem/               # Web app (MVC + API)
+├── VendingAdWorker/               # Background worker (RabbitMQ consumer)
+└── VendingAd.Tests/               # Unit & Integration tests</pre>
+
+            <p><strong>Đánh giá:</strong> Cấu trúc Clean Architecture rõ ràng, phân tách layer hợp lý. Domain không phụ thuộc Infrastructure, Application layer chứa business logic, Infrastructure xử lý technical concerns.</p>
+        </div>
+
+        <div id="architecture">
+            <h2>2. 🏗️ Kiến Trúc & Thiết Kế</h2>
+
+            <h3>2.1. Kiến Trúc Tổng Thể</h3>
+            <div class="keep">
+                <h4>✅ Điểm Mạnh</h4>
+                <ul>
+                    <li><strong>Clean Architecture:</strong> Phân tách rõ ràng Domain, Application, Infrastructure</li>
+                    <li><strong>Event-Driven Architecture:</strong> Đã tích hợp RabbitMQ để xử lý cache invalidation bất đồng bộ</li>
+                    <li><strong>CQRS Pattern (nhẹ):</strong> Tách biệt read queries (AsNoTracking) và write operations</li>
+                    <li><strong>Repository Pattern:</strong> Abstraction layer cho data access</li>
+                    <li><strong>Dependency Injection:</strong> Sử dụng DI container của .NET đúng cách</li>
+                    <li><strong>Multi-database Support:</strong> Hỗ trợ SQLite, PostgreSQL, SQL Server thông qua configuration</li>
+                </ul>
+            </div>
+
+            <h3>2.2. Domain Model</h3>
+            <p><strong>Entities chính:</strong></p>
+            <ul>
+                <li><code>User</code> - Người dùng CMS</li>
+                <li><code>Admin</code> - Quản trị viên</li>
+                <li><code>Device</code> - Thiết bị TV box/vending machine</li>
+                <li><code>Media</code> - Video đã upload</li>
+                <li><code>Playlist</code> - Template danh sách phát</li>
+                <li><code>PlaylistItem</code> - Item trong playlist</li>
+                <li><code>PlaybackSchedule</code> - Lịch phát thực tế</li>
+                <li><code>PlaybackScheduleDevice</code> - Liên kết schedule-device (many-to-many)</li>
+                <li><code>PlaybackScheduleItem</code> - Snapshot media trong schedule</li>
+            </ul>
+
+            <div class="keep">
+                <h4>✅ Domain Model Tốt</h4>
+                <ul>
+                    <li>Phân biệt rõ <code>Playlist</code> (template) vs <code>PlaybackSchedule</code> (actual plan)</li>
+                    <li>Schedule items là snapshot, không bị ảnh hưởng khi playlist thay đổi</li>
+                    <li>Hỗ trợ một schedule áp dụng cho nhiều devices</li>
+                    <li>Device có claim mechanism để provisioning an toàn</li>
+                </ul>
+            </div>
+
+            <h3>2.3. Database Design</h3>
+            <div class="keep">
+                <h4>✅ Indexing Strategy Tốt</h4>
+                <ul>
+                    <li>Unique index trên <code>Device.DeviceCode</code></li>
+                    <li>Composite index cho active schedule queries: <code>(IsActive, StartDate, EndDate)</code></li>
+                    <li>Index cho user-scoped queries: <code>(UserId, IsActive, CreatedAt)</code></li>
+                    <li>Foreign key indexes cho join performance</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4>⚠️ Vấn Đề Tiềm Ẩn</h4>
+                <ul>
+                    <li><strong>Cascade Delete:</strong> Một số relationship dùng <code>DeleteBehavior.Cascade</code> có thể gây xóa dữ liệu không mong muốn. Ví dụ: xóa User sẽ cascade xóa tất cả Playlists và Schedules của user đó.</li>
+                    <li><strong>Thiếu Soft Delete:</strong> Không có cơ chế soft delete cho audit trail. Khi xóa schedule/device, mất hết lịch sử.</li>
+                    <li><strong>Thiếu Audit Table:</strong> Không có bảng ghi lại ai làm gì, khi nào (login, create schedule, delete video, rotate device secret, etc.)</li>
+                </ul>
+            </div>
+
+            <h3>2.4. Caching Strategy</h3>
+            <div class="keep">
+                <h4>✅ Multi-Layer Cache Hiệu Quả</h4>
+                <ul>
+                    <li><strong>Per-device cache:</strong> <code>mobile:playback-state:{deviceCode}</code> - giảm DB load cho polling</li>
+                    <li><strong>Shared schedule cache:</strong> <code>mobile:schedule-content:{scheduleId}:{version}</code> - nhiều device dùng chung</li>
+                    <li><strong>Device presence cache:</strong> <code>device:online:{deviceCode}</code> với TTL - giảm DB writes từ heartbeat</li>
+                    <li><strong>Distributed lock:</strong> <code>lock:mobile:schedule-content:*</code> - tránh cache stampede</li>
+                    <li><strong>Event-driven invalidation:</strong> Worker invalidate cache khi schedule thay đổi, không block web request</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Cải Thiện Cache</h4>
+                <ul>
+                    <li>Thêm cache metrics: hit rate, miss rate, eviction count</li>
+                    <li>Implement cache warming strategy khi deploy mới</li>
+                    <li>Xem xét thêm cache cho user media list (ít thay đổi, query nhiều)</li>
+                    <li>TTL hiện tại chưa được document rõ ràng trong code</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="code-quality">
+            <h2>3. 💎 Chất Lượng Code</h2>
+
+            <h3>3.1. Code Organization</h3>
+            <div class="keep">
+                <h4>✅ Tổ Chức Tốt</h4>
+                <ul>
+                    <li>Naming conventions nhất quán (PascalCase cho class/method, camelCase cho parameters)</li>
+                    <li>File structure theo namespace rõ ràng</li>
+                    <li>Service interfaces và implementations tách biệt</li>
+                    <li>DTOs tách riêng khỏi entities</li>
+                    <li>Nullable reference types enabled (<code>&lt;Nullable&gt;enable&lt;/Nullable&gt;</code>)</li>
+                </ul>
+            </div>
+
+            <h3>3.2. SOLID Principles</h3>
+            <div class="keep">
+                <h4>✅ Tuân Thủ SOLID</h4>
+                <ul>
+                    <li><strong>Single Responsibility:</strong> Mỗi service có trách nhiệm rõ ràng (MediaService, DeviceService, PlaybackScheduleService)</li>
+                    <li><strong>Open/Closed:</strong> Strategy pattern cho database providers, cache implementations</li>
+                    <li><strong>Liskov Substitution:</strong> ICacheService có thể swap giữa Redis và MemoryCache</li>
+                    <li><strong>Interface Segregation:</strong> Interfaces nhỏ, focused (ITimeService, IPasswordHashingService)</li>
+                    <li><strong>Dependency Inversion:</strong> Controllers phụ thuộc vào interfaces, không phụ thuộc concrete implementations</li>
+                </ul>
+            </div>
+
+            <h3>3.3. Error Handling</h3>
+            <div class="issue">
+                <h4>⚠️ Error Handling Chưa Đồng Nhất</h4>
+                <ul>
+                    <li>Một số service throw exceptions, một số return result objects</li>
+                    <li>Không có global exception handler middleware</li>
+                    <li>Error messages trả về client đôi khi expose internal details</li>
+                    <li>Thiếu structured logging cho errors</li>
+                    <li>RabbitMQ publish failures chỉ log warning, không có retry mechanism</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Đề Xuất</h4>
+                <ul>
+                    <li>Implement Result&lt;T&gt; pattern hoặc OneOf&lt;Success, Error&gt; để tránh exceptions cho business logic failures</li>
+                    <li>Thêm global exception handler middleware để catch unhandled exceptions</li>
+                    <li>Standardize error response format (ProblemDetails RFC 7807)</li>
+                    <li>Thêm correlation ID cho request tracking</li>
+                </ul>
+            </div>
+
+            <h3>3.4. Async/Await Usage</h3>
+            <div class="keep">
+                <h4>✅ Async Pattern Đúng</h4>
+                <ul>
+                    <li>Tất cả DB operations đều async</li>
+                    <li>Không có blocking calls (.Result, .Wait())</li>
+                    <li>ConfigureAwait không cần thiết trong ASP.NET Core (đúng)</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="security">
+            <h2>4. 🔒 Bảo Mật</h2>
+
+            <h3>4.1. Authentication & Authorization</h3>
+            <div class="keep">
+                <h4>✅ Đã Làm Tốt</h4>
+                <ul>
+                    <li><strong>Cookie Authentication:</strong> HttpOnly, SameSite=Lax, 24h expiration với sliding</li>
+                    <li><strong>Role-based Authorization:</strong> Admin vs User roles</li>
+                    <li><strong>Device Authentication:</strong> Device secret với bcrypt hashing</li>
+                    <li><strong>Password Hashing:</strong> Sử dụng ASP.NET Core Identity PasswordHasher (PBKDF2)</li>
+                    <li><strong>Anti-forgery Tokens:</strong> Enabled cho POST requests</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> Vấn Đề Bảo Mật Cần Xử Lý</h4>
+
+                <p><strong>1. Mật khẩu mặc định cố định (TD@12345)</strong></p>
+                <ul>
+                    <li><strong>Vị trí:</strong> <code>AdminController.cs</code> - CreateUser, ResetPassword</li>
+                    <li><strong>Rủi ro:</strong> Tất cả user mới đều có password giống nhau. Nếu một user quên đổi password, attacker có thể đăng nhập.</li>
+                    <li><strong>Ảnh hưởng:</strong> Unauthorized access vào CMS, có thể xem/sửa/xóa schedules và devices của user khác</li>
+                    <li><strong>Khuyến nghị:</strong>
+                        <ul>
+                            <li>Generate random password khi tạo user mới</li>
+                            <li>Hiển thị password một lần duy nhất cho admin</li>
+                            <li>Thêm flag <code>MustChangePassword</code></li>
+                            <li>Force user đổi password sau lần login đầu tiên</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <p><strong>2. Thiếu rate limiting cho login endpoint</strong></p>
+                <ul>
+                    <li><strong>Vị trí:</strong> <code>AccountController.cs</code> - Login action</li>
+                    <li><strong>Rủi ro:</strong> Brute force attack có thể thử nhiều password</li>
+                    <li><strong>Khuyến nghị:</strong> Thêm rate limit cho login attempts (5 attempts / 15 minutes per IP hoặc username)</li>
+                </ul>
+
+                <p><strong>3. Session management chưa có timeout tuyệt đối</strong></p>
+                <ul>
+                    <li><strong>Hiện tại:</strong> Sliding expiration 24h, session có thể kéo dài vô hạn nếu user active liên tục</li>
+                    <li><strong>Khuyến nghị:</strong> Thêm absolute timeout (ví dụ: 7 days) để force re-authentication</li>
+                </ul>
+
+                <p><strong>4. Thiếu audit log cho sensitive operations</strong></p>
+                <ul>
+                    <li><strong>Vị trí:</strong> Login, logout, create/delete user, rotate device secret, upload/delete video</li>
+                    <li><strong>Rủi ro:</strong> Không thể trace back khi có incident</li>
+                    <li><strong>Khuyến nghị:</strong> Tạo bảng AuditLogs ghi lại actor, action, target, timestamp, IP</li>
+                </ul>
+            </div>
+
+            <h3>4.2. Input Validation</h3>
+            <div class="keep">
+                <h4>✅ Upload Validation Tốt</h4>
+                <ul>
+                    <li>File extension whitelist (.mp4, .mov, .webm)</li>
+                    <li>MIME type validation</li>
+                    <li>Magic bytes check (file signature)</li>
+                    <li>ffprobe validation cho video codec và duration</li>
+                    <li>File size limit (50MB)</li>
+                    <li>Filename sanitization với <code>Path.GetFileName</code></li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Input Validation Gaps</h4>
+                <ul>
+                    <li>Một số controller actions thiếu model validation</li>
+                    <li>SQL injection risk thấp (dùng EF Core parameterized queries) nhưng chưa có explicit validation cho special characters</li>
+                    <li>XSS risk thấp (Razor auto-encode) nhưng nên thêm Content Security Policy headers</li>
+                </ul>
+            </div>
+
+            <h3>4.3. Secrets Management</h3>
+            <div class="keep">
+                <h4>✅ Cải Thiện Đáng Kể</h4>
+                <ul>
+                    <li><code>Seed:EnableDemoData=false</code> mặc định trong appsettings.json</li>
+                    <li>RabbitMQ credentials không còn hardcode trong appsettings.json</li>
+                    <li>Startup fail nếu bật demo seed ngoài Development environment</li>
+                    <li>Device secrets được hash với bcrypt, không lưu plaintext</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Secrets Management Chưa Hoàn Chỉnh</h4>
+                <ul>
+                    <li><strong>appsettings.Development.json:</strong> Có thể chứa secrets thật, cần thêm vào .gitignore</li>
+                    <li><strong>SQL Server password:</strong> Trong docker-compose.infra.yml là <code>VendingAd@12345</code> (chỉ dùng local, nhưng nên document rõ)</li>
+                    <li><strong>Production secrets:</strong> Chưa có hướng dẫn rõ ràng về cách inject secrets qua environment variables hoặc secret manager</li>
+                    <li><strong>Khuyến nghị:</strong>
+                        <ul>
+                            <li>Dùng User Secrets cho local development</li>
+                            <li>Dùng Azure Key Vault / AWS Secrets Manager / HashiCorp Vault cho production</li>
+                            <li>Document secret rotation process</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <h3>4.4. API Security</h3>
+            <div class="keep">
+                <h4>✅ Mobile API Security</h4>
+                <ul>
+                    <li>Device secret required cho tất cả mobile endpoints</li>
+                    <li>Support cả <code>X-Device-Secret</code> header và <code>Authorization: Bearer</code></li>
+                    <li>Device secret có rotate và revoke mechanism</li>
+                    <li>Rate limiting per device code (không chỉ per IP)</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Cải Thiện API Security</h4>
+                <ul>
+                    <li>Thêm HTTPS enforcement trong production (HSTS headers)</li>
+                    <li>Implement API versioning (/api/v1/mobile/...)</li>
+                    <li>Thêm request signing để verify request integrity</li>
+                    <li>Consider JWT tokens thay vì static device secrets cho better rotation</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="performance">
+            <h2>5. ⚡ Hiệu Năng & Khả Năng Mở Rộng</h2>
+
+            <h3>5.1. Database Performance</h3>
+            <div class="keep">
+                <h4>✅ Query Optimization Tốt</h4>
+                <ul>
+                    <li><code>AsNoTracking()</code> cho tất cả read-only queries</li>
+                    <li>Eager loading với <code>Include()</code> để tránh N+1 queries</li>
+                    <li>Composite indexes cho common query patterns</li>
+                    <li>Connection pooling mặc định của EF Core</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity low">LOW</span> Potential Performance Issues</h4>
+                <ul>
+                    <li><strong>Large result sets:</strong> Một số queries không có pagination (GetAllAsync methods)</li>
+                    <li><strong>File storage:</strong> Video files lưu trên local filesystem, không scale khi có nhiều instances</li>
+                    <li><strong>Lack of query timeout:</strong> Không có explicit timeout cho DB queries</li>
+                </ul>
+            </div>
+
+            <h3>5.2. Caching Performance</h3>
+            <div class="keep">
+                <h4>✅ Caching Strategy Xuất Sắc</h4>
+                <ul>
+                    <li><strong>Hit rate cao:</strong> Shared schedule cache cho nhiều devices</li>
+                    <li><strong>Cache stampede prevention:</strong> Distributed lock với Redis</li>
+                    <li><strong>Heartbeat throttling:</strong> Chỉ write DB mỗi 60s thay vì mỗi request</li>
+                    <li><strong>Event-driven invalidation:</strong> Cache invalidation không block web requests</li>
+                </ul>
+            </div>
+
+            <h3>5.3. Rate Limiting</h3>
+            <div class="keep">
+                <h4>✅ Rate Limiting Implementation</h4>
+                <ul>
+                    <li>Device-based rate limiting (không chỉ IP-based)</li>
+                    <li>Separate limits cho từng endpoint type:
+                        <ul>
+                            <li>Heartbeat: 10 requests/60s</li>
+                            <li>Playback state: 30 requests/60s</li>
+                            <li>Device info: 20 requests/60s</li>
+                        </ul>
+                    </li>
+                    <li>HTTP 429 response với Retry-After header</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Rate Limiting Limitations</h4>
+                <ul>
+                    <li><strong>In-memory only:</strong> Rate limiter hiện tại là in-process, không work với multiple instances</li>
+                    <li><strong>Khuyến nghị:</strong> Khi scale horizontal, cần move rate limit counters sang Redis</li>
+                </ul>
+            </div>
+
+            <h3>5.4. Scalability</h3>
+            <div class="recommendation">
+                <h4>💡 Scalability Considerations</h4>
+                <ul>
+                    <li><strong>Horizontal scaling:</strong> Web app có thể scale horizontal (stateless), nhưng cần:
+                        <ul>
+                            <li>Shared file storage (S3, Azure Blob, Cloudflare R2)</li>
+                            <li>Redis-based rate limiting</li>
+                            <li>Session store trong Redis (hiện tại dùng in-memory)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Worker scaling:</strong> Worker có thể scale horizontal (RabbitMQ queue-based)</li>
+                    <li><strong>Database scaling:</strong>
+                        <ul>
+                            <li>Read replicas cho read-heavy queries</li>
+                            <li>Connection pooling đã có</li>
+                            <li>Cần monitor slow queries</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <h3>5.5. Load Testing</h3>
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Chưa Có Load Testing</h4>
+                <ul>
+                    <li>Chưa verify hệ thống handle được 200-500 devices polling đồng thời</li>
+                    <li>Chưa biết p95/p99 latency trong production-like load</li>
+                    <li><strong>Khuyến nghị:</strong> Implement k6 hoặc NBomber tests cho:
+                        <ul>
+                            <li>Heartbeat scenario (500 devices, mỗi 30s)</li>
+                            <li>Playback state polling (500 devices, mỗi 60s)</li>
+                            <li>Schedule update fan-out (1 schedule update → 100 devices invalidate cache)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="reliability">
+            <h2>6. 🛡️ Độ Tin Cậy & Error Handling</h2>
+
+            <h3>6.1. Error Handling</h3>
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Error Handling Inconsistent</h4>
+                <ul>
+                    <li>Một số services throw exceptions, một số return result objects</li>
+                    <li>Không có global exception handler middleware</li>
+                    <li>RabbitMQ publish failures chỉ log warning, không retry</li>
+                    <li>Worker handler failures acknowledge message (không requeue), dựa vào TTL fallback</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Cải Thiện Error Handling</h4>
+                <ul>
+                    <li>Thêm global exception handler middleware</li>
+                    <li>Implement retry policy cho transient failures (Polly library)</li>
+                    <li>Thêm circuit breaker cho external dependencies (Redis, RabbitMQ)</li>
+                    <li>Implement dead letter queue (DLQ) cho failed messages</li>
+                    <li>Structured error logging với correlation IDs</li>
+                </ul>
+            </div>
+
+            <h3>6.2. Data Consistency</h3>
+            <div class="keep">
+                <h4>✅ Transactional Consistency</h4>
+                <ul>
+                    <li>DB changes commit trước khi publish events (at-least-once delivery)</li>
+                    <li>Schedule items là snapshot, không bị ảnh hưởng bởi playlist changes</li>
+                    <li>Device assignment changes publish union của old + new device codes</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity low">LOW</span> Eventual Consistency Gaps</h4>
+                <ul>
+                    <li>Nếu RabbitMQ publish fail, cache không được invalidate (dựa vào TTL)</li>
+                    <li>Nếu Worker crash giữa chừng, một số device caches không được invalidate</li>
+                    <li><strong>Khuyến nghị:</strong> Implement transactional outbox pattern khi message reliability trở nên critical</li>
+                </ul>
+            </div>
+
+            <h3>6.3. Health Checks</h3>
+            <div class="keep">
+                <h4>✅ Health Checks Comprehensive</h4>
+                <ul>
+                    <li><code>/health/live</code> - process running check</li>
+                    <li><code>/health/ready</code> - database, Redis, RabbitMQ connectivity</li>
+                    <li>Worker validates dependencies on startup</li>
+                    <li>JSON response format cho automation</li>
+                </ul>
+            </div>
+
+            <h3>6.4. Graceful Degradation</h3>
+            <div class="keep">
+                <h4>✅ Fallback Mechanisms</h4>
+                <ul>
+                    <li>Redis disabled → fallback to MemoryCache</li>
+                    <li>RabbitMQ disabled → NullMessagePublisher (no-op)</li>
+                    <li>ffprobe not available → skip validation (configurable)</li>
+                    <li>Cache miss → query database</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="observability">
+            <h2>7. 👁️ Observability & Monitoring</h2>
+
+            <h3>7.1. Logging</h3>
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> Logging Chưa Đủ Cho Production</h4>
+                <ul>
+                    <li><strong>Structured logging:</strong> Chưa có, đang dùng default ASP.NET Core logging</li>
+                    <li><strong>Log levels:</strong> Chưa có guideline rõ ràng về khi nào dùng Info/Warning/Error</li>
+                    <li><strong>Correlation IDs:</strong> Không có, khó trace request flow qua nhiều services</li>
+                    <li><strong>Sensitive data:</strong> Chưa có policy về việc không log passwords/tokens/secrets</li>
+                    <li><strong>Log aggregation:</strong> Chưa có centralized logging (Seq container có sẵn nhưng chưa integrate)</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Logging Roadmap</h4>
+                <ul>
+                    <li><strong>Phase 1:</strong> Integrate Serilog với structured logging
+                        <ul>
+                            <li>Log to console (JSON format) và Seq</li>
+                            <li>Thêm correlation ID middleware</li>
+                            <li>Log request/response cho API endpoints</li>
+                        </ul>
+                    </li>
+                    <li><strong>Phase 2:</strong> Thêm business event logging
+                        <ul>
+                            <li>User login/logout</li>
+                            <li>Schedule created/updated/deleted</li>
+                            <li>Device registered/secret rotated</li>
+                            <li>Video uploaded/deleted</li>
+                        </ul>
+                    </li>
+                    <li><strong>Phase 3:</strong> Performance logging
+                        <ul>
+                            <li>Slow query detection</li>
+                            <li>Cache hit/miss rates</li>
+                            <li>External service latency (Redis, RabbitMQ)</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <h3>7.2. Metrics</h3>
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> Thiếu Metrics</h4>
+                <ul>
+                    <li>Không có metrics về:
+                        <ul>
+                            <li>Request rate, latency (p50, p95, p99)</li>
+                            <li>Error rate</li>
+                            <li>Cache hit rate</li>
+                            <li>Database connection pool usage</li>
+                            <li>RabbitMQ queue depth</li>
+                            <li>Active devices count</li>
+                        </ul>
+                    </li>
+                    <li><strong>Khuyến nghị:</strong> Implement Prometheus metrics hoặc Application Insights</li>
+                </ul>
+            </div>
+
+            <h3>7.3. Tracing</h3>
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Không Có Distributed Tracing</h4>
+                <ul>
+                    <li>Khó trace request flow: Web → RabbitMQ → Worker → Redis</li>
+                    <li><strong>Khuyến nghị:</strong> Implement OpenTelemetry cho distributed tracing</li>
+                </ul>
+            </div>
+
+            <h3>7.4. Alerting</h3>
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> Không Có Alerting</h4>
+                <ul>
+                    <li>Không có alerts cho:
+                        <ul>
+                            <li>High error rate</li>
+                            <li>Database connection failures</li>
+                            <li>Redis/RabbitMQ down</li>
+                            <li>Disk space low (cho video uploads)</li>
+                            <li>High latency</li>
+                        </ul>
+                    </li>
+                    <li><strong>Khuyến nghị:</strong> Setup alerts với Grafana/Prometheus hoặc cloud provider monitoring</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="testing">
+            <h2>8. 🧪 Testing</h2>
+
+            <h3>8.1. Test Coverage</h3>
+            <div class="keep">
+                <h4>✅ Có Baseline Tests</h4>
+                <ul>
+                    <li><strong>Unit Tests:</strong>
+                        <ul>
+                            <li>PasswordHashingServiceTests</li>
+                            <li>DeviceCredentialServiceTests</li>
+                            <li>PlaybackScheduleServiceTests</li>
+                            <li>ScheduleCacheEventHandlerTests</li>
+                        </ul>
+                    </li>
+                    <li><strong>Integration Tests:</strong>
+                        <ul>
+                            <li>SecurityIntegrationTests (WebApplicationFactory-based)</li>
+                            <li>Test auth boundaries (anonymous, user, admin)</li>
+                            <li>Test mobile API device secret validation</li>
+                            <li>Test rate limiting</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Test Coverage Chưa Đủ</h4>
+                <ul>
+                    <li><strong>Missing unit tests:</strong>
+                        <ul>
+                            <li>MediaUploadService (upload validation logic)</li>
+                            <li>MobilePlaybackService</li>
+                            <li>MobilePlaybackCacheService</li>
+                            <li>TimeService (timezone conversion)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Missing integration tests:</strong>
+                        <ul>
+                            <li>E2E schedule creation → device polling flow</li>
+                            <li>Cache invalidation flow (web → RabbitMQ → worker → Redis)</li>
+                            <li>File upload → storage → retrieval</li>
+                            <li>Anti-forgery token validation</li>
+                        </ul>
+                    </li>
+                    <li><strong>No load tests:</strong> Chưa verify performance dưới load</li>
+                    <li><strong>No chaos tests:</strong> Chưa test behavior khi Redis/RabbitMQ down</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Testing Roadmap</h4>
+                <ul>
+                    <li><strong>Priority 1:</strong> Thêm unit tests cho business logic critical (upload validation, cache logic)</li>
+                    <li><strong>Priority 2:</strong> E2E integration tests cho main flows</li>
+                    <li><strong>Priority 3:</strong> Load tests với k6/NBomber</li>
+                    <li><strong>Priority 4:</strong> Chaos engineering tests</li>
+                </ul>
+            </div>
+
+            <h3>8.2. Test Quality</h3>
+            <div class="keep">
+                <h4>✅ Test Quality Tốt</h4>
+                <ul>
+                    <li>Tests có arrange-act-assert structure rõ ràng</li>
+                    <li>Test names descriptive</li>
+                    <li>Sử dụng WebApplicationFactory cho integration tests (best practice)</li>
+                    <li>Tests isolated, không depend vào nhau</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="deployment">
+            <h2>9. 🚀 Deployment & Infrastructure</h2>
+
+            <h3>9.1. Containerization</h3>
+            <div class="keep">
+                <h4>✅ Docker Setup Tốt</h4>
+                <ul>
+                    <li>Multi-stage Dockerfile (build + runtime)</li>
+                    <li>Sử dụng official Microsoft images</li>
+                    <li>Non-root user (implicit trong aspnet image)</li>
+                    <li>Health check endpoint có sẵn</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity low">LOW</span> Docker Improvements</h4>
+                <ul>
+                    <li>Dockerfile không có .dockerignore optimization</li>
+                    <li>Không có Docker Compose cho full stack (web + worker + dependencies)</li>
+                    <li>Image size chưa được optimize (có thể dùng Alpine-based images)</li>
+                </ul>
+            </div>
+
+            <h3>9.2. CI/CD</h3>
+            <div class="keep">
+                <h4>✅ CI/CD Pipeline Cơ Bản</h4>
+                <ul>
+                    <li><strong>CI workflow:</strong> Build + Test trên PR và push</li>
+                    <li><strong>Publish workflow:</strong> Build artifacts cho web và worker</li>
+                    <li>Sử dụng GitHub Actions</li>
+                    <li>.NET 8 SDK setup</li>
+                </ul>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> CI/CD Chưa Đầy Đủ</h4>
+                <ul>
+                    <li>Không có automated deployment</li>
+                    <li>Không có staging environment</li>
+                    <li>Không có smoke tests sau deploy</li>
+                    <li>Không có rollback mechanism</li>
+                    <li>Không có database migration automation</li>
+                    <li>Secrets management trong CI/CD chưa rõ ràng</li>
+                </ul>
+            </div>
+
+            <h3>9.3. Infrastructure as Code</h3>
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> Thiếu IaC</h4>
+                <ul>
+                    <li>Chỉ có docker-compose.infra.yml cho local development</li>
+                    <li>Không có Terraform/Pulumi/CloudFormation cho production infrastructure</li>
+                    <li>render.yaml chỉ cover web service, không cover worker</li>
+                    <li><strong>Khuyến nghị:</strong> Implement IaC cho reproducible infrastructure</li>
+                </ul>
+            </div>
+
+            <h3>9.4. Database Migrations</h3>
+            <div class="keep">
+                <h4>✅ Migration Strategy</h4>
+                <ul>
+                    <li>EF Core migrations cho SQL Server</li>
+                    <li>Startup có flag <code>Database:ApplyMigrationsOnStartup</code></li>
+                    <li>SQLite dùng EnsureCreated() cho quick dev</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 Migration Best Practices</h4>
+                <ul>
+                    <li>Không nên auto-apply migrations on startup trong production (risk of concurrent migrations)</li>
+                    <li>Nên run migrations trong separate deployment step trước khi deploy app</li>
+                    <li>Implement migration rollback strategy</li>
+                    <li>Test migrations trên production-like data volume</li>
+                </ul>
+            </div>
+
+            <h3>9.5. Configuration Management</h3>
+            <div class="keep">
+                <h4>✅ Configuration Flexibility</h4>
+                <ul>
+                    <li>Environment-based configuration (Development, Production)</li>
+                    <li>Support environment variables override</li>
+                    <li>Feature flags cho Redis, RabbitMQ, ffprobe</li>
+                    <li>Multi-database provider support</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div id="issues">
+            <h2>10. 🚨 Vấn Đề Cần Xử Lý Ngay</h2>
+
+            <h3>10.1. Critical Issues</h3>
+            <div class="issue">
+                <h4><span class="severity critical">CRITICAL</span> Không Có Observability</h4>
+                <p><strong>Vị trí:</strong> Toàn bộ hệ thống</p>
+                <p><strong>Vấn đề:</strong></p>
+                <ul>
+                    <li>Không có structured logging</li>
+                    <li>Không có metrics/monitoring</li>
+                    <li>Không có alerting</li>
+                    <li>Không thể debug production issues</li>
+                </ul>
+                <p><strong>Ảnh hưởng:</strong> Khi có incident, không biết gì đang xảy ra, không thể root cause, MTTR rất cao</p>
+                <p><strong>Khuyến nghị:</strong></p>
+                <ol>
+                    <li>Integrate Serilog + Seq ngay (infrastructure đã có)</li>
+                    <li>Thêm correlation ID middleware</li>
+                    <li>Log tất cả API requests với latency</li>
+                    <li>Setup basic Prometheus metrics</li>
+                    <li>Setup alerts cho error rate, latency, dependencies down</li>
+                </ol>
+            </div>
+
+            <h3>10.2. High Priority Issues</h3>
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> 1. Mật Khẩu Mặc Định Cố Định</h4>
+                <p><strong>File:</strong> <code>AdminController.cs</code></p>
+                <p><strong>Vấn đề:</strong> Tất cả user mới có password <code>TD@12345</code></p>
+                <p><strong>Fix:</strong></p>
+                <pre>// Generate random password
+var password = GenerateRandomPassword(12);
+var hashedPassword = _passwordHashingService.HashPassword(password);
+
+// Show password once to admin
+TempData["NewUserPassword"] = password;
+
+// Add MustChangePassword flag
+user.MustChangePassword = true;</pre>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> 2. Thiếu Audit Log</h4>
+                <p><strong>Vấn đề:</strong> Không trace được ai làm gì, khi nào</p>
+                <p><strong>Fix:</strong> Tạo bảng AuditLogs</p>
+                <pre>public class AuditLog
+{
+    public int Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string ActorType { get; set; } // "User", "Admin", "Device"
+    public int? ActorId { get; set; }
+    public string Action { get; set; } // "Login", "CreateSchedule", "DeleteVideo"
+    public string TargetType { get; set; }
+    public int? TargetId { get; set; }
+    public string IpAddress { get; set; }
+    public string UserAgent { get; set; }
+    public string Details { get; set; } // JSON
+}</pre>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity high">HIGH</span> 3. File Storage Không Scale</h4>
+                <p><strong>Vấn đề:</strong> Video files lưu local filesystem, không work với multiple instances</p>
+                <p><strong>Fix:</strong> Implement object storage</p>
+                <ul>
+                    <li>Phase 1: Abstract <code>IFileStorageService</code></li>
+                    <li>Phase 2: Implement S3-compatible provider (Cloudflare R2, AWS S3, MinIO)</li>
+                    <li>Phase 3: CDN cho video delivery</li>
+                </ul>
+            </div>
+
+            <h3>10.3. Medium Priority Issues</h3>
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> 4. Rate Limiter Không Distributed</h4>
+                <p><strong>File:</strong> <code>MobileRateLimitService.cs</code></p>
+                <p><strong>Vấn đề:</strong> In-memory counters, không work với multiple web instances</p>
+                <p><strong>Fix:</strong> Move counters sang Redis khi scale horizontal</p>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> 5. Thiếu Load Testing</h4>
+                <p><strong>Vấn đề:</strong> Chưa verify hệ thống handle 500 devices</p>
+                <p><strong>Fix:</strong> Implement k6 tests</p>
+                <pre>// k6 scenario
+export default function() {
+  const deviceCode = `DEV${__VU}`;
+  const secret = deviceSecrets[deviceCode];
+
+  // Heartbeat every 30s
+  http.post('http://api/mobile/heartbeat',
+    JSON.stringify({ deviceCode }),
+    { headers: { 'X-Device-Secret': secret } }
+  );
+
+  sleep(30);
+
+  // Poll playback state every 60s
+  http.get(`http://api/mobile/playback-state/${deviceCode}`,
+    { headers: { 'X-Device-Secret': secret } }
+  );
+
+  sleep(30);
+}</pre>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> 6. Thiếu Global Exception Handler</h4>
+                <p><strong>Vấn đề:</strong> Unhandled exceptions expose stack traces</p>
+                <p><strong>Fix:</strong> Thêm exception handler middleware</p>
+                <pre>app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionHandlerFeature = context.Features.Get&lt;IExceptionHandlerFeature&gt;();
+        var exception = exceptionHandlerFeature?.Error;
+
+        _logger.LogError(exception, "Unhandled exception");
+
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            success = false,
+            message = "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+            correlationId = context.TraceIdentifier
+        });
+    });
+});</pre>
+            </div>
+
+            <div class="issue">
+                <h4><span class="severity medium">MEDIUM</span> 7. Session Store Không Distributed</h4>
+                <p><strong>Vấn đề:</strong> Session lưu in-memory, mất khi restart hoặc scale horizontal</p>
+                <p><strong>Fix:</strong> Dùng Redis session store</p>
+                <pre>builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+});
+
+builder.Services.AddSession(options =>
+{
+    options.Cookie.IsEssential = true;
+});</pre>
+            </div>
+
+        </div>
+
+        <div id="keep">
+            <h2>11. ✅ Những Gì Nên Giữ Lại</h2>
+
+            <div class="keep">
+                <h3>11.1. Kiến Trúc & Design Patterns</h3>
+                <ul>
+                    <li><strong>Clean Architecture:</strong> Phân tách layer rõ ràng, dễ maintain và test</li>
+                    <li><strong>Event-Driven Architecture:</strong> RabbitMQ + Worker pattern cho async processing</li>
+                    <li><strong>Repository Pattern:</strong> Abstraction tốt cho data access</li>
+                    <li><strong>Dependency Injection:</strong> Loose coupling, dễ test</li>
+                    <li><strong>CQRS (nhẹ):</strong> AsNoTracking cho reads, tracking cho writes</li>
+                </ul>
+            </div>
+
+            <div class="keep">
+                <h3>11.2. Caching Strategy</h3>
+                <ul>
+                    <li><strong>Multi-layer cache:</strong> Per-device + shared schedule cache</li>
+                    <li><strong>Cache stampede prevention:</strong> Distributed lock</li>
+                    <li><strong>Event-driven invalidation:</strong> Không block web requests</li>
+                    <li><strong>Heartbeat throttling:</strong> Giảm DB writes</li>
+                    <li><strong>Graceful degradation:</strong> Fallback to MemoryCache khi Redis down</li>
+                </ul>
+            </div>
+
+            <div class="keep">
+                <h3>11.3. Security Implementations</h3>
+                <ul>
+                    <li><strong>Device authentication:</strong> Device secrets với bcrypt hashing</li>
+                    <li><strong>Rotate/revoke mechanism:</strong> Device secret lifecycle management</li>
+                    <li><strong>Upload validation:</strong> Extension, MIME, magic bytes, ffprobe</li>
+                    <li><strong>Rate limiting:</strong> Per-device, không chỉ per-IP</li>
+                    <li><strong>Anti-forgery tokens:</strong> CSRF protection</li>
+                </ul>
+            </div>
+
+            <div class="keep">
+                <h3>11.4. Database Design</h3>
+                <ul>
+                    <li><strong>Domain model:</strong> Phân biệt Playlist (template) vs Schedule (actual plan)</li>
+                    <li><strong>Snapshot pattern:</strong> Schedule items không bị ảnh hưởng khi playlist thay đổi</li>
+                    <li><strong>Indexing strategy:</strong> Composite indexes cho common queries</li>
+                    <li><strong>Multi-database support:</strong> SQLite, PostgreSQL, SQL Server</li>
+                </ul>
+            </div>
+
+            <div class="keep">
+                <h3>11.5. Code Quality</h3>
+                <ul>
+                    <li><strong>Nullable reference types:</strong> Compile-time null safety</li>
+                    <li><strong>Async/await:</strong> Không có blocking calls</li>
+                    <li><strong>SOLID principles:</strong> Single responsibility, interface segregation</li>
+                    <li><strong>Naming conventions:</strong> Nhất quán, dễ đọc</li>
+                </ul>
+            </div>
+
+            <div class="keep">
+                <h3>11.6. Testing Foundation</h3>
+                <ul>
+                    <li><strong>WebApplicationFactory:</strong> Integration tests với real HTTP pipeline</li>
+                    <li><strong>Security tests:</strong> Auth boundaries, device secrets, rate limiting</li>
+                    <li><strong>Unit tests:</strong> Business logic critical (password hashing, device credentials)</li>
+                </ul>
+            </div>
+
+            <div class="keep">
+                <h3>11.7. Operational Features</h3>
+                <ul>
+                    <li><strong>Health checks:</strong> /health/live và /health/ready</li>
+                    <li><strong>Feature flags:</strong> Redis, RabbitMQ, ffprobe có thể toggle</li>
+                    <li><strong>Configuration flexibility:</strong> Environment variables override</li>
+                    <li><strong>Docker support:</strong> Multi-stage build, health checks</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="remove">
+            <h2>12. ❌ Những Gì Nên Bỏ/Thay Đổi</h2>
+
+            <div class="remove">
+                <h3>12.1. Bỏ Hoặc Refactor</h3>
+
+                <h4>1. Manual Session Checks Trong Controllers</h4>
+                <p><strong>Vị trí:</strong> <code>AdminController.cs</code>, <code>PortalController.cs</code></p>
+                <p><strong>Vấn đề:</strong> Nhiều actions tự check <code>_currentSession</code> thay vì dùng <code>[Authorize]</code></p>
+                <p><strong>Khuyến nghị:</strong></p>
+                <ul>
+                    <li>Dùng <code>[Authorize(Roles = "Admin")]</code> và <code>[Authorize(Roles = "User")]</code></li>
+                    <li>Giữ <code>ICurrentSession</code> chỉ để lấy UserId/AdminId</li>
+                    <li>Implement custom authorization policies nếu cần logic phức tạp</li>
+                </ul>
+
+                <h4>2. Hardcoded Default Password</h4>
+                <p><strong>Vị trí:</strong> <code>AdminController.cs</code></p>
+                <p><strong>Vấn đề:</strong> <code>TD@12345</code> hardcoded</p>
+                <p><strong>Khuyến nghị:</strong> Bỏ hoàn toàn, thay bằng random password generation</p>
+
+                <h4>3. In-Memory Rate Limiter</h4>
+                <p><strong>Vị trí:</strong> <code>MobileRateLimitService.cs</code></p>
+                <p><strong>Vấn đề:</strong> Không work với multiple instances</p>
+                <p><strong>Khuyến nghị:</strong> Migrate sang Redis-based rate limiting khi cần scale horizontal</p>
+
+                <h4>4. Local File Storage</h4>
+                <p><strong>Vị trí:</strong> <code>MediaUploadService.cs</code></p>
+                <p><strong>Vấn đề:</strong> Không scale, không có backup, không có CDN</p>
+                <p><strong>Khuyến nghị:</strong> Migrate sang object storage (S3, R2, Azure Blob)</p>
+
+                <h4>5. NullMessagePublisher Pattern</h4>
+                <p><strong>Vị trí:</strong> <code>NullMessagePublisher.cs</code></p>
+                <p><strong>Vấn đề:</strong> Silent no-op khi RabbitMQ disabled, có thể gây confusion</p>
+                <p><strong>Khuyến nghị:</strong> Giữ cho development, nhưng log warning rõ ràng khi dùng trong production</p>
+            </div>
+
+            <div class="remove">
+                <h3>12.2. Không Nên Làm (Anti-patterns Cần Tránh)</h3>
+                <ul>
+                    <li><strong>Không auto-apply migrations on startup trong production:</strong> Risk của concurrent migrations</li>
+                    <li><strong>Không log passwords/secrets/tokens:</strong> Cần policy rõ ràng</li>
+                    <li><strong>Không dùng .Result hoặc .Wait():</strong> Deadlock risk (hiện tại đã tốt)</li>
+                    <li><strong>Không cascade delete User:</strong> Sẽ mất hết schedules/playlists, nên soft delete</li>
+                    <li><strong>Không expose stack traces ra client:</strong> Security risk</li>
+                </ul>
+            </div>
+
+            <div class="remove">
+                <h3>12.3. Technical Debt Cần Xử Lý</h3>
+                <ul>
+                    <li><strong>Error handling inconsistency:</strong> Một số throw exceptions, một số return results</li>
+                    <li><strong>Lack of correlation IDs:</strong> Khó trace requests</li>
+                    <li><strong>No retry policies:</strong> Transient failures không được handle</li>
+                    <li><strong>No circuit breakers:</strong> Cascading failures risk</li>
+                    <li><strong>No pagination:</strong> GetAllAsync methods có thể return quá nhiều data</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="roadmap">
+            <h2>13. 🗺️ Kế Hoạch Hành Động</h2>
+
+            <h3>Phase 1: Production Blockers (1-2 tuần)</h3>
+            <div class="issue">
+                <h4>🔥 Bắt Buộc Trước Khi Deploy Production</h4>
+                <table>
+                    <tr>
+                        <th>Task</th>
+                        <th>Priority</th>
+                        <th>Effort</th>
+                        <th>Impact</th>
+                    </tr>
+                    <tr>
+                        <td><strong>1. Structured Logging + Serilog</strong><br>Integrate Serilog, log to Seq, thêm correlation IDs</td>
+                        <td><span class="severity critical">CRITICAL</span></td>
+                        <td>2 days</td>
+                        <td>Có thể debug production issues</td>
+                    </tr>
+                    <tr>
+                        <td><strong>2. Basic Metrics + Alerting</strong><br>Prometheus metrics, Grafana dashboards, basic alerts</td>
+                        <td><span class="severity critical">CRITICAL</span></td>
+                        <td>3 days</td>
+                        <td>Biết khi nào hệ thống có vấn đề</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3. Fix Default Password</strong><br>Random password generation, MustChangePassword flag</td>
+                        <td><span class="severity high">HIGH</span></td>
+                        <td>1 day</td>
+                        <td>Tránh unauthorized access</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4. Audit Logging</strong><br>Tạo AuditLogs table, log sensitive operations</td>
+                        <td><span class="severity high">HIGH</span></td>
+                        <td>2 days</td>
+                        <td>Compliance, incident investigation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>5. Global Exception Handler</strong><br>Middleware catch unhandled exceptions, standardize error responses</td>
+                        <td><span class="severity high">HIGH</span></td>
+                        <td>1 day</td>
+                        <td>Không expose stack traces</td>
+                    </tr>
+                    <tr>
+                        <td><strong>6. Load Testing</strong><br>k6 tests với 500 devices, verify p95/p99 latency</td>
+                        <td><span class="severity high">HIGH</span></td>
+                        <td>2 days</td>
+                        <td>Biết hệ thống có handle được load không</td>
+                    </tr>
+                </table>
+                <p><strong>Total effort:</strong> ~11 days</p>
+            </div>
+
+            <h3>Phase 2: Quick Wins (1 tuần)</h3>
+            <div class="recommendation">
+                <h4>💡 Cải Thiện Nhanh, Ít Rủi Ro</h4>
+                <ul>
+                    <li><strong>Login rate limiting:</strong> 5 attempts / 15 minutes (1 day)</li>
+                    <li><strong>Content Security Policy headers:</strong> XSS protection (0.5 day)</li>
+                    <li><strong>HTTPS enforcement:</strong> HSTS headers (0.5 day)</li>
+                    <li><strong>Pagination cho list endpoints:</strong> Tránh large result sets (1 day)</li>
+                    <li><strong>Redis session store:</strong> Distributed sessions (1 day)</li>
+                    <li><strong>Retry policies:</strong> Polly cho transient failures (1 day)</li>
+                    <li><strong>API versioning:</strong> /api/v1/mobile/... (0.5 day)</li>
+                </ul>
+                <p><strong>Total effort:</strong> ~5.5 days</p>
+            </div>
+
+            <h3>Phase 3: Scalability (2-3 tuần)</h3>
+            <div class="recommendation">
+                <h4>📈 Chuẩn Bị Scale</h4>
+                <ul>
+                    <li><strong>Object Storage:</strong> S3/R2/Azure Blob cho video files (3 days)</li>
+                    <li><strong>CDN:</strong> CloudFlare/CloudFront cho video delivery (2 days)</li>
+                    <li><strong>Redis-based rate limiting:</strong> Distributed rate limiter (2 days)</li>
+                    <li><strong>Database read replicas:</strong> Nếu cần (3 days)</li>
+                    <li><strong>Worker scaling:</strong> Multiple worker instances (1 day)</li>
+                    <li><strong>Infrastructure as Code:</strong> Terraform/Pulumi (5 days)</li>
+                </ul>
+                <p><strong>Total effort:</strong> ~16 days</p>
+            </div>
+
+            <h3>Phase 4: Reliability & Resilience (2 tuần)</h3>
+            <div class="recommendation">
+                <h4>🛡️ Tăng Độ Tin Cậy</h4>
+                <ul>
+                    <li><strong>Circuit breakers:</strong> Polly circuit breaker cho Redis, RabbitMQ (2 days)</li>
+                    <li><strong>Transactional outbox:</strong> Reliable message delivery (3 days)</li>
+                    <li><strong>Dead letter queue:</strong> Handle failed messages (2 days)</li>
+                    <li><strong>Soft delete:</strong> Audit trail cho deleted entities (2 days)</li>
+                    <li><strong>Backup & restore procedures:</strong> Database, Redis, file storage (2 days)</li>
+                    <li><strong>Disaster recovery plan:</strong> Documentation (1 day)</li>
+                </ul>
+                <p><strong>Total effort:</strong> ~12 days</p>
+            </div>
+
+            <h3>Phase 5: Advanced Observability (1-2 tuần)</h3>
+            <div class="recommendation">
+                <h4>👁️ Deep Visibility</h4>
+                <ul>
+                    <li><strong>Distributed tracing:</strong> OpenTelemetry (3 days)</li>
+                    <li><strong>APM:</strong> Application Insights hoặc Datadog (2 days)</li>
+                    <li><strong>Custom business metrics:</strong> Active schedules, devices online, upload rate (2 days)</li>
+                    <li><strong>Log aggregation:</strong> ELK stack hoặc cloud logging (3 days)</li>
+                    <li><strong>Synthetic monitoring:</strong> Uptime checks, API health (1 day)</li>
+                </ul>
+                <p><strong>Total effort:</strong> ~11 days</p>
+            </div>
+
+            <h3>Phase 6: Testing & Quality (2 tuần)</h3>
+            <div class="recommendation">
+                <h4>🧪 Tăng Test Coverage</h4>
+                <ul>
+                    <li><strong>Unit tests:</strong> MediaUploadService, MobilePlaybackService, TimeService (3 days)</li>
+                    <li><strong>Integration tests:</strong> E2E flows, cache invalidation (3 days)</li>
+                    <li><strong>Performance tests:</strong> Stress tests, soak tests (2 days)</li>
+                    <li><strong>Chaos engineering:</strong> Redis down, RabbitMQ down scenarios (2 days)</li>
+                    <li><strong>Security tests:</strong> OWASP ZAP, penetration testing (2 days)</li>
+                </ul>
+                <p><strong>Total effort:</strong> ~12 days</p>
+            </div>
+
+            <h3>Phase 7: Long-term Improvements (Ongoing)</h3>
+            <div class="recommendation">
+                <h4>🚀 Continuous Improvement</h4>
+                <ul>
+                    <li><strong>Video thumbnail generation:</strong> Worker + FFmpeg (Milestone 10)</li>
+                    <li><strong>Video transcoding:</strong> Multiple resolutions, adaptive bitrate</li>
+                    <li><strong>Advanced analytics:</strong> Device usage patterns, popular content</li>
+                    <li><strong>Multi-tenancy:</strong> Nếu cần isolate users hoàn toàn</li>
+                    <li><strong>GraphQL API:</strong> Nếu mobile app cần flexible queries</li>
+                    <li><strong>Real-time notifications:</strong> SignalR cho live updates</li>
+                </ul>
+            </div>
+
+            <h3>Summary Timeline</h3>
+            <table>
+                <tr>
+                    <th>Phase</th>
+                    <th>Duration</th>
+                    <th>Focus</th>
+                    <th>Blocking?</th>
+                </tr>
+                <tr>
+                    <td>Phase 1: Production Blockers</td>
+                    <td>1-2 weeks</td>
+                    <td>Observability, Security, Performance validation</td>
+                    <td><span class="severity critical">YES</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 2: Quick Wins</td>
+                    <td>1 week</td>
+                    <td>Security hardening, UX improvements</td>
+                    <td><span class="severity high">RECOMMENDED</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 3: Scalability</td>
+                    <td>2-3 weeks</td>
+                    <td>Object storage, CDN, horizontal scaling</td>
+                    <td><span class="severity medium">BEFORE SCALE</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 4: Reliability</td>
+                    <td>2 weeks</td>
+                    <td>Circuit breakers, outbox, DR</td>
+                    <td><span class="severity medium">NICE TO HAVE</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 5: Advanced Observability</td>
+                    <td>1-2 weeks</td>
+                    <td>Tracing, APM, advanced metrics</td>
+                    <td><span class="severity low">OPTIONAL</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 6: Testing</td>
+                    <td>2 weeks</td>
+                    <td>Test coverage, chaos engineering</td>
+                    <td><span class="severity medium">RECOMMENDED</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 7: Long-term</td>
+                    <td>Ongoing</td>
+                    <td>Feature enhancements</td>
+                    <td><span class="severity low">OPTIONAL</span></td>
+                </tr>
+            </table>
+
+        </div>
+
+        <div style="margin-top: 60px; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px;">
+            <h2 style="color: white; border: none; margin: 0;">📊 Tổng Kết Đánh Giá</h2>
+
+            <div style="margin-top: 20px;">
+                <h3 style="color: white;">Production Readiness Score: 65/100</h3>
+
+                <table style="margin-top: 20px;">
+                    <tr style="background: rgba(255,255,255,0.1);">
+                        <th style="color: white;">Tiêu Chí</th>
+                        <th style="color: white;">Điểm</th>
+                        <th style="color: white;">Nhận Xét</th>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Architecture & Design</td>
+                        <td style="color: white;"><strong>9/10</strong></td>
+                        <td style="color: white;">Clean Architecture xuất sắc, event-driven tốt</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Code Quality</td>
+                        <td style="color: white;"><strong>8/10</strong></td>
+                        <td style="color: white;">SOLID, async/await đúng, nullable types</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Security</td>
+                        <td style="color: white;"><strong>6/10</strong></td>
+                        <td style="color: white;">Device auth tốt, nhưng thiếu audit log, default password issue</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Performance</td>
+                        <td style="color: white;"><strong>8/10</strong></td>
+                        <td style="color: white;">Caching xuất sắc, indexing tốt, chưa load test</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Reliability</td>
+                        <td style="color: white;"><strong>6/10</strong></td>
+                        <td style="color: white;">Health checks tốt, thiếu retry/circuit breaker</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Observability</td>
+                        <td style="color: white;"><strong>2/10</strong></td>
+                        <td style="color: white;">⚠️ CRITICAL GAP - Không có logging/metrics/alerting</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Testing</td>
+                        <td style="color: white;"><strong>5/10</strong></td>
+                        <td style="color: white;">Có baseline tests, coverage chưa đủ</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Deployment</td>
+                        <td style="color: white;"><strong>6/10</strong></td>
+                        <td style="color: white;">Docker tốt, CI/CD cơ bản, thiếu IaC</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Scalability</td>
+                        <td style="color: white;"><strong>7/10</strong></td>
+                        <td style="color: white;">Stateless web, worker scalable, file storage chưa scale</td>
+                    </tr>
+                    <tr>
+                        <td style="color: white;">Documentation</td>
+                        <td style="color: white;"><strong>8/10</strong></td>
+                        <td style="color: white;">PROJECT_CONTEXT.md tốt, MILESTONES.md chi tiết</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h3 style="color: white; margin-top: 0;">🎯 Kết Luận</h3>
+                <p style="color: white; font-size: 1.1em; line-height: 1.8;">
+                    <strong>VendingAd System có nền tảng kiến trúc và code quality rất tốt.</strong> Clean Architecture, event-driven design, và caching strategy đều ở mức xuất sắc. Tuy nhiên, hệ thống <strong>CHƯA SẴN SÀNG cho production</strong> do thiếu observability nghiêm trọng.
+                </p>
+                <p style="color: white; font-size: 1.1em; line-height: 1.8;">
+                    <strong>Ưu tiên tuyệt đối:</strong> Implement structured logging, metrics, và alerting trước khi deploy. Không có observability = không thể vận hành production.
+                </p>
+                <p style="color: white; font-size: 1.1em; line-height: 1.8;">
+                    <strong>Timeline khuyến nghị:</strong> 1-2 tuần cho Phase 1 (production blockers), sau đó có thể deploy với monitoring chặt chẽ. Phase 2-3 nên hoàn thành trong 1 tháng đầu sau launch.
+                </p>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h3 style="color: white; margin-top: 0;">💪 Điểm Mạnh Nổi Bật</h3>
+                <ul style="color: white; font-size: 1.05em;">
+                    <li>Event-driven architecture với RabbitMQ + Worker</li>
+                    <li>Multi-layer caching strategy với Redis</li>
+                    <li>Device authentication với secret rotation</li>
+                    <li>Clean separation of concerns</li>
+                    <li>Comprehensive upload validation</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h3 style="color: white; margin-top: 0;">⚠️ Rủi Ro Lớn Nhất</h3>
+                <ol style="color: white; font-size: 1.05em;">
+                    <li><strong>Không có observability</strong> - Không thể debug production issues</li>
+                    <li><strong>Default password cố định</strong> - Security risk</li>
+                    <li><strong>Thiếu audit log</strong> - Không trace được incidents</li>
+                    <li><strong>File storage không scale</strong> - Blocking horizontal scaling</li>
+                    <li><strong>Chưa load test</strong> - Không biết hệ thống có handle được load không</li>
+                </ol>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-left: 4px solid #3498db;">
+            <p style="margin: 0; color: #555;">
+                <strong>Báo cáo này được tạo bởi:</strong> Senior Software Architect / Principal Engineer<br>
+                <strong>Ngày:</strong> 21/05/2026<br>
+                <strong>Phiên bản hệ thống:</strong> Milestone 9.6 (Post Event-Driven Architecture)<br>
+                <strong>Liên hệ:</strong> Để thảo luận chi tiết về roadmap implementation
+            </p>
+        </div>
+        </div>
+
+        <!-- TODO ROADMAP SECTION -->
+        <div id="todo-tab" class="tab-panel">
+        <div id="todo-roadmap" style="margin-top: 0;">
+            <h1 style="color: #2c3e50; border-bottom: 3px solid #e74c3c; padding-bottom: 10px;">
+                ✅ TODO Roadmap - Production Readiness
+            </h1>
+
+            <div class="meta" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <p style="color: white;"><strong>Timeline:</strong> 2 tuần (nếu có deadline) đến 1 tháng (trường hợp tốt nhất)</p>
+                <p style="color: white;"><strong>Team size:</strong> 1 người (solo developer)</p>
+                <p style="color: white;"><strong>Constraints:</strong> GitHub Codespaces, không dùng paid services, file storage flexible</p>
+                <p style="color: white;"><strong>Target:</strong> Deploy production với SQL Server + file storage trên server công ty</p>
+            </div>
+
+            <div style="margin: 30px 0; padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
+                <h3 style="margin-top: 0;">📊 Progress Tracker</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div id="phase-1-count" style="font-size: 2em; font-weight: bold; color: #e74c3c;">3/15</div>
+                        <div style="color: #666; margin-top: 5px;">Phase 1: Critical</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div id="phase-2-count" style="font-size: 2em; font-weight: bold; color: #e67e22;">0/12</div>
+                        <div style="color: #666; margin-top: 5px;">Phase 2: High Priority</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div id="phase-3-count" style="font-size: 2em; font-weight: bold; color: #f39c12;">0/10</div>
+                        <div style="color: #666; margin-top: 5px;">Phase 3: Medium Priority</div>
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div id="phase-4-count" style="font-size: 2em; font-weight: bold; color: #3498db;">0/8</div>
+                        <div style="color: #666; margin-top: 5px;">Phase 4: Future</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: white; border-radius: 8px;">
+                    <strong>Overall Progress:</strong>
+                    <div style="background: #ecf0f1; height: 30px; border-radius: 15px; margin-top: 10px; overflow: hidden;">
+                        <div id="overall-progress-bar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 7%; transition: width 0.3s;"></div>
+                    </div>
+                    <div id="overall-progress-text" style="text-align: center; margin-top: 10px; font-size: 1.2em; font-weight: bold;">3/45 tasks completed (7%)</div>
+                </div>
+            </div>
+
+            <!-- PHASE 1: CRITICAL (Week 1-2) -->
+            <div style="margin-top: 40px;">
+                <h2 style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 0;">
+                    🔥 Phase 1: Critical - BẮT BUỘC Trước Production (Week 1-2)
+                </h2>
+                <div style="background: #fff; border: 2px solid #e74c3c; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 1.1em; color: #e74c3c; font-weight: bold;">⚠️ Không deploy production nếu chưa hoàn thành phase này!</p>
+                    <p><strong>Total effort:</strong> ~80 hours (2 tuần full-time)</p>
+
+                    <!-- Task 1.1 -->
+                    <div class="task-item is-complete" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-1" checked style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-1" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.1. Implement Structured Logging với Serilog
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 12 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Có khả năng debug production issues</p>
+                        <p><strong>Files cần sửa:</strong></p>
+                        <ul>
+                            <li><code>VendingAdSystem.csproj</code> - Add Serilog packages</li>
+                            <li><code>Program.cs</code> - Configure Serilog</li>
+                            <li><code>appsettings.json</code> - Logging configuration</li>
+                        </ul>
+                        <p><strong>Implementation:</strong></p>
+                        <pre style="font-size: 0.9em;">// Install packages
+dotnet add package Serilog.AspNetCore
+dotnet add package Serilog.Sinks.Console
+dotnet add package Serilog.Sinks.File
+dotnet add package Serilog.Sinks.Seq
+
+// Program.cs
+builder.Host.UseSerilog((context, config) =>
+{
+    config
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "VendingAdSystem")
+        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+        .WriteTo.File("logs/vendingad-.log", rollingInterval: RollingInterval.Day)
+        .WriteTo.Seq("http://localhost:5341"); // Seq container đã có
+});</pre>
+                        <p><strong>Acceptance criteria:</strong></p>
+                        <ul>
+                            <li>✅ Logs xuất ra console với JSON format</li>
+                            <li>✅ Logs lưu vào file theo ngày</li>
+                            <li>✅ Logs gửi đến Seq (local)</li>
+                            <li>✅ Correlation ID cho mỗi request</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.2 -->
+                    <div class="task-item is-complete" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-2" checked style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-2" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.2. Thêm Correlation ID Middleware
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Trace request flow qua nhiều services</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>Middleware/CorrelationIdMiddleware.cs</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">public class CorrelationIdMiddleware
+{
+    private readonly RequestDelegate _next;
+    private const string CorrelationIdHeader = "X-Correlation-ID";
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault()
+            ?? Guid.NewGuid().ToString();
+
+        context.Items["CorrelationId"] = correlationId;
+        context.Response.Headers[CorrelationIdHeader] = correlationId;
+
+        using (LogContext.PushProperty("CorrelationId", correlationId))
+        {
+            await _next(context);
+        }
+    }
+}</pre>
+                    </div>
+
+                    <!-- Task 1.3 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-3" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-3" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.3. Fix Default Password Issue
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Loại bỏ security risk từ password cố định</p>
+                        <p><strong>Files cần sửa:</strong></p>
+                        <ul>
+                            <li><code>Controllers/AdminController.cs</code> - CreateUser, ResetPassword</li>
+                            <li><code>Domain/Entities/User.cs</code> - Add MustChangePassword</li>
+                            <li><code>Controllers/AccountController.cs</code> - Force password change</li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">// Generate random password
+private string GenerateRandomPassword(int length = 12)
+{
+    const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+    var random = new Random();
+    return new string(Enumerable.Range(0, length)
+        .Select(_ => chars[random.Next(chars.Length)])
+        .ToArray());
+}
+
+// In CreateUser action
+var tempPassword = GenerateRandomPassword();
+user.PasswordHash = _passwordHashingService.HashPassword(tempPassword);
+user.MustChangePassword = true;
+
+TempData["NewUserPassword"] = tempPassword;
+TempData["NewUserUsername"] = user.Username;</pre>
+                        <p><strong>Acceptance criteria:</strong></p>
+                        <ul>
+                            <li>✅ Mỗi user mới có password random unique</li>
+                            <li>✅ Password hiển thị một lần cho admin</li>
+                            <li>✅ User bắt buộc đổi password sau lần login đầu</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.4 -->
+                    <div class="task-item is-complete" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-4" checked style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-4" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.4. Implement Audit Logging
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 10 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Track sensitive operations cho compliance và incident investigation</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>Domain/Entities/AuditLog.cs</code></li>
+                            <li><code>Application/Services/AuditService.cs</code></li>
+                            <li><code>Infrastructure/Persistence/Migrations/AddAuditLog.cs</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">public class AuditLog
+{
+    public int Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string ActorType { get; set; } // "User", "Admin", "Device"
+    public int? ActorId { get; set; }
+    public string Action { get; set; } // "Login", "CreateSchedule", "DeleteVideo"
+    public string TargetType { get; set; }
+    public int? TargetId { get; set; }
+    public string IpAddress { get; set; }
+    public string UserAgent { get; set; }
+    public string Details { get; set; } // JSON
+}
+
+// Usage
+await _auditService.LogAsync(new AuditLogEntry
+{
+    ActorType = "Admin",
+    ActorId = adminId,
+    Action = "CreateUser",
+    TargetType = "User",
+    TargetId = newUser.Id,
+    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+    Details = JsonSerializer.Serialize(new { Username = newUser.Username })
+});</pre>
+                        <p><strong>Events cần audit:</strong></p>
+                        <ul>
+                            <li>Login/Logout (success & failed attempts)</li>
+                            <li>Create/Update/Delete User</li>
+                            <li>Reset Password</li>
+                            <li>Device Secret Rotate/Revoke</li>
+                            <li>Upload/Delete Video</li>
+                            <li>Create/Update/Delete Schedule</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.5 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-5" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-5" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.5. Global Exception Handler Middleware
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Không expose stack traces, standardize error responses</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>Middleware/GlobalExceptionHandlerMiddleware.cs</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">public class GlobalExceptionHandlerMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger&lt;GlobalExceptionHandlerMiddleware&gt; _logger;
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            var correlationId = context.Items["CorrelationId"]?.ToString() ?? context.TraceIdentifier;
+            _logger.LogError(ex, "Unhandled exception. CorrelationId: {CorrelationId}", correlationId);
+
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "application/json";
+
+            await context.Response.WriteAsJsonAsync(new
+            {
+                success = false,
+                message = "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+                correlationId
+            });
+        }
+    }
+}
+
+// Program.cs
+app.UseMiddleware&lt;GlobalExceptionHandlerMiddleware&gt;();</pre>
+                    </div>
+
+                    <!-- Task 1.6 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-6" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-6" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.6. Implement File Storage Abstraction
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Flexible file storage, dễ migrate sang server công ty sau này</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>Application/Services/IFileStorageService.cs</code></li>
+                            <li><code>Infrastructure/Storage/LocalFileStorageService.cs</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">public interface IFileStorageService
+{
+    Task&lt;string&gt; SaveAsync(Stream stream, string fileName, string contentType);
+    Task&lt;Stream&gt; GetAsync(string fileUrl);
+    Task DeleteAsync(string fileUrl);
+    Task&lt;bool&gt; ExistsAsync(string fileUrl);
+    string GetPublicUrl(string fileUrl);
+}
+
+public class LocalFileStorageService : IFileStorageService
+{
+    private readonly string _basePath;
+    private readonly string _baseUrl;
+
+    public async Task&lt;string&gt; SaveAsync(Stream stream, string fileName, string contentType)
+    {
+        var uniqueName = $"{Guid.NewGuid():N}{Path.GetExtension(fileName)}";
+        var filePath = Path.Combine(_basePath, uniqueName);
+
+        await using var fileStream = new FileStream(filePath, FileMode.Create);
+        await stream.CopyToAsync(fileStream);
+
+        return $"/uploads/{uniqueName}";
+    }
+    // ... other methods
+}</pre>
+                        <p><strong>Acceptance criteria:</strong></p>
+                        <ul>
+                            <li>✅ MediaUploadService dùng IFileStorageService thay vì direct file I/O</li>
+                            <li>✅ Dễ dàng swap sang S3/Azure Blob/server công ty sau này</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.7 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-7" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-7" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.7. Setup Basic Prometheus Metrics
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Monitor hệ thống health, performance</p>
+                        <p><strong>Files cần sửa:</strong></p>
+                        <ul>
+                            <li><code>VendingAdSystem.csproj</code> - Add prometheus-net packages</li>
+                            <li><code>Program.cs</code> - Configure metrics</li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">// Install
+dotnet add package prometheus-net.AspNetCore
+
+// Program.cs
+app.UseHttpMetrics(); // Track HTTP metrics
+app.MapMetrics(); // Expose /metrics endpoint
+
+// Custom metrics
+public class MetricsService
+{
+    private static readonly Counter RequestCounter = Metrics
+        .CreateCounter("vendingad_requests_total", "Total requests", "endpoint", "method");
+
+    private static readonly Histogram RequestDuration = Metrics
+        .CreateHistogram("vendingad_request_duration_seconds", "Request duration", "endpoint");
+
+    private static readonly Gauge ActiveDevices = Metrics
+        .CreateGauge("vendingad_active_devices", "Number of active devices");
+}</pre>
+                        <p><strong>Metrics cần track:</strong></p>
+                        <ul>
+                            <li>HTTP request rate, latency (p50, p95, p99)</li>
+                            <li>Error rate</li>
+                            <li>Active devices count</li>
+                            <li>Cache hit/miss rate</li>
+                            <li>Database query duration</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.8 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-8" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-8" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.8. Setup Grafana Dashboards (Free)
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Visualize metrics, setup alerts</p>
+                        <p><strong>Setup:</strong></p>
+                        <pre style="font-size: 0.9em;">// docker-compose.infra.yml - Add Prometheus + Grafana
+prometheus:
+  image: prom/prometheus:latest
+  container_name: vendingad-prometheus
+  ports:
+    - "9090:9090"
+  volumes:
+    - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    - prometheus-data:/prometheus
+
+grafana:
+  image: grafana/grafana:latest
+  container_name: vendingad-grafana
+  ports:
+    - "3000:3000"
+  volumes:
+    - grafana-data:/var/lib/grafana
+  environment:
+    - GF_SECURITY_ADMIN_PASSWORD=admin</pre>
+                        <p><strong>Dashboards cần tạo:</strong></p>
+                        <ul>
+                            <li>System Overview (CPU, Memory, Request rate)</li>
+                            <li>API Performance (Latency, Error rate)</li>
+                            <li>Device Monitoring (Active devices, Heartbeat rate)</li>
+                            <li>Cache Performance (Hit rate, Eviction rate)</li>
+                        </ul>
+                        <p><strong>Alerts cần setup:</strong></p>
+                        <ul>
+                            <li>Error rate > 5% trong 5 phút</li>
+                            <li>P95 latency > 2s</li>
+                            <li>Database connection failures</li>
+                            <li>Redis/RabbitMQ down</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.9 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-9" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-9" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.9. Load Testing với k6
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 10 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Verify hệ thống handle 500 devices polling</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>load-tests/device-polling.js</code></li>
+                            <li><code>load-tests/schedule-update.js</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">// Install k6: https://k6.io/docs/get-started/installation/
+// device-polling.js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+export const options = {
+  stages: [
+    { duration: '2m', target: 100 }, // Ramp up to 100 devices
+    { duration: '5m', target: 500 }, // Stay at 500 devices
+    { duration: '2m', target: 0 },   // Ramp down
+  ],
+  thresholds: {
+    http_req_duration: ['p(95)<2000'], // 95% requests < 2s
+    http_req_failed: ['rate<0.05'],    // Error rate < 5%
+  },
+};
+
+export default function () {
+  const deviceCode = `DEV${__VU}`;
+  const secret = 'vad_test_secret'; // Generate proper secrets
+
+  // Heartbeat
+  const heartbeatRes = http.post(
+    'http://localhost:8080/api/mobile/heartbeat',
+    JSON.stringify({ deviceCode }),
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Secret': secret,
+      },
+    }
+  );
+  check(heartbeatRes, { 'heartbeat status 200': (r) => r.status === 200 });
+
+  sleep(30);
+
+  // Playback state
+  const playbackRes = http.get(
+    `http://localhost:8080/api/mobile/playback-state/${deviceCode}`,
+    { headers: { 'X-Device-Secret': secret } }
+  );
+  check(playbackRes, { 'playback status 200': (r) => r.status === 200 });
+
+  sleep(30);
+}
+
+// Run: k6 run device-polling.js</pre>
+                        <p><strong>Scenarios cần test:</strong></p>
+                        <ul>
+                            <li>500 devices polling heartbeat + playback state</li>
+                            <li>Schedule update → cache invalidation → 100 devices refresh</li>
+                            <li>Video upload concurrent (10 users)</li>
+                        </ul>
+                        <p><strong>Success criteria:</strong></p>
+                        <ul>
+                            <li>✅ P95 latency < 2s</li>
+                            <li>✅ Error rate < 5%</li>
+                            <li>✅ No memory leaks</li>
+                            <li>✅ Cache hit rate > 80%</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.10 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-10" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-10" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.10. SQL Server Migration Testing
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Verify migrations work trên SQL Server production</p>
+                        <p><strong>Tasks:</strong></p>
+                        <ul>
+                            <li>Test migrations trên clean SQL Server database</li>
+                            <li>Test rollback migrations</li>
+                            <li>Verify indexes được tạo đúng</li>
+                            <li>Test data seeding</li>
+                            <li>Performance test queries trên SQL Server</li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">// Test script
+# 1. Start SQL Server container
+docker compose -f docker-compose.infra.yml up -d sqlserver
+
+# 2. Apply migrations
+DatabaseProvider=SqlServer \
+ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdTest;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;" \
+Database__ApplyMigrationsOnStartup=true \
+dotnet run --project VendingAdSolution/VendingAdSystem
+
+# 3. Verify tables
+docker exec vendingad-sqlserver /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P 'VendingAd@12345' \
+  -Q "SELECT name FROM VendingAdTest.sys.tables"
+
+# 4. Verify indexes
+docker exec vendingad-sqlserver /opt/mssql-tools/bin/sqlcmd \
+  -S localhost -U sa -P 'VendingAd@12345' \
+  -Q "SELECT name, type_desc FROM VendingAdTest.sys.indexes WHERE object_id = OBJECT_ID('Devices')"</pre>
+                    </div>
+
+                    <!-- Task 1.11 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-11" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-11" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.11. Production Configuration Hardening
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Secure production configuration</p>
+                        <p><strong>Files cần sửa:</strong></p>
+                        <ul>
+                            <li><code>appsettings.Production.json</code></li>
+                            <li><code>Program.cs</code></li>
+                            <li><code>.gitignore</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">// appsettings.Production.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "Seed": {
+    "EnableDemoData": false // MUST be false
+  },
+  "Database": {
+    "ApplyMigrationsOnStartup": false, // Run migrations separately
+    "EnsureCreatedOnStartup": false
+  },
+  "AllowedHosts": "yourdomain.com" // Specific domain
+}
+
+// .gitignore - Add
+appsettings.Development.json
+appsettings.Production.json
+*.db
+*.db-shm
+*.db-wal</pre>
+                        <p><strong>Security checklist:</strong></p>
+                        <ul>
+                            <li>✅ Seed:EnableDemoData = false</li>
+                            <li>✅ HTTPS enforced (HSTS headers)</li>
+                            <li>✅ Secrets từ environment variables, không hardcode</li>
+                            <li>✅ AllowedHosts configured</li>
+                            <li>✅ Cookie SecurePolicy = Always trong production</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.12 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-12" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-12" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.12. Security Headers Middleware
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 3 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Protect against XSS, clickjacking, etc.</p>
+                        <pre style="font-size: 0.9em;">// Program.cs
+app.Use(async (context, next) =>
+{
+    // HSTS
+    context.Response.Headers.Add("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+
+    // XSS Protection
+    context.Response.Headers.Add("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Add("X-Frame-Options", "DENY");
+    context.Response.Headers.Add("X-XSS-Protection", "1; mode=block");
+
+    // CSP
+    context.Response.Headers.Add("Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;");
+
+    // Referrer Policy
+    context.Response.Headers.Add("Referrer-Policy", "strict-origin-when-cross-origin");
+
+    await next();
+});</pre>
+                    </div>
+
+                    <!-- Task 1.13 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-13" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-13" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.13. Database Backup Strategy
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Không mất data khi có incident</p>
+                        <p><strong>Tasks:</strong></p>
+                        <ul>
+                            <li>Document backup procedure cho SQL Server</li>
+                            <li>Setup automated daily backups</li>
+                            <li>Test restore procedure</li>
+                            <li>Document retention policy (30 days)</li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">-- SQL Server backup script
+BACKUP DATABASE VendingAdDb
+TO DISK = '/var/opt/mssql/backup/VendingAdDb_Full.bak'
+WITH FORMAT, INIT, COMPRESSION,
+NAME = 'VendingAdDb Full Backup';
+
+-- Automated backup (cron job)
+0 2 * * * /usr/local/bin/backup-vendingad.sh</pre>
+                    </div>
+
+                    <!-- Task 1.14 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-14" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-14" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.14. Production Deployment Documentation
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Reproducible deployment process</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>DEPLOYMENT.md</code> - Step-by-step deployment guide</li>
+                            <li><code>RUNBOOK.md</code> - Operational procedures</li>
+                            <li><code>TROUBLESHOOTING.md</code> - Common issues & solutions</li>
+                        </ul>
+                        <p><strong>Nội dung cần document:</strong></p>
+                        <ul>
+                            <li>Pre-deployment checklist</li>
+                            <li>Database migration procedure</li>
+                            <li>Environment variables setup</li>
+                            <li>Health check verification</li>
+                            <li>Rollback procedure</li>
+                            <li>Monitoring dashboard URLs</li>
+                            <li>Alert escalation process</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 1.15 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-1-15" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-1-15" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                1.15. E2E Smoke Tests
+                            </label>
+                            <span class="severity critical" style="margin-left: 10px;">CRITICAL</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 5 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Verify critical flows work sau deployment</p>
+                        <p><strong>Files cần tạo:</strong></p>
+                        <ul>
+                            <li><code>smoke-tests/critical-flows.sh</code></li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">#!/bin/bash
+# Smoke test script
+BASE_URL="http://localhost:8080"
+
+echo "1. Health checks..."
+curl -f $BASE_URL/health/live || exit 1
+curl -f $BASE_URL/health/ready || exit 1
+
+echo "2. Login flow..."
+# Test admin login
+# Test user login
+
+echo "3. Device API..."
+# Test device heartbeat
+# Test playback state
+
+echo "4. Upload flow..."
+# Test video upload
+
+echo "✅ All smoke tests passed!"</pre>
+                        <p><strong>Critical flows cần test:</strong></p>
+                        <ul>
+                            <li>Health checks (live, ready)</li>
+                            <li>Admin login</li>
+                            <li>User login</li>
+                            <li>Device heartbeat</li>
+                            <li>Device playback state</li>
+                            <li>Video upload</li>
+                            <li>Schedule creation</li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- PHASE 2: HIGH PRIORITY (Week 2-3) -->
+            <div style="margin-top: 40px;">
+                <h2 style="background: linear-gradient(135deg, #e67e22 0%, #d35400 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 0;">
+                    🔶 Phase 2: High Priority - Nên Có Trước Production (Week 2-3)
+                </h2>
+                <div style="background: #fff; border: 2px solid #e67e22; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 1.1em; color: #e67e22; font-weight: bold;">💡 Strongly recommended nhưng không blocking</p>
+                    <p><strong>Total effort:</strong> ~48 hours (1 tuần)</p>
+
+                    <!-- Task 2.1 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-1" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-1" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.1. Login Rate Limiting
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Prevent brute force attacks</p>
+                        <pre style="font-size: 0.9em;">// Filters/LoginRateLimitAttribute.cs
+public class LoginRateLimitAttribute : ActionFilterAttribute
+{
+    private static readonly ConcurrentDictionary&lt;string, LoginAttempt&gt; _attempts = new();
+
+    public override void OnActionExecuting(ActionExecutingContext context)
+    {
+        var ip = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var username = context.ActionArguments.Values
+            .OfType&lt;LoginRequest&gt;()
+            .FirstOrDefault()?.Username ?? "";
+
+        var key = $"{ip}:{username}";
+        var attempt = _attempts.GetOrAdd(key, _ => new LoginAttempt());
+
+        if (attempt.Count >= 5 && DateTime.UtcNow < attempt.LockoutUntil)
+        {
+            context.Result = new ObjectResult(new
+            {
+                success = false,
+                message = $"Quá nhiều lần đăng nhập thất bại. Vui lòng thử lại sau {(attempt.LockoutUntil - DateTime.UtcNow).TotalMinutes:F0} phút."
+            }) { StatusCode = 429 };
+        }
+    }
+}</pre>
+                    </div>
+
+                    <!-- Task 2.2 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-2" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-2" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.2. Refactor Authorization - Dùng [Authorize] Thay Vì Manual Checks
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Consistent authorization, dễ maintain</p>
+                        <p><strong>Files cần sửa:</strong></p>
+                        <ul>
+                            <li><code>Controllers/AdminController.cs</code> - Remove manual session checks</li>
+                            <li><code>Controllers/PortalController.cs</code> - Remove manual session checks</li>
+                        </ul>
+                        <pre style="font-size: 0.9em;">// Before (BAD)
+public async Task&lt;IActionResult&gt; Dashboard()
+{
+    if (!_currentSession.IsAdminLoggedIn)
+        return RedirectToAction("Login", "Account");
+    // ...
+}
+
+// After (GOOD)
+[Authorize(Roles = "Admin")]
+public async Task&lt;IActionResult&gt; Dashboard()
+{
+    var adminId = _currentSession.AdminId; // Just get ID
+    // ...
+}</pre>
+                    </div>
+
+                    <!-- Task 2.3 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-3" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-3" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.3. Implement Pagination Cho List Endpoints
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Tránh load quá nhiều data</p>
+                        <pre style="font-size: 0.9em;">public class PagedResult&lt;T&gt;
+{
+    public List&lt;T&gt; Items { get; set; }
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+}
+
+// Usage
+public async Task&lt;PagedResult&lt;Media&gt;&gt; GetMediaAsync(int userId, int page = 1, int pageSize = 20)
+{
+    var query = _medias.Query().Where(m => m.UserId == userId);
+    var totalCount = await query.CountAsync();
+    var items = await query
+        .OrderByDescending(m => m.UploadedAt)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .AsNoTracking()
+        .ToListAsync();
+
+    return new PagedResult&lt;Media&gt;
+    {
+        Items = items,
+        TotalCount = totalCount,
+        Page = page,
+        PageSize = pageSize
+    };
+}</pre>
+                        <p><strong>Endpoints cần pagination:</strong></p>
+                        <ul>
+                            <li>GET /portal/videos</li>
+                            <li>GET /portal/playlists</li>
+                            <li>GET /portal/schedules</li>
+                            <li>GET /admin/devices</li>
+                            <li>GET /admin/users</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 2.4 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-4" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-4" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.4. Redis Session Store (Distributed Sessions)
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Sessions persist khi restart, support multiple instances</p>
+                        <pre style="font-size: 0.9em;">// Install
+dotnet add package Microsoft.Extensions.Caching.StackExchangeRedis
+
+// Program.cs
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration["Redis:ConnectionString"];
+    options.InstanceName = "VendingAdSession:";
+});
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(24);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});</pre>
+                    </div>
+
+                    <!-- Task 2.5 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-5" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-5" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.5. Retry Policies với Polly
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Handle transient failures gracefully</p>
+                        <pre style="font-size: 0.9em;">// Install
+dotnet add package Polly
+
+// Infrastructure/Resilience/ResiliencePolicies.cs
+public static class ResiliencePolicies
+{
+    public static IAsyncPolicy&lt;T&gt; GetRetryPolicy&lt;T&gt;()
+    {
+        return Policy&lt;T&gt;
+            .Handle&lt;HttpRequestException&gt;()
+            .Or&lt;TimeoutException&gt;()
+            .WaitAndRetryAsync(
+                retryCount: 3,
+                sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                onRetry: (outcome, timespan, retryCount, context) =>
+                {
+                    Log.Warning("Retry {RetryCount} after {Delay}s due to {Exception}",
+                        retryCount, timespan.TotalSeconds, outcome.Exception?.Message);
+                });
+    }
+
+    public static IAsyncPolicy GetCircuitBreakerPolicy()
+    {
+        return Policy
+            .Handle&lt;Exception&gt;()
+            .CircuitBreakerAsync(
+                exceptionsAllowedBeforeBreaking: 5,
+                durationOfBreak: TimeSpan.FromSeconds(30),
+                onBreak: (exception, duration) =>
+                {
+                    Log.Error("Circuit breaker opened for {Duration}s", duration.TotalSeconds);
+                },
+                onReset: () => Log.Information("Circuit breaker reset"));
+    }
+}</pre>
+                        <p><strong>Apply cho:</strong></p>
+                        <ul>
+                            <li>Redis operations</li>
+                            <li>RabbitMQ publish</li>
+                            <li>External API calls (nếu có)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 2.6 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-6" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-6" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.6. API Versioning
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Backward compatibility cho mobile API</p>
+                        <pre style="font-size: 0.9em;">// Install
+dotnet add package Asp.Versioning.Mvc
+
+// Program.cs
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+});
+
+// Controllers/MobileApiController.cs
+[ApiController]
+[Route("api/v{version:apiVersion}/mobile")]
+[ApiVersion("1.0")]
+public class MobileApiController : ControllerBase
+{
+    // Existing endpoints stay at v1
+}
+
+// Future: Create V2 controller for breaking changes
+[ApiVersion("2.0")]
+public class MobileApiV2Controller : ControllerBase
+{
+    // New version with breaking changes
+}</pre>
+                    </div>
+
+                    <!-- Tasks 2.7 - 2.12 (shorter descriptions) -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-7" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-7" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.7. Absolute Session Timeout
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 3 hours</span>
+                        </div>
+                        <p>Add absolute timeout (7 days) để force re-authentication, không chỉ sliding expiration</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-8" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-8" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.8. Thêm Unit Tests Cho Business Logic
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p>MediaUploadService, MobilePlaybackService, TimeService, PlaybackScheduleService</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-9" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-9" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.9. E2E Integration Tests
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p>Schedule creation → device polling flow, cache invalidation flow, upload → storage → retrieval</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-10" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-10" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.10. Standardize Error Response Format
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 3 hours</span>
+                        </div>
+                        <p>Implement ProblemDetails (RFC 7807) cho consistent error responses</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-11" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-11" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.11. Request Logging Middleware
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 3 hours</span>
+                        </div>
+                        <p>Log tất cả API requests với method, path, status code, duration, correlation ID</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #e67e22; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-2-12" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-2-12" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                2.12. Worker Health Monitoring
+                            </label>
+                            <span class="severity high" style="margin-left: 10px;">HIGH</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 5 hours</span>
+                        </div>
+                        <p>Thêm health check endpoint cho worker, monitor RabbitMQ queue depth, message processing rate</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- PHASE 3: MEDIUM PRIORITY (Week 3-4) -->
+            <div style="margin-top: 40px;">
+                <h2 style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 0;">
+                    🟡 Phase 3: Medium Priority - Nice-to-Have (Week 3-4)
+                </h2>
+                <div style="background: #fff; border: 2px solid #f39c12; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+                    <p style="font-size: 1.1em; color: #f39c12; font-weight: bold;">✨ Có thể làm sau production nếu hết thời gian</p>
+                    <p><strong>Total effort:</strong> ~40 hours</p>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-1" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-1" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.1. Soft Delete Implementation
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p>Add IsDeleted, DeletedAt fields cho audit trail. Không mất data khi xóa nhầm.</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-2" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-2" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.2. Redis-based Rate Limiting (Distributed)
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p>Migrate rate limiter counters sang Redis để support multiple web instances</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-3" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-3" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.3. Transactional Outbox Pattern
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p>Reliable message delivery - DB transaction + outbox table + background publisher</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-4" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-4" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.4. Dead Letter Queue (DLQ)
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p>Handle failed messages - retry logic + DLQ cho messages không process được</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-5" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-5" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.5. API Documentation với Swagger
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p>Generate API docs cho mobile team, test API dễ dàng hơn</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-6" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-6" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.6. Chaos Engineering Tests
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p>Test behavior khi Redis down, RabbitMQ down, database slow</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-7" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-7" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.7. Automated CI/CD Pipeline
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p>Auto deploy to staging on merge to main, manual approval cho production</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-8" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-8" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.8. Infrastructure as Code (Terraform/Pulumi)
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p>Reproducible infrastructure setup</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-9" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-9" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.9. Performance Profiling
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p>Identify bottlenecks với dotnet-trace, dotnet-counters</p>
+                    </div>
+
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #f39c12; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-3-10" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-3-10" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                3.10. Database Query Optimization Review
+                            </label>
+                            <span class="severity medium" style="margin-left: 10px;">MEDIUM</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p>Review slow queries, thêm missing indexes, optimize N+1 queries</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Phase 4: Future Improvements -->
+            <div style="margin-top: 40px; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="color: #3498db; border-bottom: 3px solid #3498db; padding-bottom: 10px;">
+                    📦 Phase 4: Future Improvements (Post-Production)
+                </h3>
+                <p style="color: #666; margin: 15px 0;">
+                    <strong>Timeline:</strong> Sau khi production ổn định (Month 2+)<br>
+                    <strong>Total Effort:</strong> ~60 hours<br>
+                    <strong>Priority:</strong> LOW - Làm khi có thời gian và resources
+                </p>
+
+                <div style="margin-top: 20px;">
+                    <!-- Task 4.1 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-1" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-1" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.1. Video Thumbnail Generation
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Auto-generate thumbnails khi upload video</p>
+                        <p><strong>Implementation:</strong></p>
+                        <pre style="font-size: 0.9em;">// Use FFmpeg to extract frame
+public async Task&lt;string&gt; GenerateThumbnailAsync(string videoPath)
+{
+    var thumbnailPath = Path.ChangeExtension(videoPath, ".jpg");
+    var process = new Process
+    {
+        StartInfo = new ProcessStartInfo
+        {
+            FileName = "ffmpeg",
+            Arguments = $"-i \"{videoPath}\" -ss 00:00:01 -vframes 1 \"{thumbnailPath}\"",
+            RedirectStandardOutput = true,
+            UseShellExecute = false
+        }
+    };
+    process.Start();
+    await process.WaitForExitAsync();
+    return thumbnailPath;
+}</pre>
+                        <p><strong>Benefits:</strong> Better UX trong media library, preview videos</p>
+                    </div>
+
+                    <!-- Task 4.2 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-2" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-2" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.2. Video Transcoding Pipeline
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 12 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Convert videos sang format tối ưu (H.264, multiple resolutions)</p>
+                        <p><strong>Why:</strong> Giảm bandwidth, support nhiều device types</p>
+                        <p><strong>Implementation:</strong></p>
+                        <ul>
+                            <li>Background job queue với Hangfire hoặc Quartz.NET</li>
+                            <li>FFmpeg transcoding: 1080p, 720p, 480p</li>
+                            <li>Progress tracking cho user</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 4.3 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-3" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-3" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.3. Advanced Analytics Dashboard
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 10 hours</span>
+                        </div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Video playback statistics (views, completion rate)</li>
+                            <li>Device uptime reports</li>
+                            <li>Popular content analysis</li>
+                            <li>Schedule effectiveness metrics</li>
+                        </ul>
+                        <p><strong>Tech:</strong> Chart.js hoặc ApexCharts cho visualization</p>
+                    </div>
+
+                    <!-- Task 4.4 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-4" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-4" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.4. Multi-Tenancy Support
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 16 hours</span>
+                        </div>
+                        <p><strong>Mục tiêu:</strong> Support nhiều organizations/tenants trên cùng 1 instance</p>
+                        <p><strong>Implementation:</strong></p>
+                        <ul>
+                            <li>Add TenantId column to all entities</li>
+                            <li>Tenant isolation middleware</li>
+                            <li>Per-tenant configuration</li>
+                            <li>Tenant-scoped queries (global query filter)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 4.5 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-5" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-5" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.5. GraphQL API
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p><strong>Why:</strong> Flexible queries cho mobile app, reduce over-fetching</p>
+                        <p><strong>Tech:</strong> HotChocolate GraphQL library</p>
+                        <p><strong>Use cases:</strong> Complex queries với nested data (playlist + media + schedule)</p>
+                    </div>
+
+                    <!-- Task 4.6 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-6" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-6" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.6. Real-time Notifications với SignalR
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 6 hours</span>
+                        </div>
+                        <p><strong>Features:</strong></p>
+                        <ul>
+                            <li>Real-time device status updates</li>
+                            <li>Live notifications khi schedule changes</li>
+                            <li>Admin dashboard live updates</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 4.7 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-7" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-7" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.7. Object Storage Migration (S3/Azure Blob)
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 8 hours</span>
+                        </div>
+                        <p><strong>Why:</strong> Scalable file storage, không phụ thuộc vào server disk</p>
+                        <p><strong>Options:</strong></p>
+                        <ul>
+                            <li>AWS S3 (có free tier 5GB)</li>
+                            <li>Azure Blob Storage</li>
+                            <li>MinIO (self-hosted, S3-compatible)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Task 4.8 -->
+                    <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #3498db; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="task-4-8" style="width: 20px; height: 20px; margin-right: 10px;">
+                            <label for="task-4-8" style="font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                                4.8. CDN Setup cho Static Assets
+                            </label>
+                            <span class="severity low" style="margin-left: 10px;">LOW</span>
+                            <span style="margin-left: 10px; color: #666;">⏱️ 4 hours</span>
+                        </div>
+                        <p><strong>Why:</strong> Faster video delivery, reduce server bandwidth</p>
+                        <p><strong>Free options:</strong></p>
+                        <ul>
+                            <li>Cloudflare CDN (free tier)</li>
+                            <li>BunnyCDN (cheap, $1/TB)</li>
+                        </ul>
+                        <p><strong>Setup:</strong> Point video URLs to CDN, cache headers</p>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <!-- Timeline Summary -->
+            <div style="margin-top: 40px; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="color: #2c3e50; border-bottom: 3px solid #2c3e50; padding-bottom: 10px;">
+                    📅 Timeline Overview
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <thead>
+                        <tr style="background: #34495e; color: white;">
+                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Phase</th>
+                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Timeline</th>
+                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Tasks</th>
+                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Effort</th>
+                            <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background: #ffe6e6;">
+                            <td style="padding: 12px; border: 1px solid #ddd;"><strong>Phase 1: Critical</strong></td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">Week 1-2</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">15 tasks</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">~80 hours</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;"><span style="color: #e74c3c; font-weight: bold;">BẮT BUỘC</span></td>
+                        </tr>
+                        <tr style="background: #fff4e6;">
+                            <td style="padding: 12px; border: 1px solid #ddd;"><strong>Phase 2: High Priority</strong></td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">Week 2-3</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">12 tasks</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">~48 hours</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;"><span style="color: #e67e22; font-weight: bold;">NÊN CÓ</span></td>
+                        </tr>
+                        <tr style="background: #fffbe6;">
+                            <td style="padding: 12px; border: 1px solid #ddd;"><strong>Phase 3: Medium Priority</strong></td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">Week 3-4</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">10 tasks</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">~40 hours</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;"><span style="color: #f39c12; font-weight: bold;">NICE-TO-HAVE</span></td>
+                        </tr>
+                        <tr style="background: #e6f3ff;">
+                            <td style="padding: 12px; border: 1px solid #ddd;"><strong>Phase 4: Future</strong></td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">Month 2+</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">8 tasks</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">~60 hours</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;"><span style="color: #3498db; font-weight: bold;">POST-PRODUCTION</span></td>
+                        </tr>
+                        <tr style="background: #f8f9fa; font-weight: bold;">
+                            <td style="padding: 12px; border: 1px solid #ddd;" colspan="2"><strong>TOTAL</strong></td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">45 tasks</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">~228 hours</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Final Recommendations -->
+            <div style="margin-top: 40px; padding: 25px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h3 style="color: #27ae60; border-bottom: 3px solid #27ae60; padding-bottom: 10px;">
+                    ✅ Khuyến Nghị Cuối Cùng
+                </h3>
+
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #e74c3c;">🚨 Minimum Viable Production (2 tuần deadline):</h4>
+                    <p>Nếu bị ép deadline 2 tuần, tập trung vào <strong>Phase 1 tasks 1.1-1.6 + 1.11 + 1.13</strong>:</p>
+                    <ol>
+                        <li>Serilog logging + Correlation IDs (1.1, 1.2)</li>
+                        <li>Fix default password (1.3)</li>
+                        <li>Audit logging (1.4)</li>
+                        <li>Global exception handling (1.5)</li>
+                        <li>File storage abstraction (1.6)</li>
+                        <li>Production config hardening (1.11)</li>
+                        <li>Database backup strategy (1.13)</li>
+                    </ol>
+                    <p><strong>Effort:</strong> ~40 hours (5 ngày x 8 hours)</p>
+                    <p style="color: #e74c3c;"><strong>⚠️ Warning:</strong> Đây là absolute minimum. Hệ thống sẽ thiếu monitoring, metrics, load testing.</p>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <h4 style="color: #27ae60;">✅ Recommended Production (1 tháng timeline):</h4>
+                    <p>Hoàn thành <strong>Phase 1 + Phase 2</strong> (27 tasks, ~128 hours):</p>
+                    <ul>
+                        <li><strong>Week 1:</strong> Phase 1 tasks 1.1-1.8 (Logging, Security, Metrics, Monitoring)</li>
+                        <li><strong>Week 2:</strong> Phase 1 tasks 1.9-1.15 (Load testing, SQL Server, Deployment)</li>
+                        <li><strong>Week 3:</strong> Phase 2 (Authorization, Pagination, Testing)</li>
+                        <li><strong>Week 4:</strong> Buffer time, bug fixes, documentation</li>
+                    </ul>
+                    <p><strong>Effort:</strong> ~128 hours (16 ngày x 8 hours)</p>
+                    <p style="color: #27ae60;"><strong>✅ Result:</strong> Production-ready system với đầy đủ observability, security, testing.</p>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <h4 style="color: #3498db;">🎯 Key Success Metrics:</h4>
+                    <ul>
+                        <li><strong>Uptime:</strong> Target 99.5% (3.6 hours downtime/month)</li>
+                        <li><strong>API Latency:</strong> P95 &lt; 500ms, P99 &lt; 1s</li>
+                        <li><strong>Error Rate:</strong> &lt; 1% of requests</li>
+                        <li><strong>Device Polling:</strong> Support 500 concurrent devices</li>
+                        <li><strong>Video Upload:</strong> Handle 100MB files trong &lt; 30s</li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <h4 style="color: #9b59b6;">📚 Resources:</h4>
+                    <ul>
+                        <li><strong>Serilog:</strong> <a href="https://serilog.net/" target="_blank">https://serilog.net/</a></li>
+                        <li><strong>Prometheus .NET:</strong> <a href="https://github.com/prometheus-net/prometheus-net" target="_blank">https://github.com/prometheus-net/prometheus-net</a></li>
+                        <li><strong>k6 Load Testing:</strong> <a href="https://k6.io/docs/" target="_blank">https://k6.io/docs/</a></li>
+                        <li><strong>Polly Resilience:</strong> <a href="https://www.pollydocs.org/" target="_blank">https://www.pollydocs.org/</a></li>
+                        <li><strong>ASP.NET Core Best Practices:</strong> <a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/best-practices" target="_blank">Microsoft Docs</a></li>
+                    </ul>
+                </div>
+
+                <div style="margin-top: 30px; padding: 20px; background: #e8f5e9; border-left: 4px solid #27ae60; border-radius: 4px;">
+                    <h4 style="color: #27ae60; margin-top: 0;">💡 Final Thoughts:</h4>
+                    <p>Hệ thống VendingAd CMS có <strong>foundation tốt</strong> với Clean Architecture, CQRS, Event-Driven design. Điểm yếu chính là <strong>thiếu observability và production hardening</strong>.</p>
+                    <p>Với timeline 1 tháng và làm một mình, bạn hoàn toàn có thể đưa hệ thống lên production với <strong>Phase 1 + Phase 2</strong>. Phase 3 và 4 có thể làm sau khi production ổn định.</p>
+                    <p><strong>Good luck! 🚀</strong></p>
+                </div>
+            </div>
+
+        </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const storageKey = 'vendingad-todo-state';
+                const completedTaskIds = new Set(['task-1-1', 'task-1-2', 'task-1-4']);
+                const phaseTotals = { 1: 15, 2: 12, 3: 10, 4: 8 };
+                const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+                const tabButtons = Array.from(document.querySelectorAll('.page-tab'));
+                const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+
+                function activateTab(tabId, updateHash) {
+                    tabButtons.forEach(button => {
+                        const isActive = button.dataset.tab === tabId;
+                        button.classList.toggle('active', isActive);
+                        button.setAttribute('aria-selected', String(isActive));
+                    });
+
+                    tabPanels.forEach(panel => {
+                        panel.classList.toggle('active', panel.id === tabId);
+                    });
+
+                    if (!updateHash) {
+                        return;
+                    }
+
+                    const nextHash = tabId === 'todo-tab' ? '#todo-roadmap' : '#overview';
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState(null, '', nextHash);
+                    } else {
+                        window.location.hash = nextHash;
+                    }
+                }
+
+                function saveState() {
+                    const state = {};
+                    checkboxes.forEach(cb => {
+                        if (!completedTaskIds.has(cb.id)) {
+                            state[cb.id] = cb.checked;
+                        }
+                    });
+                    localStorage.setItem(storageKey, JSON.stringify(state));
+                }
+
+                function updateProgress() {
+                    const phaseCompleted = { 1: 0, 2: 0, 3: 0, 4: 0 };
+
+                    checkboxes.forEach(cb => {
+                        const match = cb.id.match(/^task-(\d+)-\d+$/);
+                        if (!match || !cb.checked) {
+                            return;
+                        }
+
+                        const phaseNumber = Number(match[1]);
+                        if (phaseCompleted[phaseNumber] !== undefined) {
+                            phaseCompleted[phaseNumber] += 1;
+                        }
+                    });
+
+                    Object.keys(phaseTotals).forEach(phase => {
+                        const countElement = document.getElementById('phase-' + phase + '-count');
+                        if (countElement) {
+                            countElement.textContent = phaseCompleted[phase] + '/' + phaseTotals[phase];
+                        }
+                    });
+
+                    const totalCompleted = Object.values(phaseCompleted).reduce((sum, value) => sum + value, 0);
+                    const totalTasks = Object.values(phaseTotals).reduce((sum, value) => sum + value, 0);
+                    const percentage = Math.round((totalCompleted / totalTasks) * 100);
+
+                    const progressBar = document.getElementById('overall-progress-bar');
+                    const progressText = document.getElementById('overall-progress-text');
+
+                    if (progressBar) {
+                        progressBar.style.width = percentage + '%';
+                    }
+
+                    if (progressText) {
+                        progressText.textContent = totalCompleted + '/' + totalTasks + ' tasks completed (' + percentage + '%)';
+                    }
+
+                    saveState();
+                }
+
+                let savedState = {};
+                try {
+                    savedState = JSON.parse(localStorage.getItem(storageKey) || '{}') || {};
+                } catch (error) {
+                    savedState = {};
+                }
+
+                checkboxes.forEach(checkbox => {
+                    if (completedTaskIds.has(checkbox.id)) {
+                        checkbox.checked = true;
+                    } else if (Object.prototype.hasOwnProperty.call(savedState, checkbox.id)) {
+                        checkbox.checked = Boolean(savedState[checkbox.id]);
+                    }
+
+                    checkbox.addEventListener('change', function() {
+                        if (completedTaskIds.has(checkbox.id) && !checkbox.checked) {
+                            checkbox.checked = true;
+                        }
+                        updateProgress();
+                    });
+                });
+
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        activateTab(button.dataset.tab, true);
+                    });
+                });
+
+                if (window.location.hash === '#todo-roadmap' || window.location.hash === '#todo-tab') {
+                    activateTab('todo-tab', false);
+                } else {
+                    activateTab('analysis-tab', false);
+                }
+
+                updateProgress();
+            });
+        </script>
+    </body>
+</html>

@@ -38,9 +38,10 @@ public class MediaUploadService : IMediaUploadService
     private readonly IPlaylistManagementService _playlistManagementService;
     private readonly IRepository<PlaylistItem> _playlistItems;
     private readonly IRepository<PlaybackScheduleItem> _scheduleItems;
+    private readonly IAuditService _auditService;
     private readonly ILogger<MediaUploadService> _logger;
 
-    public MediaUploadService(IWebHostEnvironment env, IConfiguration configuration, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems, ILogger<MediaUploadService> logger)
+    public MediaUploadService(IWebHostEnvironment env, IConfiguration configuration, IMediaService mediaService, ITimeService timeService, IPlaylistManagementService playlistManagementService, IRepository<PlaylistItem> playlistItems, IRepository<PlaybackScheduleItem> scheduleItems, IAuditService auditService, ILogger<MediaUploadService> logger)
     {
         _env = env;
         _configuration = configuration;
@@ -49,6 +50,7 @@ public class MediaUploadService : IMediaUploadService
         _playlistManagementService = playlistManagementService;
         _playlistItems = playlistItems;
         _scheduleItems = scheduleItems;
+        _auditService = auditService;
         _logger = logger;
     }
 
@@ -91,6 +93,19 @@ public class MediaUploadService : IMediaUploadService
 
             await _mediaService.AddAsync(media);
             await _mediaService.SaveChangesAsync();
+            await _auditService.LogAsync(new AuditLogEntry
+            {
+                Action = AuditActions.UploadVideo,
+                TargetType = AuditTargets.Media,
+                TargetId = media.Id,
+                Details = new
+                {
+                    media.FileName,
+                    media.UserId,
+                    media.FileSize,
+                    media.DurationSeconds
+                }
+            });
 
             return new UploadVideoResult
             {
@@ -142,14 +157,15 @@ public class MediaUploadService : IMediaUploadService
         if (usedInPlaylists.Any())
             return new PlaylistActionResult { Success = false, Message = $"Không thể xóa video đang nằm trong playlist: {string.Join(", ", usedInPlaylists)}." };
 
-        foreach (var videoId in ids)
+        var videos = await _mediaService.Query()
+            .Where(m => ids.Contains(m.Id) && m.UserId == userId)
+            .ToListAsync();
+
+        if (videos.Count != ids.Count)
+            return new PlaylistActionResult { Success = false, Message = "Không tìm thấy video" };
+
+        foreach (var video in videos)
         {
-            var video = await _mediaService.Query()
-                .FirstOrDefaultAsync(m => m.Id == videoId && m.UserId == userId);
-
-            if (video == null)
-                return new PlaylistActionResult { Success = false, Message = "Không tìm thấy video" };
-
             var filePathPart = Uri.TryCreate(video.FileUrl, UriKind.Absolute, out var fileUri)
                 ? fileUri.LocalPath
                 : video.FileUrl;
@@ -162,6 +178,21 @@ public class MediaUploadService : IMediaUploadService
         }
 
         await _mediaService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.DeleteVideo,
+            TargetType = videos.Count == 1 ? AuditTargets.Media : AuditTargets.MediaBatch,
+            TargetId = videos.Count == 1 ? videos[0].Id : null,
+            Details = new
+            {
+                UserId = userId,
+                DeletedVideos = videos.Select(video => new
+                {
+                    video.Id,
+                    video.FileName
+                }).ToList()
+            }
+        });
         return new PlaylistActionResult { Success = true, Message = ids.Count == 1 ? "Đã xóa video" : "Đã xóa các video" };
     }
 
@@ -210,6 +241,21 @@ public class MediaUploadService : IMediaUploadService
             await _mediaService.SaveChangesAsync();
 
             await _playlistManagementService.AddMediaToPlaylistAsync(playlist.Id, media.Id, userId);
+            await _auditService.LogAsync(new AuditLogEntry
+            {
+                Action = AuditActions.UploadVideo,
+                TargetType = AuditTargets.Media,
+                TargetId = media.Id,
+                Details = new
+                {
+                    media.FileName,
+                    media.UserId,
+                    media.FileSize,
+                    media.DurationSeconds,
+                    PlaylistId = playlist.Id,
+                    PlaylistName = playlist.Name
+                }
+            });
 
             return new UploadVideoResult
             {

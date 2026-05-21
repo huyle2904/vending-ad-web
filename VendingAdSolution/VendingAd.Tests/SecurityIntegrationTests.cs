@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -160,8 +161,63 @@ public class SecurityIntegrationTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var media = await db.Medias.OrderByDescending(m => m.Id).FirstAsync();
+        var auditLog = await db.AuditLogs.OrderByDescending(log => log.Id).FirstAsync();
         Assert.Equal(1, media.UserId);
         Assert.StartsWith("/uploads/", media.FileUrl);
+        Assert.Equal(AuditActions.UploadVideo, auditLog.Action);
+        Assert.Equal(AuditTargets.Media, auditLog.TargetType);
+        Assert.Equal(media.Id, auditLog.TargetId);
+        Assert.Equal(AuditActorTypes.User, auditLog.ActorType);
+        Assert.Equal(1, auditLog.ActorId);
+    }
+
+    [Fact]
+    public async Task AuthApiLoginUser_WhenCredentialsAreValid_WritesAuditLog()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        await factory.SeedUserAsync(7, password: "Secret123!");
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/login/user", new LoginRequest
+        {
+            Username = "user-7",
+            Password = "Secret123!"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var auditLog = await db.AuditLogs.OrderByDescending(log => log.Id).FirstAsync();
+        Assert.Equal(AuditActions.Login, auditLog.Action);
+        Assert.Equal(AuditTargets.User, auditLog.TargetType);
+        Assert.Equal(7, auditLog.TargetId);
+        Assert.Equal(AuditActorTypes.User, auditLog.ActorType);
+        Assert.Equal(7, auditLog.ActorId);
+    }
+
+    [Fact]
+    public async Task AuthApiLoginUser_WhenCredentialsAreInvalid_WritesFailedAuditLog()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        await factory.SeedUserAsync(8, password: "Secret123!");
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/auth/login/user", new LoginRequest
+        {
+            Username = "user-8",
+            Password = "wrong-password"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var auditLog = await db.AuditLogs.OrderByDescending(log => log.Id).FirstAsync();
+        Assert.Equal(AuditActions.LoginFailed, auditLog.Action);
+        Assert.Equal(AuditTargets.Account, auditLog.TargetType);
+        Assert.Equal(AuditActorTypes.Anonymous, auditLog.ActorType);
+        Assert.Null(auditLog.ActorId);
     }
 
     [Fact]
@@ -282,12 +338,16 @@ public class SecurityIntegrationTests
             });
         }
 
-        public async Task SeedUserAsync(int userId)
+        public async Task SeedUserAsync(int userId, string? password = null)
         {
             await using var scope = Services.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             if (await db.Users.AnyAsync(u => u.Id == userId))
                 return;
+
+            var passwordHash = password == null
+                ? "unused"
+                : new PasswordHashingService().HashPassword(password);
 
             db.Users.Add(new User
             {
@@ -295,7 +355,7 @@ public class SecurityIntegrationTests
                 Username = $"user-{userId}",
                 Email = $"user-{userId}@example.test",
                 FullName = $"User {userId}",
-                PasswordHash = "unused",
+                PasswordHash = passwordHash,
                 IsActive = true
             });
             await db.SaveChangesAsync();
@@ -307,7 +367,8 @@ public class SecurityIntegrationTests
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var credentialService = new DeviceCredentialService(
                 new Repository<Device>(db),
-                new PasswordHashingService());
+                new PasswordHashingService(),
+                NullAuditService.Instance);
             var device = await db.Devices.FirstOrDefaultAsync(d => d.DeviceCode == deviceCode);
             if (device == null)
             {

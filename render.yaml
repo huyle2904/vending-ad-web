@@ -26,9 +26,9 @@ services:
       - key: Database__ResetSchemaOnStartup
         value: "false"
       - key: Seed__EnableDemoData
-        value: "true"
+        value: "false"
       - key: Seed__AllowDemoDataOutsideDevelopment
-        value: "true"
+        value: "false"
 
 databases:
   - name: vending-ad-db

@@ -439,6 +439,7 @@ public class SecurityIntegrationTests
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=unused-for-tests;Trusted_Connection=True;TrustServerCertificate=True",
+                    ["AllowedHosts"] = "*",
                     ["Database:ApplyMigrationsOnStartup"] = "false",
                     ["Seed:EnableDemoData"] = "false",
                     ["Redis:Enabled"] = "false",

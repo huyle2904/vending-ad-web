@@ -142,12 +142,14 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 - Good for local/dev.
 - Consider `false` for production and run migrations in deployment.
 - Must not be enabled together with `Database:EnsureCreatedOnStartup`.
+- In production, prefer running migrations in a controlled deployment step instead of app startup.
 
 `Database:EnsureCreatedOnStartup`
 
 - `true`: web app calls `EnsureCreated()` for quick SQLite startup.
 - Do not use for SQL Server migration-based environments.
 - Must not be enabled together with `Database:ApplyMigrationsOnStartup`.
+- The current SQL Server-only runtime rejects this flag when enabled.
 
 Recommended baseline for consistent local/deploy behavior:
 
@@ -160,6 +162,7 @@ Recommended baseline for consistent local/deploy behavior:
 - `true`: web app calls `EnsureDeleted()` first, then recreates schema using migrations or `EnsureCreated`.
 - Intended for disposable/test databases only.
 - Keep `false` in normal environments.
+- The app now fails fast if this flag is enabled outside `Development`.
 
 Local SQLite recovery when tables exist but migration history is out of sync:
 
@@ -171,6 +174,7 @@ Local SQLite recovery when tables exist but migration history is out of sync:
 - `true`: drops PostgreSQL public tables, including EF migration history, then reruns migrations.
 - Intended for disposable/test databases only.
 - Keep `false` in normal environments.
+- The app now fails fast if this flag is enabled outside `Development`.
 
 `Seed:EnableDemoData`
 
@@ -178,11 +182,13 @@ Local SQLite recovery when tables exist but migration history is out of sync:
 - Good for local/dev.
 - Defaults to `false` in committed production config.
 - Startup fails outside `Development` unless `Seed:AllowDemoDataOutsideDevelopment=true`.
+- Production deployments must keep this disabled.
 
 `Seed:AllowDemoDataOutsideDevelopment`
 
 - `true`: allows demo/admin account seeding in non-Development environments.
-- Intended only for disposable demo environments such as the current Render test deployment.
+- Intended only for disposable demo environments.
+- Keep `false` for production.
 
 `VideoValidation:FfprobeEnabled`
 
@@ -193,7 +199,7 @@ Local SQLite recovery when tables exist but migration history is out of sync:
 
 ## Render Quick Recovery (Disposable DB)
 
-If Render login works but dashboard returns HTTP 500 after schema changes, reset and recreate the temporary PostgreSQL DB:
+Use this only for short-lived non-production environments:
 
 1. Set env vars in Render:
    - `DatabaseProvider=Postgres`

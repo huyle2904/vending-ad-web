@@ -47,6 +47,9 @@ try
         options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
+    var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+    var laMoiTruongPhatTrien = string.Equals(environmentName, Environments.Development, StringComparison.OrdinalIgnoreCase);
+
     builder.Services
         .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
@@ -56,10 +59,13 @@ try
             options.AccessDeniedPath = "/account/login";
             options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = laMoiTruongPhatTrien
+                ? CookieSecurePolicy.SameAsRequest
+                : CookieSecurePolicy.Always;
             options.ExpireTimeSpan = TimeSpan.FromHours(24);
             options.SlidingExpiration = true;
         });
+
     builder.Services.AddAuthorization();
     builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 
@@ -100,17 +106,26 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
+        var ensureCreatedOnStartup = builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup");
         var resetOnStartup = builder.Configuration.GetValue<bool>("Database:ResetOnStartup");
+        var resetSchemaOnStartup = builder.Configuration.GetValue<bool>("Database:ResetSchemaOnStartup");
         var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
         var allowDemoDataOutsideDevelopment = builder.Configuration.GetValue<bool>("Seed:AllowDemoDataOutsideDevelopment");
+
+        if (applyMigrationsOnStartup && ensureCreatedOnStartup)
+            throw new InvalidOperationException("Database:ApplyMigrationsOnStartup and Database:EnsureCreatedOnStartup cannot both be true.");
+
+        if (ensureCreatedOnStartup)
+            throw new InvalidOperationException("Database:EnsureCreatedOnStartup is no longer supported in the SQL Server-only runtime.");
 
         if (seedDemoData && !app.Environment.IsDevelopment() && !allowDemoDataOutsideDevelopment)
             throw new InvalidOperationException("Seed:EnableDemoData must be false outside Development unless Seed:AllowDemoDataOutsideDevelopment=true.");
 
+        if ((resetOnStartup || resetSchemaOnStartup) && !app.Environment.IsDevelopment())
+            throw new InvalidOperationException("Database reset flags must remain false outside Development.");
+
         if (resetOnStartup)
         {
-            if (!app.Environment.IsDevelopment())
-                app.Logger.LogWarning("Database:ResetOnStartup is enabled outside Development. All data will be lost.");
             db.Database.EnsureDeleted();
         }
 

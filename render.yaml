@@ -19,6 +19,10 @@ services:
         value: /data/uploads
       - key: Database__ApplyMigrationsOnStartup
         value: "true"
+      - key: Database__EnsureCreatedOnStartup
+        value: "false"
+      - key: Database__ResetOnStartup
+        value: "false"
       - key: Database__ResetSchemaOnStartup
         value: "false"
       - key: Seed__EnableDemoData

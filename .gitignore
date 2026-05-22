@@ -10,6 +10,7 @@ obj/
 opencode.json
 VendingAdSolution/VendingAdSystem/wwwroot/uploads/*
 !VendingAdSolution/VendingAdSystem/wwwroot/uploads/.gitkeep
+VendingAdSolution/VendingAdSystem/logs/
 
 # Local AI tooling / skills (do not track)
 .agents/

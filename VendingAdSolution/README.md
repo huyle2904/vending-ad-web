@@ -141,17 +141,30 @@ docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
 - `true`: web app runs EF Core migrations for relational databases during startup (SQL Server/PostgreSQL/SQLite).
 - Good for local/dev.
 - Consider `false` for production and run migrations in deployment.
+- Must not be enabled together with `Database:EnsureCreatedOnStartup`.
 
 `Database:EnsureCreatedOnStartup`
 
 - `true`: web app calls `EnsureCreated()` for quick SQLite startup.
 - Do not use for SQL Server migration-based environments.
+- Must not be enabled together with `Database:ApplyMigrationsOnStartup`.
+
+Recommended baseline for consistent local/deploy behavior:
+
+- `Database:ApplyMigrationsOnStartup=true`
+- `Database:EnsureCreatedOnStartup=false`
+- `Database:ResetOnStartup=false`
 
 `Database:ResetOnStartup`
 
 - `true`: web app calls `EnsureDeleted()` first, then recreates schema using migrations or `EnsureCreated`.
 - Intended for disposable/test databases only.
 - Keep `false` in normal environments.
+
+Local SQLite recovery when tables exist but migration history is out of sync:
+
+1. Start once with `Database__ResetOnStartup=true`.
+2. After successful startup, switch it back to `false`.
 
 `Database:ResetSchemaOnStartup`
 

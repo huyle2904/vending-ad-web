@@ -212,7 +212,7 @@ curl http://localhost:8080/health/ready
 
 ### 🔄 Phase 1 (Production Readiness) — đang làm
 
-Xem chi tiết trong `production-readiness-analysis.html`.
+Xem chi tiết trong `VendingAdSolution/VendingAdSystem/wwwroot/production-readiness-analysis.html`.
 
 | Task | Mô tả | Status |
 |---|---|---|

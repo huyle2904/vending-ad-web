@@ -2079,6 +2079,8 @@ appsettings.Production.json
                         <p><strong>Security checklist:</strong></p>
                         <ul>
                             <li>✅ Seed:EnableDemoData = false</li>
+                            <li>✅ Seed:AllowDemoDataOutsideDevelopment = false</li>
+                            <li>✅ Database reset flags disabled outside Development</li>
                             <li>✅ HTTPS enforced (HSTS headers)</li>
                             <li>✅ Secrets từ environment variables, không hardcode</li>
                             <li>✅ AllowedHosts configured</li>

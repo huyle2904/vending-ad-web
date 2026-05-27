@@ -128,7 +128,16 @@ try
         var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
 
         if (applyMigrationsOnStartup)
-            db.Database.Migrate();
+        {
+            try
+            {
+                db.Database.Migrate();
+            }
+            catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+            {
+                Log.Warning("Database tables already exist — continuing. Add future migrations manually.");
+            }
+        }
     }
 
     app.UseStaticFiles();

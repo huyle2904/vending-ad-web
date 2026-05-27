@@ -83,8 +83,9 @@ public static class DependencyInjection
 
     private static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+            ?? configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Connection string is missing. Set DATABASE_URL env var or DefaultConnection in config.");
         var normalizedConnectionString = PostgresConnectionStringResolver.Normalize(connectionString);
 
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(normalizedConnectionString));

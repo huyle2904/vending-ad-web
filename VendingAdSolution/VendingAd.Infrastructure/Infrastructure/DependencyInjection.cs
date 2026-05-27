@@ -88,7 +88,13 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException("Connection string is missing. Set DATABASE_URL env var or DefaultConnection in config.");
         var normalizedConnectionString = PostgresConnectionStringResolver.Normalize(connectionString);
 
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(normalizedConnectionString));
+        var builder = new Npgsql.NpgsqlConnectionStringBuilder(normalizedConnectionString);
+        if (!builder.ContainsKey("Maximum Pool Size"))
+            builder["Maximum Pool Size"] = 10;
+        if (!builder.ContainsKey("Timeout"))
+            builder["Timeout"] = 15;
+
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.ConnectionString));
 
         return services;
     }

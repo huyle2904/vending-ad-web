@@ -19,9 +19,10 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing for design-time DbContext creation.");
+        var normalizedConnectionString = PostgresConnectionStringResolver.Normalize(connectionString);
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseNpgsql(connectionString);
+        optionsBuilder.UseNpgsql(normalizedConnectionString);
 
         return new AppDbContext(optionsBuilder.Options);
     }

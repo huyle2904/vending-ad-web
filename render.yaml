@@ -2,15 +2,17 @@ services:
   - type: web
     name: vending-ad-system
     env: docker
-    plan: free
+    plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health/live
     autoDeploy: true
+    disk:
+      name: uploads
+      mountPath: /data
+      sizeGB: 10
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
-      - key: DatabaseProvider
-        value: Postgres
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: vending-ad-db
@@ -19,19 +21,14 @@ services:
         value: /data/uploads
       - key: Database__ApplyMigrationsOnStartup
         value: "true"
-      - key: Database__EnsureCreatedOnStartup
+      - key: Redis__Enabled
         value: "false"
-      - key: Database__ResetOnStartup
-        value: "false"
-      - key: Database__ResetSchemaOnStartup
-        value: "false"
-      - key: Seed__EnableDemoData
-        value: "false"
-      - key: Seed__AllowDemoDataOutsideDevelopment
+      - key: RabbitMQ__Enabled
         value: "false"
 
 databases:
   - name: vending-ad-db
-    plan: free
+    plan: basic-256mb
     databaseName: vendingad
     user: vendingad
+    postgresMajorVersion: "16"

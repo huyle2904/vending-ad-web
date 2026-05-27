@@ -1,5 +1,5 @@
 @model List<Device>
-@{ 
+@{
     var totalDevices = Convert.ToInt32(ViewBag.TotalDevices ?? Model.Count);
     var onlineCount = Convert.ToInt32(ViewBag.OnlineCount ?? 0);
     var offlineCount = Convert.ToInt32(ViewBag.OfflineCount ?? 0);
@@ -26,8 +26,6 @@
     string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
     string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
 }
-
-<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="devices-page">
   <section class="surface-card devices-toolbar">

@@ -8,8 +8,6 @@
     var videoSortDir = ViewBag.VideoSortDir as string ?? "desc";
 }
 
-<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
-
 <div class="video-page">
   <section class="video-overview">
     <div class="video-drop-area" id="dropZone" role="button" tabindex="0" aria-label="Tải video lên thư viện" onclick="openVideoPicker(event)" onkeydown="onDropZoneKeydown(event)" ondragover="onDropDragOver(event)" ondragleave="onDropDragLeave(event)" ondrop="onDropFile(event)">

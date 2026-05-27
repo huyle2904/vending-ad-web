@@ -6,15 +6,11 @@
     var scheduleDraftJson = ViewBag.ScheduleDraftJson as string ?? string.Empty;
     var vietnamNow = DateTime.UtcNow.AddHours(7);
     ViewData["Title"] = "Lịch phát";
-
-    string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
-    string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
-    string TimeRangeText(PlaybackSchedule schedule) => $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
-    DateTime LocalScheduleStart(PlaybackSchedule schedule) => schedule.StartDate.AddHours(7).Date.Add(schedule.StartTime);
-    DateTime LocalScheduleEnd(PlaybackSchedule schedule) => schedule.EndDate.AddHours(7).Date.Add(schedule.EndTime);
+    string DateRangeText(PlaybackSchedule s) => s.StartDate.AddHours(7).ToString("dd/MM/yyyy") == s.EndDate.AddHours(7).ToString("dd/MM/yyyy") ? s.StartDate.AddHours(7).ToString("dd/MM/yyyy") : $"{s.StartDate.AddHours(7):dd/MM/yyyy} - {s.EndDate.AddHours(7):dd/MM/yyyy}";
+    string TimeRangeText(PlaybackSchedule s) => $"{s.StartTime:hh\\:mm} - {s.EndTime:hh\\:mm}";
+    DateTime LocalScheduleStart(PlaybackSchedule s) => s.StartDate.AddHours(7).Date.Add(s.StartTime);
+    DateTime LocalScheduleEnd(PlaybackSchedule s) => s.EndDate.AddHours(7).Date.Add(s.EndTime);
 }
-
-<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 
 <div class="schedules-page">
   <div class="schedule-mode-grid schedule-mode-grid-modern u-mb-15">

@@ -110,11 +110,7 @@ public class PortalController : Controller
         if (userId == null || userId <= 0)
             return RedirectToAction("Login", "Account");
 
-        var devices = await _deviceService.Query()
-            .AsNoTracking()
-            .Where(d => d.UserId == userId && d.IsActive)
-            .ToListAsync();
-
+        var devices = await _deviceService.GetUserDevicesAsync(userId.Value);
 
         var schedules = await _playbackScheduleService.GetForUserAsync(userId.Value);
         var now = _timeService.UtcNow;
@@ -163,12 +159,7 @@ public class PortalController : Controller
         var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
         var onlineDevices = onlineByDeviceCode.Count(x => x.Value);
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
-        var medias = await _mediaService.Query()
-            .AsNoTracking()
-            .Where(m => m.UserId == userId)
-            .OrderByDescending(m => m.UploadedAt)
-            .ToListAsync();
-
+        var medias = await _mediaService.GetUserMediaAsync(userId.Value);
         var nowPlaying = currentSchedules.FirstOrDefault();
         var upcomingScheduleCard = upcomingSchedules.FirstOrDefault();
 
@@ -236,33 +227,14 @@ public class PortalController : Controller
         if (userId == null || userId <= 0)
             return RedirectToAction("Login", "Account");
 
-        IQueryable<Media> query = _mediaService.Query()
-            .AsNoTracking()
-            .Where(m => m.UserId == userId)
-            .Include(m => m.PlaylistItems)
-            .ThenInclude(pi => pi.Playlist);
-
-        if (!string.IsNullOrWhiteSpace(q))
-        {
-            var keyword = q.Trim();
-            query = query.Where(m => m.FileName.Contains(keyword));
-        }
-
         var sortByKey = string.IsNullOrWhiteSpace(sortBy) ? "uploadedAt" : sortBy.Trim().ToLowerInvariant();
         var isAsc = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
-
-        query = sortByKey switch
-        {
-            "filename" => isAsc ? query.OrderBy(m => m.FileName) : query.OrderByDescending(m => m.FileName),
-            "filesize" => isAsc ? query.OrderBy(m => m.FileSize) : query.OrderByDescending(m => m.FileSize),
-            _ => isAsc ? query.OrderBy(m => m.UploadedAt) : query.OrderByDescending(m => m.UploadedAt)
-        };
 
         ViewBag.VideoQuery = q ?? string.Empty;
         ViewBag.VideoSortBy = sortByKey;
         ViewBag.VideoSortDir = isAsc ? "asc" : "desc";
 
-        var videos = await query.ToListAsync();
+        var videos = await _mediaService.GetUserMediaAsync(userId.Value, q, sortBy, !isAsc);
         return View(videos);
     }
 
@@ -274,11 +246,7 @@ public class PortalController : Controller
 
         var userId = _currentSession.UserId ?? 0;
 
-        var devices = await _deviceService.Query()
-            .AsNoTracking()
-            .Where(d => d.UserId == userId && d.IsActive)
-            .ToListAsync();
-
+        var devices = await _deviceService.GetUserDevicesAsync(userId);
 
         var schedules = await _playbackScheduleService.GetForUserAsync(userId);
         var now = _timeService.UtcNow;
@@ -346,11 +314,7 @@ public class PortalController : Controller
         };
 
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId);
-        var medias = await _mediaService.Query()
-            .AsNoTracking()
-            .Where(m => m.UserId == userId)
-            .OrderByDescending(m => m.UploadedAt)
-            .ToListAsync();
+        var medias = await _mediaService.GetUserMediaAsync(userId);
 
         ViewBag.TotalDevices = devices.Count;
         ViewBag.OnlineCount = onlineCount;
@@ -377,11 +341,7 @@ public class PortalController : Controller
             return RedirectToAction("Login", "Account");
 
         var userId = _currentSession.UserId ?? 0;
-        var devices = await _deviceService.Query()
-            .AsNoTracking()
-            .Where(d => d.UserId == userId)
-            .OrderBy(d => d.DeviceCode)
-            .ToListAsync();
+        var devices = await _deviceService.GetUserDevicesAsync(userId, activeOnly: false);
 
         ViewBag.TotalDevices = devices.Count;
         var now = _timeService.UtcNow;
@@ -428,8 +388,7 @@ public class PortalController : Controller
         if (!IsPortalLoggedIn())
             return Unauthorized();
 
-        var device = await _deviceService.Query()
-            .FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == _currentSession.UserId);
+        var device = await _deviceService.GetDeviceForUserAsync(deviceId, _currentSession.UserId ?? 0);
 
         if (device == null)
         {
@@ -453,11 +412,7 @@ public class PortalController : Controller
 
         var playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
         ViewBag.PlaylistDraftName = TempData["PlaylistDraftName"] as string ?? string.Empty;
-        ViewBag.Medias = await _mediaService.Query()
-            .AsNoTracking()
-            .Where(m => m.UserId == userId)
-            .OrderByDescending(m => m.UploadedAt)
-            .ToListAsync();
+        ViewBag.Medias = await _mediaService.GetUserMediaAsync(userId.Value);
         return View(playlists);
     }
 
@@ -562,9 +517,9 @@ public class PortalController : Controller
         if (userId == null || userId <= 0)
             return RedirectToAction("Login", "Account");
 
-        ViewBag.Devices = await _deviceService.Query().AsNoTracking().Where(d => d.UserId == userId && d.IsActive).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Devices = await _deviceService.GetUserDevicesAsync(userId.Value);
         ViewBag.Playlists = await _playlistManagementService.GetPlaylistsForUserAsync(userId.Value);
-        ViewBag.Medias = await _mediaService.Query().AsNoTracking().Where(m => m.UserId == userId).OrderByDescending(m => m.UploadedAt).ToListAsync();
+        ViewBag.Medias = await _mediaService.GetUserMediaAsync(userId.Value);
         ViewBag.ScheduleDraftJson = TempData["ScheduleDraftJson"] as string ?? string.Empty;
         var schedules = await _playbackScheduleService.GetForUserAsync(userId.Value);
         var sortedSchedules = schedules

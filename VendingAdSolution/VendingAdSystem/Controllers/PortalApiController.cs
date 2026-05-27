@@ -51,7 +51,7 @@ public class PortalApiController : ControllerBase
         if (!result.Success)
             return BadRequest(new { message = result.Message });
 
-        return Ok(new { 
+        return Ok(new {
             message = result.Message,
             fileName = result.FileName,
             fileUrl = result.FileUrl
@@ -66,12 +66,8 @@ public class PortalApiController : ControllerBase
         if (userId == null)
             return Unauthorized();
 
-        var devices = await _deviceService.Query()
-            .AsNoTracking()
-            .Where(d => d.UserId == userId && d.IsActive)
-            .OrderBy(d => d.DeviceCode)
-            .Select(d => new { id = d.Id, code = d.DeviceCode, location = d.Location })
-            .ToListAsync();
+        var devices = await _deviceService.GetUserDevicesAsync(userId.Value);
+        var result = devices.Select(d => new { id = d.Id, code = d.DeviceCode, name = d.DeviceName, location = d.Location });
 
         return Ok(devices);
     }
@@ -104,8 +100,7 @@ public class PortalApiController : ControllerBase
         if (!await CanAccessDeviceEndpointAsync(req.DeviceCode))
             return Unauthorized(new { message = "Không có quyền truy cập thiết bị." });
 
-        var device = await _deviceService.Query()
-            .FirstOrDefaultAsync(d => d.DeviceCode == req.DeviceCode);
+        var device = await _deviceService.GetByCodeAsync(req.DeviceCode);
 
         if (device == null)
             return NotFound(new { message = "Không tìm thấy thiết bị." });
@@ -124,21 +119,22 @@ public class PortalApiController : ControllerBase
 
     [HttpPost("devices/register")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequest request)
+    public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequestDto request)
     {
-        if (string.IsNullOrWhiteSpace(request.DeviceCode))
-            return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
+        if (string.IsNullOrWhiteSpace(request.DeviceName))
+            return BadRequest(new { message = "Tên thiết bị là bắt buộc." });
 
-        var deviceCode = request.DeviceCode.Trim();
-        var existing = await _deviceService.GetByCodeAsync(deviceCode);
-        if (existing != null)
-            return Conflict(new { message = "DeviceCode already exists." });
+        var normalizedDeviceName = request.DeviceName.Trim();
+        if (normalizedDeviceName.Length > 100)
+            return BadRequest(new { message = "Tên thiết bị không được vượt quá 100 ký tự." });
 
+        var deviceCode = await _deviceService.GenerateDeviceCodeAsync(normalizedDeviceName);
         var utcNow = _timeService.UtcNow;
         var deviceSecret = _deviceCredentialService.GenerateSecret();
         var device = new Device
         {
             DeviceCode = deviceCode,
+            DeviceName = normalizedDeviceName,
             Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location.Trim(),
             ClaimCode = await _deviceService.GenerateClaimCodeAsync(),
             UserId = null,
@@ -150,16 +146,16 @@ public class PortalApiController : ControllerBase
         await _deviceService.AddAsync(device);
         await _deviceService.SaveChangesAsync();
 
-        return Ok(new
+        return Ok(new RegisterDeviceResponseDto
         {
-            message = "registered",
-            device.Id,
-            device.DeviceCode,
-            device.Location,
-            device.ClaimCode,
+            Id = device.Id,
+            DeviceCode = device.DeviceCode,
+            DeviceName = device.DeviceName,
+            Location = device.Location,
+            ClaimCode = device.ClaimCode,
             DeviceSecret = deviceSecret,
-            device.IsActive,
-            device.LastSeen
+            IsActive = device.IsActive,
+            LastSeen = device.LastSeen
         });
     }
 
@@ -169,9 +165,7 @@ public class PortalApiController : ControllerBase
         var userId = _currentSession.UserId;
         if (userId.HasValue)
         {
-            var ownsDevice = await _deviceService.Query()
-                .AsNoTracking()
-                .AnyAsync(d => d.DeviceCode == normalizedCode && d.UserId == userId.Value && d.IsActive);
+            var ownsDevice = await _deviceService.IsDeviceOwnedByUserAsync(normalizedCode, userId.Value);
 
             if (ownsDevice)
                 return true;
@@ -198,4 +192,3 @@ public class PortalApiController : ControllerBase
 }
 
 public record HeartbeatRequest(string DeviceCode);
-public record RegisterDeviceRequest(string DeviceCode, string? Location);

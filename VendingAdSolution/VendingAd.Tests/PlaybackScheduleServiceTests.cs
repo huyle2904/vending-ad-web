@@ -95,8 +95,8 @@ public class PlaybackScheduleServiceTests
             });
 
             context.Devices.AddRange(
-                new Device { Id = 1, DeviceCode = "DEVICE-OLD", UserId = 1, IsActive = true },
-                new Device { Id = 2, DeviceCode = "DEVICE-NEW", UserId = 1, IsActive = true });
+                new Device { Id = 1, DeviceCode = "DEVICE-OLD", DeviceName = "Device Old", UserId = 1, IsActive = true },
+                new Device { Id = 2, DeviceCode = "DEVICE-NEW", DeviceName = "Device New", UserId = 1, IsActive = true });
 
             context.Medias.Add(new Media
             {

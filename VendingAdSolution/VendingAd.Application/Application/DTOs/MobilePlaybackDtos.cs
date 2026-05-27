@@ -9,6 +9,7 @@ public class MobileDeviceResponse
 {
     public bool Success { get; set; } = true;
     public string DeviceCode { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
     public string? Location { get; set; }
     public bool IsActive { get; set; }
     public bool ClaimRequired { get; set; }
@@ -38,6 +39,7 @@ public class MobilePlaybackStateResponse
 {
     public bool Success { get; set; } = true;
     public string DeviceCode { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
     public DateTime ServerTimeUtc { get; set; }
     public bool HasActiveSchedule { get; set; }
     public bool ClaimRequired { get; set; }

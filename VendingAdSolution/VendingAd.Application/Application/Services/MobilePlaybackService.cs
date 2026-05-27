@@ -176,6 +176,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         return new MobilePlaybackStateResponse
         {
             DeviceCode = device.DeviceCode,
+            DeviceName = device.DeviceName,
             ServerTimeUtc = utcNow,
             HasActiveSchedule = false,
             ClaimRequired = claimRequired,
@@ -189,6 +190,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         return new MobileDeviceResponse
         {
             DeviceCode = device.DeviceCode,
+            DeviceName = device.DeviceName,
             Location = device.Location,
             IsActive = device.IsActive,
             ClaimRequired = claimRequired,

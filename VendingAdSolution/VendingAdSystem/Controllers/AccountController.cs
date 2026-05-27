@@ -64,7 +64,7 @@ public class AccountController : Controller
             HttpContext.Session.SetInt32("UserId", userResponse.User.Id);
 
             var login = !string.IsNullOrWhiteSpace(request.Username) ? request.Username.Trim() : request.Email.Trim();
-            var user = await _userService.Query().FirstOrDefaultAsync(u => u.Username == login || u.Email == login);
+            var user = await _userService.FindByLoginAsync(login);
             var displayName = user?.Username ?? userResponse.User.Username;
             HttpContext.Session.SetString("UserDisplayName", displayName);
 

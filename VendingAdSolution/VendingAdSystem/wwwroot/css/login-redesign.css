@@ -1,0 +1,557 @@
+.vas-login {
+  --vas-bg: #eef4ff;
+  --vas-bg-soft: #f8fbff;
+  --vas-surface: rgba(255, 255, 255, 0.78);
+  --vas-surface-strong: rgba(255, 255, 255, 0.96);
+  --vas-surface-border: rgba(206, 220, 241, 0.92);
+  --vas-text: #10244a;
+  --vas-text-soft: #5f7393;
+  --vas-text-muted: #7b8aa4;
+  --vas-accent: #2563eb;
+  --vas-accent-strong: #22a3f6;
+  --vas-success: #16a34a;
+  --vas-danger: #dc2626;
+  --vas-shadow: 0 24px 64px rgba(10, 35, 90, 0.08);
+  --vas-card-shadow: 0 18px 42px rgba(10, 35, 90, 0.08);
+  --vas-radius-shell: 36px;
+  --vas-radius-card: 28px;
+  --vas-radius-control: 18px;
+  position: relative;
+  min-height: 100vh;
+  padding: clamp(1rem, 1.5vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(37, 99, 235, 0.12), transparent 28%),
+    radial-gradient(circle at 82% 20%, rgba(34, 163, 246, 0.1), transparent 20%),
+    linear-gradient(180deg, #f7faff 0%, #eef4ff 52%, #f9fbff 100%);
+  color: var(--vas-text);
+  overflow: hidden;
+}
+
+.vas-login::before,
+.vas-login::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.vas-login::before {
+  background-image:
+    linear-gradient(rgba(177, 196, 227, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(177, 196, 227, 0.45) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 88%);
+  opacity: 0.4;
+}
+
+.vas-login::after {
+  background: radial-gradient(circle at center, transparent 58%, rgba(210, 223, 245, 0.46) 100%);
+}
+
+.vas-login__shell {
+  position: relative;
+  width: min(1420px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(400px, 0.9fr);
+  min-height: min(800px, calc(100vh - 2.8rem));
+  border: 1px solid var(--vas-surface-border);
+  border-radius: var(--vas-radius-shell);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 255, 0.96));
+  box-shadow: var(--vas-shadow);
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+}
+
+.vas-login__hero,
+.vas-login__aside {
+  position: relative;
+  min-width: 0;
+}
+
+.vas-login__hero {
+  padding: clamp(1.7rem, 2.4vw, 2.4rem);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(1.5rem, 2.2vw, 2.2rem);
+  border-right: 1px solid #e6edf8;
+  background: linear-gradient(180deg, rgba(250, 252, 255, 0.94), rgba(242, 247, 255, 0.92));
+}
+
+.vas-login__hero-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.vas-login__hero-layer--grid {
+  background-image:
+    linear-gradient(rgba(107, 129, 179, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 129, 179, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  opacity: 0.38;
+  mask-image: linear-gradient(160deg, rgba(0, 0, 0, 0.75), transparent 85%);
+}
+
+.vas-login__hero-layer--glow {
+  background:
+    radial-gradient(circle at 22% 24%, rgba(83, 118, 255, 0.3), transparent 28%),
+    radial-gradient(circle at 70% 72%, rgba(104, 225, 253, 0.12), transparent 26%);
+}
+
+.vas-login__hero-top,
+.vas-login__hero-body,
+.vas-login__feature-row,
+.vas-login__card {
+  position: relative;
+  z-index: 1;
+}
+
+.vas-login__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.vas-login__brand-mark {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+  background: linear-gradient(145deg, rgba(71, 122, 255, 0.92), rgba(34, 163, 246, 0.88));
+  border: 1px solid rgba(140, 181, 247, 0.56);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.vas-login__brand-copy {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.vas-login__eyebrow,
+.vas-login__card-label,
+.vas-login__kicker,
+.vas-login__metric-label,
+.vas-login__feature-item span {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.vas-login__eyebrow,
+.vas-login__card-label,
+.vas-login__kicker {
+  font-size: 0.72rem;
+  color: var(--vas-text-muted);
+}
+
+.vas-login__status {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.82rem;
+  border-radius: 999px;
+  color: #12386f;
+  background: rgba(235, 243, 255, 0.92);
+  border: 1px solid rgba(157, 186, 232, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.vas-login__status i {
+  color: var(--vas-success);
+}
+
+.vas-login__hero-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(240px, 0.58fr);
+  gap: clamp(1.25rem, 1.8vw, 2rem);
+  align-items: start;
+  padding-top: 2rem;
+}
+
+.vas-login__headline-wrap {
+  max-width: 600px;
+}
+
+.vas-login h1 {
+  margin: 0.8rem 0 1.15rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.45rem, 3.1vw, 4.2rem);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.vas-login__lead {
+  margin: 0;
+  max-width: 42rem;
+  font-size: clamp(0.98rem, 1vw, 1.12rem);
+  line-height: 1.7;
+  color: var(--vas-text-soft);
+}
+
+.vas-login__hero-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.vas-login__metric {
+  padding: 1.1rem 1.15rem;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(243, 248, 255, 0.96));
+  border: 1px solid rgba(206, 220, 241, 0.92);
+  box-shadow: 0 16px 36px rgba(15, 43, 92, 0.08);
+}
+
+.vas-login__metric strong {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: clamp(1.35rem, 1.7vw, 2rem);
+  letter-spacing: -0.04em;
+}
+
+.vas-login__metric small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--vas-text-muted);
+  line-height: 1.5;
+}
+
+.vas-login__feature-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.vas-login__feature-item {
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(206, 220, 241, 0.88);
+  box-shadow: 0 14px 32px rgba(15, 43, 92, 0.06);
+}
+
+.vas-login__feature-item span {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-size: 0.66rem;
+  color: var(--vas-accent);
+}
+
+.vas-login__feature-item strong {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: #16315f;
+}
+
+.vas-login__aside {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.3rem, 2vw, 2rem);
+}
+
+.vas-login__card {
+  width: min(430px, 100%);
+  padding: clamp(1.45rem, 2vw, 2rem);
+  border-radius: var(--vas-radius-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(245, 249, 255, 0.98));
+  border: 1px solid rgba(206, 220, 241, 0.96);
+  box-shadow: 0 24px 52px rgba(13, 39, 83, 0.12);
+  backdrop-filter: blur(24px);
+}
+
+.vas-login__card-header h2 {
+  margin: 0.55rem 0 0.65rem;
+  font-size: clamp(1.65rem, 1.9vw, 2.1rem);
+  letter-spacing: -0.03em;
+}
+
+.vas-login__card-header p {
+  margin: 0;
+  color: var(--vas-text-soft);
+  line-height: 1.6;
+  font-size: 0.96rem;
+}
+
+.vas-login__form {
+  margin-top: 1.45rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.vas-login__alert {
+  padding: 1rem 1rem 1rem 1.05rem;
+  border-radius: 20px;
+  color: #8f1d2c;
+  background: rgba(254, 242, 242, 0.96);
+  border: 1px solid rgba(252, 165, 165, 0.7);
+}
+
+.vas-login__alert-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+}
+
+.vas-login__alert-title i {
+  color: var(--vas-danger);
+}
+
+.vas-login__alert-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.3rem;
+  color: #9f1239;
+}
+
+.vas-login__field-group {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.vas-login__label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #17345f;
+}
+
+.vas-login__field-wrap {
+  position: relative;
+}
+
+.vas-login__field-wrap > i,
+.vas-login__eye-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.vas-login__field-wrap > i {
+  left: 1rem;
+  color: var(--vas-text-muted);
+}
+
+.vas-login__input {
+  width: 100%;
+  min-height: 3.45rem;
+  padding: 0.9rem 1rem 0.9rem 2.9rem;
+  border-radius: var(--vas-radius-control);
+  border: 1px solid #d9e4f2;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--vas-text);
+  font: inherit;
+  box-sizing: border-box;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.vas-login__input::placeholder {
+  color: #8ea0bc;
+}
+
+.vas-login__input:focus,
+.vas-login__input:focus-visible {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.6);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+
+.vas-login__eye-btn {
+  right: 0.8rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vas-text-soft);
+  background: transparent;
+  cursor: pointer;
+}
+
+.vas-login__eye-btn:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.72);
+  outline-offset: 2px;
+}
+
+.vas-login__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.1rem;
+}
+
+.vas-login__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--vas-text-soft);
+  cursor: pointer;
+}
+
+.vas-login__checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--vas-accent-strong);
+}
+
+.vas-login__link {
+  color: var(--vas-text-muted);
+  font-size: 0.92rem;
+}
+
+.vas-login__link.is-disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.vas-login__submit {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.vas-login__submit {
+  min-height: 3.6rem;
+  margin-top: 0.2rem;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  font-weight: 700;
+  color: #06111f;
+  background: linear-gradient(135deg, var(--vas-accent) 0%, #7de3ff 35%, var(--vas-accent-strong) 100%);
+  box-shadow: 0 20px 44px rgba(77, 124, 255, 0.34);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.vas-login__submit:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.05);
+  box-shadow: 0 24px 50px rgba(77, 124, 255, 0.4);
+}
+
+.vas-login__submit:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.72);
+  outline-offset: 3px;
+}
+
+.vas-login__copyright {
+  position: relative;
+  z-index: 1;
+  margin: 0.75rem auto 0;
+  text-align: center;
+  color: #6f7f99;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1440px) {
+  .vas-login__shell {
+    width: min(1360px, 100%);
+    grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.88fr);
+  }
+
+  .vas-login__hero-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vas-login__headline-wrap {
+    max-width: 620px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .vas-login {
+    padding: 1rem;
+  }
+
+  .vas-login__shell {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
+  }
+
+  .vas-login__hero {
+    border-right: 0;
+    border-bottom: 1px solid rgba(121, 145, 198, 0.12);
+  }
+
+  .vas-login__feature-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .vas-login {
+    padding: 0.85rem;
+  }
+
+  .vas-login__hero,
+  .vas-login__aside {
+    padding: 1.15rem;
+  }
+
+  .vas-login h1 {
+    font-size: clamp(2.5rem, 10vw, 3.65rem);
+  }
+
+  .vas-login__feature-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vas-login__meta-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 540px) {
+  .vas-login__brand {
+    align-items: flex-start;
+  }
+
+  .vas-login__brand-mark {
+    width: 2.9rem;
+    height: 2.9rem;
+  }
+
+  .vas-login__card,
+  .vas-login__feature-item,
+  .vas-login__metric {
+    border-radius: 18px;
+  }
+
+  .vas-login__input,
+  .vas-login__submit {
+    min-height: 3.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vas-login *,
+  .vas-login *::before,
+  .vas-login *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

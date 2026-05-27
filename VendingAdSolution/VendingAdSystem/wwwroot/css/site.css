@@ -64,6 +64,11 @@ body.app-shell-body {
   color: #13213d;
 }
 
+body.login-layout-body {
+  background: linear-gradient(180deg, #f7faff 0%, #eef4ff 52%, #f9fbff 100%);
+  color: #10244a;
+}
+
 .sidebar {
   width: var(--shell-sidebar-width);
   height: 100vh;

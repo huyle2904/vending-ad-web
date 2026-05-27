@@ -4,6 +4,7 @@ public class Device
 {
     public int Id { get; set; }
     public string DeviceCode { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
     public string? Location { get; set; }
     public string? ClaimCode { get; set; }
     public DateTime? ClaimedAt { get; set; }

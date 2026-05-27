@@ -33,6 +33,18 @@ public class HeartbeatRequestDto
 
 public class RegisterDeviceRequestDto
 {
-    public string DeviceCode { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
     public string? Location { get; set; }
+}
+
+public class RegisterDeviceResponseDto
+{
+    public int Id { get; set; }
+    public string DeviceCode { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
+    public string? Location { get; set; }
+    public string? ClaimCode { get; set; }
+    public string DeviceSecret { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public DateTime? LastSeen { get; set; }
 }

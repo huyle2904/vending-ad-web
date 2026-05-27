@@ -518,6 +518,7 @@ public class SecurityIntegrationTests
                 device = new Device
                 {
                     DeviceCode = deviceCode,
+                    DeviceName = deviceCode,
                     IsActive = true
                 };
                 db.Devices.Add(device);

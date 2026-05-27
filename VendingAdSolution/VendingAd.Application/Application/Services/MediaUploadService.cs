@@ -130,9 +130,7 @@ public class MediaUploadService : IMediaUploadService
         if (usedInPlaylists.Any())
             return new PlaylistActionResult { Success = false, Message = $"Không thể xóa video đang nằm trong playlist: {string.Join(", ", usedInPlaylists)}." };
 
-        var videos = await _mediaService.Query()
-            .Where(m => ids.Contains(m.Id) && m.UserId == userId)
-            .ToListAsync();
+        var videos = await _mediaService.GetUserMediaByIdsAsync(ids, userId);
 
         if (videos.Count != ids.Count)
             return new PlaylistActionResult { Success = false, Message = "Không tìm thấy video" };

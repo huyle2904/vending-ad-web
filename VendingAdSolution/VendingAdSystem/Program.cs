@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using VendingAdSystem.Infrastructure;
 using VendingAdSystem.Infrastructure.Health;
 using VendingAdSystem.Infrastructure.Persistence;
-using VendingAdSystem.Infrastructure.Seed;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -127,34 +126,9 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
-        var ensureCreatedOnStartup = builder.Configuration.GetValue<bool>("Database:EnsureCreatedOnStartup");
-        var resetOnStartup = builder.Configuration.GetValue<bool>("Database:ResetOnStartup");
-        var resetSchemaOnStartup = builder.Configuration.GetValue<bool>("Database:ResetSchemaOnStartup");
-        var seedDemoData = builder.Configuration.GetValue<bool>("Seed:EnableDemoData");
-        var allowDemoDataOutsideDevelopment = builder.Configuration.GetValue<bool>("Seed:AllowDemoDataOutsideDevelopment");
-
-        if (applyMigrationsOnStartup && ensureCreatedOnStartup)
-            throw new InvalidOperationException("Database:ApplyMigrationsOnStartup and Database:EnsureCreatedOnStartup cannot both be true.");
-
-        if (ensureCreatedOnStartup)
-            throw new InvalidOperationException("Database:EnsureCreatedOnStartup is no longer supported in the SQL Server-only runtime.");
-
-        if (seedDemoData && !app.Environment.IsDevelopment() && !allowDemoDataOutsideDevelopment)
-            throw new InvalidOperationException("Seed:EnableDemoData must be false outside Development unless Seed:AllowDemoDataOutsideDevelopment=true.");
-
-        if ((resetOnStartup || resetSchemaOnStartup) && !app.Environment.IsDevelopment())
-            throw new InvalidOperationException("Database reset flags must remain false outside Development.");
-
-        if (resetOnStartup)
-        {
-            db.Database.EnsureDeleted();
-        }
 
         if (applyMigrationsOnStartup)
             db.Database.Migrate();
-
-        if (seedDemoData)
-            DatabaseSeeder.Seed(db);
     }
 
     app.UseStaticFiles();

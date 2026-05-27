@@ -63,8 +63,8 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return RedirectToAction("Login", "Account");
 
-        var devices = await _deviceService.Query().AsNoTracking().ToListAsync();
-        var medias = await _mediaService.Query().AsNoTracking().ToListAsync();
+        var devices = await _deviceService.GetAllDevicesAsync();
+        var medias = await _mediaService.GetAllMediaAsync();
         var playlists = await _playlists.Query().AsNoTracking().ToListAsync();
         var schedules = await _playbackScheduleService.GetAllAsync();
         var now = _timeService.UtcNow;
@@ -74,7 +74,7 @@ public class AdminController : Controller
 
         var model = new AdminDashboardViewModel
         {
-            UserCount = await _userService.Query().CountAsync(),
+            UserCount = await _userService.GetTotalUserCountAsync(),
             DeviceCount = devices.Count,
             OnlineDeviceCount = onlineCount,
             OfflineDeviceCount = devices.Count - onlineCount,
@@ -108,13 +108,8 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return RedirectToAction("Login", "Account");
 
-        var devices = await _deviceService.Query()
-            .AsNoTracking()
-            .Include(d => d.User)
-            .OrderBy(d => d.DeviceCode)
-            .ToListAsync();
-
-        var users = await _userService.Query().AsNoTracking().Where(u => u.IsActive).OrderBy(u => u.Username).ToListAsync();
+        var devices = await _deviceService.GetAllDevicesWithUsersAsync();
+        var users = await _userService.GetAllActiveUsersAsync();
         ViewBag.Users = users;
         ViewBag.OnlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, _timeService.UtcNow);
 
@@ -139,22 +134,9 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return RedirectToAction("Login", "Account");
 
-        var query = _mediaService.Query()
-            .AsNoTracking()
-            .Include(m => m.User)
-            .Include(m => m.PlaylistItems)
-                .ThenInclude(pi => pi.Playlist)
-            .AsQueryable();
+        var videos = await _mediaService.GetAllMediaWithDetailsAsync(userId, keyword);
 
-        if (userId.HasValue && userId.Value > 0)
-            query = query.Where(m => m.UserId == userId.Value);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-            query = query.Where(m => m.FileName.Contains(keyword.Trim()) || m.PlaylistItems.Any(i => i.Playlist.Name.Contains(keyword.Trim())));
-
-        var videos = await query.OrderByDescending(m => m.UploadedAt).ToListAsync();
-
-        ViewBag.Users = await _userService.Query().AsNoTracking().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.Users = await _userService.GetAllUsersSortedAsync();
         ViewBag.SelectedUserId = userId;
         ViewBag.Keyword = keyword;
 
@@ -167,9 +149,7 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return Unauthorized();
 
-        var media = await _mediaService.Query()
-            .Include(m => m.PlaylistItems)
-            .FirstOrDefaultAsync(m => m.Id == videoId);
+        var media = await _mediaService.GetMediaWithPlaylistItemsAsync(videoId);
 
         if (media == null)
         {
@@ -220,8 +200,8 @@ public class AdminController : Controller
 
         var playlists = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
 
-        ViewBag.Devices = await _deviceService.Query().AsNoTracking().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
-        ViewBag.Users = await _userService.Query().AsNoTracking().OrderBy(u => u.Username).ToListAsync();
+        ViewBag.Devices = await _deviceService.GetAllDevicesWithUsersAsync();
+        ViewBag.Users = await _userService.GetAllUsersSortedAsync();
         ViewBag.SelectedUserId = userId;
         ViewBag.Keyword = keyword;
         return View("~/Views/Admin/Playlists.cshtml", playlists);
@@ -252,8 +232,8 @@ public class AdminController : Controller
             .OrderByDescending(s => s.CreatedAt)
             .ToList();
 
-        ViewBag.Users = await _userService.Query().AsNoTracking().OrderBy(u => u.Username).ToListAsync();
-        ViewBag.Devices = await _deviceService.Query().AsNoTracking().Include(d => d.User).OrderBy(d => d.DeviceCode).ToListAsync();
+        ViewBag.Users = await _userService.GetAllUsersSortedAsync();
+        ViewBag.Devices = await _deviceService.GetAllDevicesWithUsersAsync();
         ViewBag.SelectedUserId = userId;
         ViewBag.SelectedDeviceId = deviceId;
         ViewBag.Keyword = keyword;
@@ -336,10 +316,7 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return RedirectToAction("Login", "Account");
 
-        var users = await _userService.Query()
-            .AsNoTracking()
-            .OrderByDescending(u => u.CreatedAt)
-            .ToListAsync();
+        var users = await _userService.GetAllUsersAsync();
 
         return View("~/Views/AdminUsers/Index.cshtml", users);
     }
@@ -367,7 +344,7 @@ public class AdminController : Controller
             return RedirectToAction("Users");
         }
 
-        var exists = await _userService.Query().AnyAsync(u => u.Id != userId && u.Username == username);
+        var exists = await _userService.IsUsernameTakenAsync(username, userId);
         if (exists)
         {
             TempData["Error"] = "Username already exists";
@@ -549,8 +526,7 @@ public class AdminController : Controller
         if (!_currentSession.IsAdminLoggedIn)
             return Unauthorized();
 
-        var device = await _deviceService.Query()
-            .FirstOrDefaultAsync(d => d.Id == deviceId);
+        var device = await _deviceService.GetByIdAsync(deviceId);
 
         if (device == null)
         {

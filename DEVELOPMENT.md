@@ -1,6 +1,6 @@
 # Development Reference
 
-> Tài liệu nội bộ cho developer. Gộp từ PROJECT_CONTEXT.md, MILESTONES.md, REMAINING_REVIEW_ISSUES.md.
+> Tài liệu nội bộ cho developer. 
 > Cập nhật lần cuối: 2026-05-21
 
 ---
@@ -63,10 +63,12 @@
 
 ## Database
 
-- **Local / Codespaces:** SQL Server (Docker container)
-- **Production target:** SQL Server
-- Connection string: `Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=true`
+- **Local / Codespaces:** PostgreSQL or SQL Server
+- **Production target:** configurable per environment
+- PostgreSQL connection string: `Host=localhost;Port=5432;Database=vendingad;Username=vendingad;Password=<your-password>`
+- SQL Server connection string: `Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=true`
 - Startup config keys:
+  - `DatabaseProvider`
   - `Database:ApplyMigrationsOnStartup`
   - `Database:EnsureCreatedOnStartup`
   - `Database:ResetOnStartup`
@@ -79,6 +81,9 @@
 ```bash
 # Start tất cả services
 docker compose -f docker-compose.infra.yml up -d
+
+# Chỉ start PostgreSQL
+docker compose -f docker-compose.infra.yml up -d postgres
 
 # Chỉ start SQL Server
 docker compose -f docker-compose.infra.yml up -d sqlserver

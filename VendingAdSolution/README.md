@@ -29,11 +29,19 @@ dotnet test VendingAdSolution.sln
 From the repository root:
 
 ```powershell
+docker compose -f docker-compose.infra.yml up -d postgres redis rabbitmq
+```
+
+If you still want the previous SQL Server local stack:
+
+```powershell
 docker compose -f docker-compose.infra.yml up -d sqlserver redis rabbitmq
 ```
 
 Local service defaults:
 
+- PostgreSQL: `localhost:5432`
+- PostgreSQL user/password: `vendingad` / `vendingad`
 - SQL Server: `localhost,1433`
 - SQL Server user: `sa`
 - SQL Server password: `VendingAd@12345`
@@ -41,6 +49,29 @@ Local service defaults:
 - RabbitMQ: `localhost:5672`
 - RabbitMQ management UI: `http://localhost:15672`
 - RabbitMQ user/password: `vendingad` / `vendingad@123`
+
+## Run Web With PostgreSQL
+
+From the repository root:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT="Development"
+$env:DatabaseProvider="Postgres"
+$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=vendingad;Username=vendingad;Password=change-me"
+$env:Database__ApplyMigrationsOnStartup="true"
+$env:Database__EnsureCreatedOnStartup="false"
+$env:Database__ResetOnStartup="false"
+$env:Database__ResetSchemaOnStartup="false"
+$env:Seed__EnableDemoData="true"
+$env:Redis__Enabled="true"
+$env:RabbitMQ__Enabled="true"
+$env:RabbitMQ__UserName="vendingad"
+$env:RabbitMQ__Password="vendingad@123"
+$env:VideoValidation__FfprobeEnabled="true"
+$env:VideoValidation__RequireFfprobe="false"
+
+dotnet run --no-launch-profile --project VendingAdSolution/VendingAdSystem
+```
 
 ## Run Web With SQL Server
 
@@ -93,8 +124,8 @@ Open a second terminal:
 
 ```powershell
 $env:DOTNET_ENVIRONMENT="Development"
-$env:DatabaseProvider="SqlServer"
-$env:ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;"
+$env:DatabaseProvider="Postgres"
+$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=vendingad;Username=vendingad;Password=change-me"
 $env:Redis__Enabled="true"
 $env:Redis__ConnectionString="localhost:6379"
 $env:RabbitMQ__UserName="vendingad"
@@ -102,6 +133,8 @@ $env:RabbitMQ__Password="vendingad@123"
 
 dotnet run --project VendingAdSolution/VendingAdWorker
 ```
+
+For SQL Server instead, set `DatabaseProvider="SqlServer"` and switch the connection string back to the SQL Server format.
 
 The worker validates database, Redis, and RabbitMQ connectivity during startup.
 
@@ -116,7 +149,7 @@ Copy the relevant example to `appsettings.Development.json` only for local work,
 
 ## Event-Driven Cache Verification
 
-1. Start SQL Server, Redis, and RabbitMQ.
+1. Start PostgreSQL, Redis, and RabbitMQ.
 2. Run the web app with `RabbitMQ__Enabled=true` and `Redis__Enabled=true`.
 3. Run the worker.
 4. Login to the CMS as `test@test`.

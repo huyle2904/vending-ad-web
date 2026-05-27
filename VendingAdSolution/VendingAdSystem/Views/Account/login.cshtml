@@ -2,88 +2,162 @@
 @{
     ViewData["Title"] = "Đăng nhập";
     Layout = "_LayoutLogin";
+    var tenDangNhap = !string.IsNullOrWhiteSpace(Model?.Username) ? Model.Username : Model?.Email ?? string.Empty;
 }
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-<link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+<main class="vas-login" aria-labelledby="vas-login-heading">
+  <div class="vas-login__shell">
+    <section class="vas-login__hero" aria-label="Tổng quan hệ thống">
+      <div class="vas-login__hero-layer vas-login__hero-layer--grid" aria-hidden="true"></div>
+      <div class="vas-login__hero-layer vas-login__hero-layer--glow" aria-hidden="true"></div>
 
-<div class="login-page">
-  <div class="login-shell-modern">
-    <section class="login-left-panel" aria-label="Thông tin hệ thống">
-      <div class="login-left-overlay"></div>
-      <div class="login-left-content">
-        <div class="login-brand-mark">VA</div>
-        <div class="login-eyebrow">CMS PORTAL</div>
-        <h1>VendingAds CMS</h1>
-        <p>Quản lý video, playlist, lịch phát và thiết bị quảng cáo từ một portal duy nhất.</p>
+      <div class="vas-login__hero-top">
+        <div class="vas-login__brand">
+          <span class="vas-login__brand-mark">VA</span>
+          <div class="vas-login__brand-copy">
+            <span class="vas-login__eyebrow">VENDINGADS CMS</span>
+            <span class="vas-login__status">
+              <i class="bi bi-broadcast-pin"></i>
+              LIVE FLEET
+            </span>
+          </div>
+        </div>
+      </div>
 
-        <div class="login-feature-list">
-          <div class="login-feature-item"><span class="ficon blue"><i class="bi bi-collection-play"></i></span><div><strong>Quản lý nội dung</strong><small>Upload và quản lý video dễ dàng</small></div></div>
-          <div class="login-feature-item"><span class="ficon violet"><i class="bi bi-calendar-event"></i></span><div><strong>Lịch phát thông minh</strong><small>Tạo lịch phát theo giờ và ngày linh hoạt</small></div></div>
-          <div class="login-feature-item"><span class="ficon green"><i class="bi bi-pc-display"></i></span><div><strong>Quản lý thiết bị</strong><small>Giám sát trạng thái và điều khiển thiết bị từ xa</small></div></div>
-          <div class="login-feature-item"><span class="ficon amber"><i class="bi bi-graph-up-arrow"></i></span><div><strong>Báo cáo & thống kê</strong><small>Theo dõi hiệu suất và hoạt động hệ thống</small></div></div>
+      <div class="vas-login__hero-body">
+        <div class="vas-login__headline-wrap">
+          <p class="vas-login__kicker">Enterprise control surface</p>
+          <h1 id="vas-login-heading">Điều phối hệ thống quảng cáo số từ một giao diện quản trị tập trung.</h1>
+          <p class="vas-login__lead">
+            Theo dõi thiết bị, nội dung và chiến dịch theo thời gian thực với khả năng vận hành ổn định ở quy mô lớn.
+          </p>
         </div>
 
-        <div class="login-left-footer"><i class="bi bi-shield-check"></i>Bảo mật - Ổn định - Hiệu quả</div>
+        <div class="vas-login__hero-panel" aria-label="Trạng thái hệ thống nổi bật">
+          <div class="vas-login__metric">
+            <span class="vas-login__metric-label">Thiết bị trực tuyến</span>
+            <strong>128</strong>
+            <small>Đồng bộ ổn định trên toàn hệ thống</small>
+          </div>
+          <div class="vas-login__metric">
+            <span class="vas-login__metric-label">Lượt cập nhật gần nhất</span>
+            <strong>Nội dung mới</strong>
+            <small>đã được phát hành</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="vas-login__feature-row" aria-label="Các năng lực chính">
+        <article class="vas-login__feature-item">
+          <span>Schedule</span>
+          <strong>Lịch phát đa điểm</strong>
+        </article>
+        <article class="vas-login__feature-item">
+          <span>Content</span>
+          <strong>Quản lý nội dung chiến dịch</strong>
+        </article>
+        <article class="vas-login__feature-item">
+          <span>Devices</span>
+          <strong>Giám sát trạng thái thiết bị</strong>
+        </article>
+        <article class="vas-login__feature-item">
+          <span>Analytics</span>
+          <strong>Theo dõi hiệu suất phát sóng</strong>
+        </article>
       </div>
     </section>
 
-    <section class="login-right-panel" aria-label="Đăng nhập">
-      <div class="login-header-modern">
-        <div class="welcome">Chào mừng trở lại! <span>👋</span></div>
-        <h2>Đăng nhập</h2>
-        <p>Truy cập hệ thống quản lý quảng cáo.</p>
-      </div>
+    <section class="vas-login__aside" aria-label="Biểu mẫu đăng nhập">
+      <div class="vas-login__card">
+        <header class="vas-login__card-header">
+          <span class="vas-login__card-label">CONTROL ACCESS</span>
+          <h2>Đăng nhập hệ thống</h2>
+          <p>Quản lý nội dung, thiết bị và chiến dịch từ một nền tảng vận hành tập trung.</p>
+        </header>
 
-      <form class="login-form-modern" method="post" action="/account/login">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
-        @if (!ViewData.ModelState.IsValid)
-        {
-          <div class="alert alert-danger">
-            @foreach (var modelState in ViewData.ModelState.Values)
-            {
-              @foreach (var error in modelState.Errors)
+        <form class="vas-login__form" method="post" action="/account/login">
+          @Html.AntiForgeryToken()
+          <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+          @if (!ViewData.ModelState.IsValid)
+          {
+            <div class="vas-login__alert" role="alert" aria-live="polite">
+              <div class="vas-login__alert-title">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span>Đăng nhập chưa thành công</span>
+              </div>
+              <ul class="vas-login__alert-list">
+              @foreach (var trangThaiMoHinh in ViewData.ModelState.Values)
               {
-                @error.ErrorMessage<br />
+                foreach (var loi in trangThaiMoHinh.Errors)
+                {
+                  <li>@loi.ErrorMessage</li>
+                }
               }
-            }
+              </ul>
+            </div>
+          }
+
+          <div class="vas-login__field-group">
+            <label class="vas-login__label" for="loginUsername">Email hoặc username</label>
+            <div class="vas-login__field-wrap">
+              <i class="bi bi-person"></i>
+              <input id="loginUsername" type="text" name="username" class="vas-login__input" placeholder="test@test" autocomplete="username" value="@tenDangNhap" required />
+            </div>
           </div>
-        }
 
-        <div class="form-group">
-          <label class="form-label" for="loginUsername">Email hoặc username</label>
-          <div class="input-icon-wrap"><i class="bi bi-person"></i><input id="loginUsername" type="text" name="username" class="form-input" placeholder="test@test" autocomplete="username" required /></div>
-        </div>
+          <div class="vas-login__field-group">
+            <label class="vas-login__label" for="loginPassword">Mật khẩu</label>
+            <div class="vas-login__field-wrap">
+              <i class="bi bi-lock"></i>
+              <input id="loginPassword" type="password" name="password" class="vas-login__input" placeholder="••••••••" autocomplete="current-password" required />
+              <button class="vas-login__eye-btn" type="button" onclick="togglePassword()" aria-controls="loginPassword" aria-label="Hiện mật khẩu" aria-pressed="false">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+          </div>
 
-        <div class="form-group">
-          <label class="form-label" for="loginPassword">Mật khẩu</label>
-          <div class="input-icon-wrap"><i class="bi bi-lock"></i><input id="loginPassword" type="password" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password" required /><button class="eye-btn" type="button" onclick="togglePassword()"><i class="bi bi-eye"></i></button></div>
-        </div>
+          <div class="vas-login__meta-row">
+            <label class="vas-login__checkbox">
+              <input type="checkbox" name="rememberMe" value="true" checked />
+              <span>Ghi nhớ đăng nhập</span>
+            </label>
+            <span class="vas-login__link is-disabled" aria-disabled="true">Quên mật khẩu?</span>
+          </div>
 
-        <div class="login-meta-row">
-          <label><input type="checkbox" checked /> Ghi nhớ đăng nhập</label>
-          <a href="javascript:void(0)">Quên mật khẩu?</a>
-        </div>
+          <button type="submit" class="vas-login__submit">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span>Đăng nhập vào hệ thống</span>
+          </button>
 
-        <button type="submit" class="login-btn-submit"><i class="bi bi-box-arrow-in-right"></i>Đăng nhập</button>
-      </form>
-
-      <div class="login-or"><span>hoặc</span></div>
-
-      <div class="login-demo-card">
-        <div class="demo-title"><i class="bi bi-people"></i>TÀI KHOẢN DEMO</div>
-        <div class="demo-row"><span>Người dùng</span><code>test@test</code><span>Mật khẩu</span><code>test@test</code></div>
+        </form>
       </div>
     </section>
   </div>
 
-  <p class="login-copyright">© 2026 VendingAds CMS. All rights reserved.</p>
-</div>
+  <p class="vas-login__copyright">© 2026 VendingAds CMS. All rights reserved.</p>
+</main>
 
 <script>
 function togglePassword() {
-  const input = document.getElementById('loginPassword');
-  input.type = input.type === 'password' ? 'text' : 'password';
+  const oNhapMatKhau = document.getElementById('loginPassword');
+  const nutDieuKhien = document.querySelector('.vas-login__eye-btn');
+  const bieuTuong = nutDieuKhien ? nutDieuKhien.querySelector('i') : null;
+
+  if (!oNhapMatKhau) {
+    return;
+  }
+
+  const dangAn = oNhapMatKhau.type === 'password';
+  oNhapMatKhau.type = dangAn ? 'text' : 'password';
+
+  if (nutDieuKhien) {
+    nutDieuKhien.setAttribute('aria-label', dangAn ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+    nutDieuKhien.setAttribute('aria-pressed', dangAn ? 'true' : 'false');
+  }
+
+  if (bieuTuong) {
+    bieuTuong.className = dangAn ? 'bi bi-eye-slash' : 'bi bi-eye';
+  }
 }
 </script>

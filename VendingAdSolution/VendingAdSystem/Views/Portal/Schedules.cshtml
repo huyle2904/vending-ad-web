@@ -536,7 +536,7 @@ else
   .schedule-live-type { display:inline-flex; align-items:center; gap:.35rem; color:#2563eb; font-weight:800; font-size:.76rem; text-transform:uppercase; }
   .schedule-live-actions { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; justify-content:flex-end; flex:0 0 auto; }
   .schedule-live-actions form { margin:0; }
-  .schedule-action-btn { border:1px solid #dbe7f5; background:#f8fafc; color:#334155; border-radius:8px; padding:.45rem .65rem; font-family:"Be Vietnam Pro", "Segoe UI", Arial, sans-serif; font-size:.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:.35rem; min-height:34px; letter-spacing:0; }
+  .schedule-action-btn { border:1px solid #dbe7f5; background:#f8fafc; color:#334155; border-radius:8px; padding:.45rem .65rem; font-family:var(--font-sans); font-size:.78rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:.35rem; min-height:34px; letter-spacing:0; }
   .schedule-action-btn:hover { border-color:#93c5fd; background:#eff6ff; color:#1d4ed8; }
   .schedule-action-btn.primary { background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
   .schedule-action-btn.danger:hover { border-color:#fecaca; background:#fef2f2; color:#dc2626; }
@@ -1156,11 +1156,20 @@ else
       document.body.appendChild(modal);
     }
 
+    modal.classList.remove('u-hidden');
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
     modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '1200';
   }
 
   function closeScheduleDetail(id) {
-    document.getElementById('scheduleDetail-' + id).style.display = 'none';
+    const modal = document.getElementById('scheduleDetail-' + id);
+    if (modal) modal.style.display = 'none';
   }
 
 </script>

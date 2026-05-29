@@ -26,9 +26,9 @@
   --ring: #2563eb;
 
   /* Typography */
-  --font-sans: "Be Vietnam Pro", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-sans: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "DM Mono", "SF Mono", "Fira Code", monospace;
-  --font-display: "Syne", var(--font-sans);
+  --font-display: "Manrope", var(--font-sans);
 
   /* Spacing */
   --radius: 0.75rem;

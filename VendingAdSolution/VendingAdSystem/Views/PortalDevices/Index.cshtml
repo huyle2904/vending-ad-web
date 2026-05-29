@@ -340,10 +340,35 @@ else
   let quickPlaySource = 'media';
   const quickPlayDeviceData = {};
 
-  function showAddModal() { document.getElementById('addModal').style.display = 'flex'; }
-  function hideAddModal() { document.getElementById('addModal').style.display = 'none'; }
-  function openDeviceDetail(id) { document.getElementById('deviceDetail-' + id).style.display = 'flex'; }
-  function closeDeviceDetail(id) { document.getElementById('deviceDetail-' + id).style.display = 'none'; }
+  function showModalAtViewportCenter(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
+    modal.classList.remove('u-hidden');
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '1200';
+  }
+
+  function showAddModal() { showModalAtViewportCenter('addModal'); }
+  function hideAddModal() {
+    const modal = document.getElementById('addModal');
+    if (modal) modal.style.display = 'none';
+  }
+  function openDeviceDetail(id) { showModalAtViewportCenter('deviceDetail-' + id); }
+  function closeDeviceDetail(id) {
+    const modal = document.getElementById('deviceDetail-' + id);
+    if (modal) modal.style.display = 'none';
+  }
 
   document.getElementById('claimCodeInput')?.addEventListener('input', function () {
     this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
@@ -394,11 +419,12 @@ else
     setQuickPlayDateTime();
     clearQuickPlaySelection();
     switchQuickPlaySource('media');
-    document.getElementById('quickPlayModal').style.display = 'flex';
+    showModalAtViewportCenter('quickPlayModal');
   }
 
   function hideQuickPlayModal() {
-    document.getElementById('quickPlayModal').style.display = 'none';
+    const modal = document.getElementById('quickPlayModal');
+    if (modal) modal.style.display = 'none';
   }
 
   document.querySelectorAll('#quickPlayForm input[data-quickplay-playlist]').forEach(input => {

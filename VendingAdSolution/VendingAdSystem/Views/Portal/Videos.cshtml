@@ -92,7 +92,7 @@
               <div class="col-media">
                 <img src="@(string.IsNullOrWhiteSpace(video.ThumbnailUrl) ? videoPlaceholder : video.ThumbnailUrl)" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="thumb" />
                 <div>
-                  <strong>@video.FileName</strong>
+                  <strong title="@video.FileName">@video.FileName</strong>
                   <small>Video thư viện</small>
                 </div>
               </div>

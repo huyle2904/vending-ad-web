@@ -13,6 +13,32 @@ namespace VendingAd.Tests;
 public class PlaybackScheduleServiceTests
 {
     [Fact]
+    public async Task CreateAsync_PublishesCreatedEventForAssignedDevices()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var publisher = new RecordingMessagePublisher();
+        var service = CreateService(database.Context, publisher);
+
+        var result = await service.CreateAsync(1, new PlaybackScheduleRequest
+        {
+            Name = "New schedule",
+            StartDate = new DateTime(2026, 1, 3),
+            EndDate = new DateTime(2026, 1, 3),
+            StartTime = TimeSpan.FromHours(9),
+            EndTime = TimeSpan.FromHours(10),
+            IsActive = true,
+            DeviceIds = new List<int> { 1, 2 },
+            MediaIds = new List<int> { 10 }
+        });
+
+        Assert.True(result.Success);
+        var message = Assert.Single(publisher.PublishedEvents.OfType<ScheduleChangedEvent>());
+        Assert.Equal(ScheduleChangeType.Created, message.ChangeType);
+        Assert.Equal(new[] { "DEVICE-NEW", "DEVICE-OLD" }, message.AffectedDeviceCodes.OrderBy(code => code));
+        Assert.True(message.IsActive);
+    }
+
+    [Fact]
     public async Task UpdateAsync_WhenReassigningDevices_PublishesUnionOfOldAndNewDeviceCodes()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -41,6 +67,74 @@ public class PlaybackScheduleServiceTests
         Assert.Equal(AuditActions.UpdateSchedule, auditEntry.Action);
         Assert.Equal(AuditTargets.PlaybackSchedule, auditEntry.TargetType);
         Assert.Equal(100, auditEntry.TargetId);
+    }
+
+    [Theory]
+    [InlineData(ScheduleChangeType.Deleted)]
+    [InlineData(ScheduleChangeType.Toggled)]
+    public async Task DeleteAndToggle_PublishEventsForCurrentDevices(ScheduleChangeType expectedChangeType)
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var publisher = new RecordingMessagePublisher();
+        var service = CreateService(database.Context, publisher);
+
+        var success = expectedChangeType == ScheduleChangeType.Deleted
+            ? await service.DeleteAsync(1, 100)
+            : await service.ToggleAsync(1, 100);
+
+        Assert.True(success);
+        var message = Assert.Single(publisher.PublishedEvents.OfType<ScheduleChangedEvent>());
+        Assert.Equal(expectedChangeType, message.ChangeType);
+        Assert.Equal(new[] { "DEVICE-OLD" }, message.AffectedDeviceCodes);
+    }
+
+    [Fact]
+    public async Task AddItemAsync_PublishesItemAddedEventForScheduleDevices()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var publisher = new RecordingMessagePublisher();
+        var service = CreateService(database.Context, publisher);
+
+        var result = await service.AddItemAsync(1, 100, 11);
+
+        Assert.True(result.Success);
+        var message = Assert.Single(publisher.PublishedEvents.OfType<ScheduleChangedEvent>());
+        Assert.Equal(ScheduleChangeType.ItemAdded, message.ChangeType);
+        Assert.Equal(new[] { "DEVICE-OLD" }, message.AffectedDeviceCodes);
+    }
+
+    [Fact]
+    public async Task RemoveItemAsync_PublishesItemRemovedEventForScheduleDevices()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var publisher = new RecordingMessagePublisher();
+        var service = CreateService(database.Context, publisher);
+
+        var success = await service.RemoveItemAsync(1, 1000);
+
+        Assert.True(success);
+        var message = Assert.Single(publisher.PublishedEvents.OfType<ScheduleChangedEvent>());
+        Assert.Equal(ScheduleChangeType.ItemRemoved, message.ChangeType);
+        Assert.Equal(new[] { "DEVICE-OLD" }, message.AffectedDeviceCodes);
+    }
+
+    [Fact]
+    public async Task UpdateItemOrderAsync_PublishesReorderedEventForScheduleDevices()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var publisher = new RecordingMessagePublisher();
+        var service = CreateService(database.Context, publisher);
+
+        var success = await service.UpdateItemOrderAsync(1, 100, new List<PlaybackScheduleItemOrderUpdate>
+        {
+            new() { ScheduleItemId = 1000, OrderIndex = 1 },
+            new() { ScheduleItemId = 1001, OrderIndex = 0 }
+        });
+
+        Assert.True(success);
+        var message = Assert.Single(publisher.PublishedEvents.OfType<ScheduleChangedEvent>());
+        Assert.Equal(ScheduleChangeType.Reordered, message.ChangeType);
+        Assert.Equal(new[] { "DEVICE-OLD" }, message.AffectedDeviceCodes);
     }
 
     private static PlaybackScheduleService CreateService(AppDbContext context, IMessagePublisher publisher, IAuditService? auditService = null)
@@ -98,14 +192,23 @@ public class PlaybackScheduleServiceTests
                 new Device { Id = 1, DeviceCode = "DEVICE-OLD", DeviceName = "Device Old", UserId = 1, IsActive = true },
                 new Device { Id = 2, DeviceCode = "DEVICE-NEW", DeviceName = "Device New", UserId = 1, IsActive = true });
 
-            context.Medias.Add(new Media
-            {
-                Id = 10,
-                FileName = "clip.mp4",
-                FileUrl = "/media/clip.mp4",
-                FileSize = 1024,
-                UserId = 1
-            });
+            context.Medias.AddRange(
+                new Media
+                {
+                    Id = 10,
+                    FileName = "clip.mp4",
+                    FileUrl = "/media/clip.mp4",
+                    FileSize = 1024,
+                    UserId = 1
+                },
+                new Media
+                {
+                    Id = 11,
+                    FileName = "clip-2.mp4",
+                    FileUrl = "/media/clip-2.mp4",
+                    FileSize = 2048,
+                    UserId = 1
+                });
 
             context.PlaybackSchedules.Add(new PlaybackSchedule
             {
@@ -124,7 +227,8 @@ public class PlaybackScheduleServiceTests
                 },
                 Items = new List<PlaybackScheduleItem>
                 {
-                    new() { MediaId = 10, OrderIndex = 0 }
+                    new() { Id = 1000, MediaId = 10, OrderIndex = 0 },
+                    new() { Id = 1001, MediaId = 11, OrderIndex = 1 }
                 }
             });
 

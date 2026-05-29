@@ -174,12 +174,17 @@
 
 <script>
   function showAssignModal(id, code, location, claimCode) {
+    var modal = document.getElementById('assignModal');
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
     document.getElementById('assignDeviceId').value = id;
     document.getElementById('assignDeviceCode').textContent = code;
     document.getElementById('assignLocation').textContent = location || 'Chưa có vị trí';
     document.getElementById('assignClaimCode').textContent = claimCode || 'Đã sử dụng';
     document.getElementById('assignUserId').value = '';
-    document.getElementById('assignModal').style.display = 'flex';
+    modal.style.display = 'flex';
   }
   function hideAssignModal() { document.getElementById('assignModal').style.display = 'none'; }
 

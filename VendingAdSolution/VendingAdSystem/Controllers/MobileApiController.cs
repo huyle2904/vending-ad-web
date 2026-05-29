@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
+using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Filters;
 
 namespace VendingAdSystem.Controllers;
@@ -12,11 +13,59 @@ public class MobileApiController : ControllerBase
 {
     private readonly IMobilePlaybackService _mobilePlaybackService;
     private readonly IDeviceCredentialService _deviceCredentialService;
+    private readonly IDeviceService _deviceService;
+    private readonly ITimeService _timeService;
 
-    public MobileApiController(IMobilePlaybackService mobilePlaybackService, IDeviceCredentialService deviceCredentialService)
+    public MobileApiController(
+        IMobilePlaybackService mobilePlaybackService,
+        IDeviceCredentialService deviceCredentialService,
+        IDeviceService deviceService,
+        ITimeService timeService)
     {
         _mobilePlaybackService = mobilePlaybackService;
         _deviceCredentialService = deviceCredentialService;
+        _deviceService = deviceService;
+        _timeService = timeService;
+    }
+
+    [HttpPost("devices/register")]
+    public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.DeviceName))
+            return BadRequest(new { message = "TÃªn thiáº¿t bá»‹ lÃ  báº¯t buá»™c." });
+
+        var normalizedDeviceName = request.DeviceName.Trim();
+        if (normalizedDeviceName.Length > 100)
+            return BadRequest(new { message = "TÃªn thiáº¿t bá»‹ khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 100 kÃ½ tá»±." });
+
+        var utcNow = _timeService.UtcNow;
+        var deviceSecret = _deviceCredentialService.GenerateSecret();
+        var device = new Device
+        {
+            DeviceCode = await _deviceService.GenerateDeviceCodeAsync(normalizedDeviceName),
+            DeviceName = normalizedDeviceName,
+            Location = string.IsNullOrWhiteSpace(request.Location) ? null : request.Location.Trim(),
+            ClaimCode = await _deviceService.GenerateClaimCodeAsync(),
+            UserId = null,
+            IsActive = true,
+            LastSeen = utcNow
+        };
+        _deviceCredentialService.AssignSecret(device, deviceSecret, utcNow);
+
+        await _deviceService.AddAsync(device);
+        await _deviceService.SaveChangesAsync();
+
+        return Ok(new RegisterDeviceResponseDto
+        {
+            Id = device.Id,
+            DeviceCode = device.DeviceCode,
+            DeviceName = device.DeviceName,
+            Location = device.Location,
+            ClaimCode = device.ClaimCode,
+            DeviceSecret = deviceSecret,
+            IsActive = device.IsActive,
+            LastSeen = device.LastSeen
+        });
     }
 
     [HttpGet("devices/{deviceCode}")]

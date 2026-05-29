@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Repositories.Interfaces;
@@ -12,6 +13,15 @@ public interface IMobilePlaybackService
     Task<MobilePlaybackStateResponse?> GetPlaybackStateAsync(string deviceCode);
 }
 
+public class MobilePlaybackCacheOptions
+{
+    public int PlaybackStateTtlSeconds { get; set; } = 20;
+    public int NoActiveScheduleTtlSeconds { get; set; } = 10;
+    public int InactiveDeviceTtlSeconds { get; set; } = 20;
+    public int UnclaimedDeviceTtlSeconds { get; set; } = 60;
+    public int DeviceActiveScheduleTtlSeconds { get; set; } = 20;
+}
+
 public class MobilePlaybackService : IMobilePlaybackService
 {
     private readonly IRepository<Device> _devices;
@@ -21,6 +31,7 @@ public class MobilePlaybackService : IMobilePlaybackService
     private readonly IMobilePlaybackCacheService _playbackCache;
     private readonly IDevicePresenceService _devicePresence;
     private readonly IApplicationMetrics _metrics;
+    private readonly MobilePlaybackCacheOptions _cacheOptions;
 
     public MobilePlaybackService(
         IRepository<Device> devices,
@@ -29,7 +40,8 @@ public class MobilePlaybackService : IMobilePlaybackService
         ICacheService cacheService,
         IMobilePlaybackCacheService playbackCache,
         IDevicePresenceService devicePresence,
-        IApplicationMetrics metrics)
+        IApplicationMetrics metrics,
+        IOptions<MobilePlaybackCacheOptions> cacheOptions)
     {
         _devices = devices;
         _playbackSchedules = playbackSchedules;
@@ -38,6 +50,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         _playbackCache = playbackCache;
         _devicePresence = devicePresence;
         _metrics = metrics;
+        _cacheOptions = cacheOptions.Value;
     }
 
     public async Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode)
@@ -115,8 +128,8 @@ public class MobilePlaybackService : IMobilePlaybackService
         if (!device.IsActive || device.UserId == null)
         {
             var unclaimedOrInactiveTtl = device.UserId == null
-                ? TimeSpan.FromSeconds(30)
-                : TimeSpan.FromSeconds(10);
+                ? CacheTtl(_cacheOptions.UnclaimedDeviceTtlSeconds)
+                : CacheTtl(_cacheOptions.InactiveDeviceTtlSeconds);
             await _cacheService.SetAsync(cacheKey, response, unclaimedOrInactiveTtl);
             return response;
         }
@@ -146,7 +159,7 @@ public class MobilePlaybackService : IMobilePlaybackService
 
         if (schedule == null)
         {
-            await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromSeconds(10));
+            await _cacheService.SetAsync(cacheKey, response, CacheTtl(_cacheOptions.NoActiveScheduleTtlSeconds));
             return response;
         }
 
@@ -159,13 +172,13 @@ public class MobilePlaybackService : IMobilePlaybackService
             Version = scheduleContent.Schedule.Version,
             HasActiveSchedule = true,
             ResolvedAtUtc = utcNow
-        }, TimeSpan.FromSeconds(10));
+        }, CacheTtl(_cacheOptions.DeviceActiveScheduleTtlSeconds));
 
         response.HasActiveSchedule = true;
         response.Schedule = scheduleContent.Schedule;
         response.Items = scheduleContent.Items;
 
-        await _cacheService.SetAsync(cacheKey, response, TimeSpan.FromSeconds(5));
+        await _cacheService.SetAsync(cacheKey, response, CacheTtl(_cacheOptions.PlaybackStateTtlSeconds));
 
         return response;
     }
@@ -222,4 +235,10 @@ public class MobilePlaybackService : IMobilePlaybackService
     {
         return deviceCode.Trim();
     }
+
+    private static TimeSpan CacheTtl(int seconds)
+    {
+        return TimeSpan.FromSeconds(Math.Max(1, seconds));
+    }
 }
+

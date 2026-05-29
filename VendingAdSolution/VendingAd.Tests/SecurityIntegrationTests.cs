@@ -144,6 +144,40 @@ public class SecurityIntegrationTests
     }
 
     [Fact]
+    public async Task MobileDeviceRegister_WhenAnonymous_ReturnsClaimCodeAndUsableDeviceSecret()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/mobile/devices/register", new RegisterDeviceRequestDto
+        {
+            DeviceName = "TV Box Lobby",
+            Location = "Vincom Grand Park"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var registered = await response.Content.ReadFromJsonAsync<RegisterDeviceResponseDto>();
+        Assert.NotNull(registered);
+        Assert.Equal("TV Box Lobby", registered!.DeviceName);
+        Assert.Equal("Vincom Grand Park", registered.Location);
+        Assert.Matches("^\\d{6}$", registered.ClaimCode);
+        Assert.False(string.IsNullOrWhiteSpace(registered.DeviceCode));
+        Assert.False(string.IsNullOrWhiteSpace(registered.DeviceSecret));
+
+        var deviceRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/mobile/devices/{registered.DeviceCode}");
+        deviceRequest.Headers.Add("X-Device-Secret", registered.DeviceSecret);
+        var deviceResponse = await client.SendAsync(deviceRequest);
+
+        Assert.Equal(HttpStatusCode.OK, deviceResponse.StatusCode);
+        var device = await deviceResponse.Content.ReadFromJsonAsync<MobileDeviceResponse>();
+        Assert.NotNull(device);
+        Assert.Equal(registered.DeviceCode, device!.DeviceCode);
+        Assert.Equal("TV Box Lobby", device.DeviceName);
+        Assert.True(device.ClaimRequired);
+        Assert.Equal(registered.ClaimCode, device.ClaimCode);
+    }
+
+    [Fact]
     public async Task MobileDeviceInfo_WhenRequestLimitExceeded_ReturnsTooManyRequests()
     {
         await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);

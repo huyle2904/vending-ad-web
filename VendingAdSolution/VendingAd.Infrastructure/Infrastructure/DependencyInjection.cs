@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<IPlaylistService, PlaylistService>();
         services.AddScoped<IPlaylistManagementService, PlaylistManagementService>();
         services.AddScoped<IPlaybackScheduleService, PlaybackScheduleService>();
+        services.AddScoped<IPlaybackScheduleResolver, PlaybackScheduleResolver>();
         services.AddScoped<IMobilePlaybackService, MobilePlaybackService>();
         services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();
         services.AddScoped<IDevicePresenceService, DevicePresenceService>();

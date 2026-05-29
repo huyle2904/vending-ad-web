@@ -20,6 +20,7 @@ public class PortalController : Controller
     private readonly ITimeService _timeService;
     private readonly IPlaylistManagementService _playlistManagementService;
     private readonly IPlaybackScheduleService _playbackScheduleService;
+    private readonly IPlaybackScheduleResolver _scheduleResolver;
     private readonly IDevicePresenceService _devicePresenceService;
 
     public PortalController(
@@ -31,6 +32,7 @@ public class PortalController : Controller
         ITimeService timeService,
         IPlaylistManagementService playlistManagementService,
         IPlaybackScheduleService playbackScheduleService,
+        IPlaybackScheduleResolver scheduleResolver,
         IDevicePresenceService devicePresenceService)
     {
         _currentSession = currentSession;
@@ -41,6 +43,7 @@ public class PortalController : Controller
         _timeService = timeService;
         _playlistManagementService = playlistManagementService;
         _playbackScheduleService = playbackScheduleService;
+        _scheduleResolver = scheduleResolver;
         _devicePresenceService = devicePresenceService;
     }
 
@@ -120,25 +123,9 @@ public class PortalController : Controller
 
         foreach (var device in devices)
         {
-            var current = schedules
-                .Where(s => s.IsActive)
-                .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
-                .Where(s => s.StartDate <= now && s.EndDate >= now)
-                .Where(s => IsScheduleActiveNow(s, now))
-                .OrderByDescending(s => s.IsImmediate)
-                .ThenByDescending(s => s.CreatedAt)
-                .FirstOrDefault();
+            var current = _scheduleResolver.ResolveCurrentForDevice(schedules, device.Id, now);
 
-            var upcoming = schedules
-                .Where(s => s.IsActive)
-                .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
-                .Where(s => current == null || s.Id != current.Id)
-                .Select(s => new { Schedule = s, NextStart = GetNextScheduleStartUtc(s, now) })
-                .Where(x => x.NextStart.HasValue)
-                .OrderBy(x => x.NextStart)
-                .ThenBy(x => x.Schedule.StartTime)
-                .Select(x => x.Schedule)
-                .FirstOrDefault();
+            var upcoming = _scheduleResolver.ResolveUpcomingForDevice(schedules, device.Id, now, current?.Id);
 
             if (current != null)
                 currentByDevice[device.Id] = current;
@@ -154,7 +141,7 @@ public class PortalController : Controller
         var upcomingSchedules = upcomingByDevice.Values
             .GroupBy(s => s.Id)
             .Select(g => g.First())
-            .OrderBy(s => GetNextScheduleStartUtc(s, now))
+            .OrderBy(s => _scheduleResolver.GetNextScheduleStartUtc(s, now))
             .ToList();
         var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
         var onlineDevices = onlineByDeviceCode.Count(x => x.Value);
@@ -256,25 +243,9 @@ public class PortalController : Controller
 
         foreach (var device in devices)
         {
-            var current = schedules
-                .Where(s => s.IsActive)
-                .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
-                .Where(s => s.StartDate <= now && s.EndDate >= now)
-                .Where(s => IsScheduleActiveNow(s, now))
-                .OrderByDescending(s => s.IsImmediate)
-                .ThenByDescending(s => s.CreatedAt)
-                .FirstOrDefault();
+            var current = _scheduleResolver.ResolveCurrentForDevice(schedules, device.Id, now);
 
-            var upcoming = schedules
-                .Where(s => s.IsActive)
-                .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
-                .Where(s => current == null || s.Id != current.Id)
-                .Select(s => new { Schedule = s, NextStart = GetNextScheduleStartUtc(s, now) })
-                .Where(x => x.NextStart.HasValue)
-                .OrderBy(x => x.NextStart)
-                .ThenBy(x => x.Schedule.StartTime)
-                .Select(x => x.Schedule)
-                .FirstOrDefault();
+            var upcoming = _scheduleResolver.ResolveUpcomingForDevice(schedules, device.Id, now, current?.Id);
 
             if (current != null)
                 currentByDevice[device.Id] = current;
@@ -616,45 +587,6 @@ public class PortalController : Controller
             return NotFound(new { success = false, message = "Không tìm thấy lịch phát" });
 
         return Ok(new { success = true });
-    }
-
-    private bool IsScheduleActiveNow(PlaybackSchedule schedule, DateTime utcNow)
-    {
-        var currentTime = _timeService.ToVietnamTime(utcNow).TimeOfDay;
-        if (!schedule.IsImmediate)
-            return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
-
-        if (schedule.ImmediateStartedAt.HasValue && schedule.ImmediateStartedAt.Value.Date == utcNow.Date)
-            return currentTime <= schedule.EndTime;
-
-        return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
-    }
-
-    private DateTime GetVietnamDate(DateTime utcDate)
-    {
-        return _timeService.ToVietnamTime(utcDate).Date;
-    }
-
-    private DateTime? GetNextScheduleStartUtc(PlaybackSchedule schedule, DateTime utcNow)
-    {
-        var vietnamNow = _timeService.ToVietnamTime(utcNow);
-        var startDate = GetVietnamDate(schedule.StartDate);
-        var endDate = GetVietnamDate(schedule.EndDate);
-
-        if (vietnamNow.Date < startDate)
-            return _timeService.ToUtc(startDate.Add(schedule.StartTime));
-
-        if (vietnamNow.Date > endDate)
-            return null;
-
-        if (schedule.StartTime > vietnamNow.TimeOfDay)
-            return _timeService.ToUtc(vietnamNow.Date.Add(schedule.StartTime));
-
-        var nextDate = vietnamNow.Date.AddDays(1);
-        if (nextDate <= endDate)
-            return _timeService.ToUtc(nextDate.Add(schedule.StartTime));
-
-        return null;
     }
 
     [HttpPost("/portal/playlist/remove-item")]

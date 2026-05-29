@@ -70,7 +70,7 @@ public class MobilePlaybackServiceTests
     {
         return new MobilePlaybackService(
             new Repository<Device>(context),
-            new Repository<PlaybackSchedule>(context),
+            new PlaybackScheduleResolver(new Repository<PlaybackSchedule>(context), new FixedTimeService()),
             new FixedTimeService(),
             cache,
             new MobilePlaybackCacheService(cache, new Repository<PlaybackSchedule>(context), new FixedTimeService(), new NullApplicationMetrics()),

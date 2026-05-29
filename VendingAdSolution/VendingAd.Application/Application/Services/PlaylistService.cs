@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
 using VendingAdSystem.Application.DTOs;
-using VendingAdSystem.Domain.Entities;
 
 namespace VendingAdSystem.Application.Services;
 
@@ -12,30 +10,17 @@ public interface IPlaylistService
 public class PlaylistService : IPlaylistService
 {
     private readonly ITimeService _timeService;
-    private readonly IPlaybackScheduleService _playbackScheduleService;
+    private readonly IPlaybackScheduleResolver _scheduleResolver;
 
-    public PlaylistService(ITimeService timeService, IPlaybackScheduleService playbackScheduleService)
+    public PlaylistService(ITimeService timeService, IPlaybackScheduleResolver scheduleResolver)
     {
         _timeService = timeService;
-        _playbackScheduleService = playbackScheduleService;
+        _scheduleResolver = scheduleResolver;
     }
 
     public async Task<List<PlaylistResponse>?> GetPlaylistAsync(string deviceCode)
     {
-        var utcNow = _timeService.UtcNow;
-        var vietnamNow = _timeService.ToVietnamTime(utcNow);
-        var currentTime = vietnamNow.TimeOfDay;
-
-        var schedules = await _playbackScheduleService.GetAllAsync();
-        var schedule = schedules
-            .Where(s => s.IsActive)
-            .Where(s => s.StartDate <= utcNow && s.EndDate >= utcNow)
-            .Where(s => s.Devices.Any(d => d.Device.DeviceCode == deviceCode))
-            .Where(s => IsScheduleActiveNow(s, utcNow, currentTime))
-            .OrderByDescending(s => s.IsImmediate)
-            .ThenByDescending(s => s.CreatedAt)
-            .ThenByDescending(s => s.StartDate)
-            .FirstOrDefault();
+        var schedule = await _scheduleResolver.ResolveCurrentForDeviceCodeAsync(deviceCode, _timeService.UtcNow);
 
         if (schedule == null)
             return null;
@@ -49,17 +34,6 @@ public class PlaylistService : IPlaylistService
                 OrderIndex = i.OrderIndex
             })
             .ToList();
-    }
-
-    private bool IsScheduleActiveNow(PlaybackSchedule schedule, DateTime utcNow, TimeSpan currentTime)
-    {
-        if (!schedule.IsImmediate)
-            return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
-
-        if (schedule.ImmediateStartedAt.HasValue && schedule.ImmediateStartedAt.Value.Date == utcNow.Date)
-            return currentTime <= schedule.EndTime;
-
-        return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
     }
 
     private static string NormalizeMediaUrl(string fileUrl)

@@ -25,7 +25,7 @@ public class MobilePlaybackCacheOptions
 public class MobilePlaybackService : IMobilePlaybackService
 {
     private readonly IRepository<Device> _devices;
-    private readonly IRepository<PlaybackSchedule> _playbackSchedules;
+    private readonly IPlaybackScheduleResolver _scheduleResolver;
     private readonly ITimeService _timeService;
     private readonly ICacheService _cacheService;
     private readonly IMobilePlaybackCacheService _playbackCache;
@@ -35,7 +35,7 @@ public class MobilePlaybackService : IMobilePlaybackService
 
     public MobilePlaybackService(
         IRepository<Device> devices,
-        IRepository<PlaybackSchedule> playbackSchedules,
+        IPlaybackScheduleResolver scheduleResolver,
         ITimeService timeService,
         ICacheService cacheService,
         IMobilePlaybackCacheService playbackCache,
@@ -44,7 +44,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         IOptions<MobilePlaybackCacheOptions> cacheOptions)
     {
         _devices = devices;
-        _playbackSchedules = playbackSchedules;
+        _scheduleResolver = scheduleResolver;
         _timeService = timeService;
         _cacheService = cacheService;
         _playbackCache = playbackCache;
@@ -135,27 +135,12 @@ public class MobilePlaybackService : IMobilePlaybackService
         }
 
         var vietnamNow = _timeService.ToVietnamTime(utcNow);
-        var currentTime = vietnamNow.TimeOfDay;
         var activeScheduleKey = _playbackCache.DeviceActiveScheduleKey(normalizedCode);
-        List<PlaybackSchedule> candidates;
+        PlaybackSchedule? schedule;
         using (_metrics.ObserveDatabaseQuery("mobile_playback_schedule_candidates"))
         {
-            candidates = await _playbackSchedules.Query()
-                .AsNoTracking()
-                .Include(s => s.Devices).ThenInclude(d => d.Device)
-                .Include(s => s.Items).ThenInclude(i => i.Media)
-                .Where(s => s.IsActive)
-                .Where(s => s.StartDate <= utcNow && s.EndDate >= utcNow)
-                .Where(s => s.Devices.Any(d => d.DeviceId == device.Id))
-                .ToListAsync();
+            schedule = await _scheduleResolver.ResolveCurrentForDeviceAsync(device.Id, utcNow);
         }
-
-        var schedule = candidates
-            .Where(s => IsScheduleActiveNow(s, utcNow, currentTime))
-            .OrderByDescending(s => s.IsImmediate)
-            .ThenByDescending(s => s.CreatedAt)
-            .ThenByDescending(s => s.StartDate)
-            .FirstOrDefault();
 
         if (schedule == null)
         {
@@ -218,17 +203,6 @@ public class MobilePlaybackService : IMobilePlaybackService
                 FullName = device.User.FullName
             }
         };
-    }
-
-    private static bool IsScheduleActiveNow(PlaybackSchedule schedule, DateTime utcNow, TimeSpan currentTime)
-    {
-        if (!schedule.IsImmediate)
-            return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
-
-        if (schedule.ImmediateStartedAt.HasValue && schedule.ImmediateStartedAt.Value.Date == utcNow.Date)
-            return currentTime <= schedule.EndTime;
-
-        return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
     }
 
     private static string NormalizeDeviceCode(string deviceCode)

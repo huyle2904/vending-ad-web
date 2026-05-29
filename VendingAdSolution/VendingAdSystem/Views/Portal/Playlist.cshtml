@@ -159,8 +159,34 @@
 
 <script>
   let draggedItem = null;
-  function openVideoModal(playlistId){ document.getElementById('modalPlaylistId').value = playlistId; document.getElementById('videoModal').style.display='flex'; }
-  function closeVideoModal(){ document.getElementById('videoModal').style.display='none'; }
+  function showModalAtViewportCenter(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
+    modal.classList.remove('u-hidden');
+    modal.style.position = 'fixed';
+    modal.style.inset = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '1200';
+  }
+
+  function openVideoModal(playlistId) {
+    document.getElementById('modalPlaylistId').value = playlistId;
+    showModalAtViewportCenter('videoModal');
+  }
+
+  function closeVideoModal() {
+    const modal = document.getElementById('videoModal');
+    if (modal) modal.style.display = 'none';
+  }
   document.querySelectorAll('.playlist-media-row').forEach(item=>{
     item.addEventListener('dragstart', function(e){ draggedItem=this; this.classList.add('dragging'); e.dataTransfer.effectAllowed='move';});
     item.addEventListener('dragend', function(){ this.classList.remove('dragging'); draggedItem=null; updateOrderNumbers();});

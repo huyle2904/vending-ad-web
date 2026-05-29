@@ -1149,7 +1149,14 @@ else
   restoreScheduleDraft();
 
   function openScheduleDetail(id) {
-    document.getElementById('scheduleDetail-' + id).style.display = 'flex';
+    const modal = document.getElementById('scheduleDetail-' + id);
+    if (!modal) return;
+
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
+    modal.style.display = 'flex';
   }
 
   function closeScheduleDetail(id) {

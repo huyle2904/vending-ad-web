@@ -54,6 +54,23 @@ Khi `Seed:EnableDemoData=true`, app tạo 20 devices với credentials:
 
 ## Running Tests
 
+### 0. PowerShell fallback khi chưa cài được k6
+Nếu máy Windows chưa có quyền admin để cài k6, dùng script PowerShell có sẵn:
+```powershell
+.\scripts\mobile-fleet-load.ps1 -DeviceCount 20 -DurationSeconds 120
+```
+
+Mô phỏng 250 thiết bị:
+```powershell
+.\scripts\mobile-fleet-load.ps1 `
+  -DeviceCount 250 `
+  -DurationSeconds 600 `
+  -PlaybackIntervalSeconds 15 `
+  -HeartbeatIntervalSeconds 30
+```
+
+Script này không thay thế hoàn toàn k6, nhưng đủ để test local ban đầu: tổng request, lỗi 401/404/5xx, latency avg/p50/p95/p99 cho playback và heartbeat.
+
 ### 1. Smoke Test (1 VU, 1 phút)
 Sanity check sau mỗi deploy:
 ```bash
@@ -66,13 +83,45 @@ DEVICE_CODE=TAB-05 DEVICE_SECRET=dev-secret-TAB-05 k6 run k6/smoke.js
 ```
 
 ### 2. Load Test (50 VUs, ~10 phút)
-Kiểm tra normal load:
+Kiểm tra normal load với một device cố định:
 ```bash
 k6 run k6/load.js
 ```
 
-### 3. Stress Test (200 VUs, ~17 phút)
-Tìm breaking point:
+### 3. Fleet Load Test (nhiều thiết bị thật hơn)
+Mô phỏng mỗi VU là một device riêng, ví dụ `TAB-01` đến `TAB-50`. Đây là script nên dùng để kiểm tra bài toán vending devices polling production:
+```bash
+DEVICE_COUNT=50 k6 run k6/mobile-fleet.js
+```
+
+Mô phỏng tải gần production 250 thiết bị:
+```bash
+DEVICE_COUNT=250 \
+PLAYBACK_INTERVAL_SECONDS=15 \
+HEARTBEAT_INTERVAL_SECONDS=30 \
+k6 run k6/mobile-fleet.js
+```
+
+Stress 500 thiết bị trong 15 phút:
+```bash
+DEVICE_COUNT=500 \
+DURATION=15m \
+PLAYBACK_INTERVAL_SECONDS=15 \
+HEARTBEAT_INTERVAL_SECONDS=30 \
+k6 run k6/mobile-fleet.js
+```
+
+Nếu device code/secret không theo format demo `TAB-01` / `dev-secret-TAB-01`, đổi prefix:
+```bash
+DEVICE_PREFIX=KIOSK- \
+DEVICE_SECRET_PREFIX=secret- \
+DEVICE_PAD_WIDTH=3 \
+DEVICE_COUNT=100 \
+k6 run k6/mobile-fleet.js
+```
+
+### 4. Stress Test (200 VUs, ~17 phút)
+Tìm breaking point với một device cố định:
 ```bash
 k6 run k6/stress.js
 ```
@@ -80,9 +129,8 @@ k6 run k6/stress.js
 ### Test remote server:
 ```bash
 BASE_URL=https://your-app.onrender.com \
-DEVICE_CODE=TAB-01 \
-DEVICE_SECRET=dev-secret-TAB-01 \
-k6 run k6/load.js
+DEVICE_COUNT=50 \
+k6 run k6/mobile-fleet.js
 ```
 
 ## Thresholds
@@ -108,6 +156,15 @@ k6 run k6/load.js
 http_req_duration..............: avg=50ms p(95)=200ms
 http_reqs......................: ~30 req/s
 iteration_duration.............: avg=1.5s
+```
+
+**Fleet load test (250 devices):**
+```
+http_req_duration..............: p(95)<1000ms cho playback
+http_req_duration..............: p(95)<500ms cho heartbeat
+http_reqs......................: phụ thuộc poll interval, thường ~25 req/s với 250 device @ 15s/30s
+playback_errors................: rate < 5%
+heartbeat_errors...............: rate < 5%
 ```
 
 **Stress test (200 VUs):**

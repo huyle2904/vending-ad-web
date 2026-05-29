@@ -14,6 +14,12 @@ using VendingAdSystem.Infrastructure.Storage;
 
 namespace VendingAdSystem.Infrastructure;
 
+public class ProductionReadinessOptions
+{
+    public bool RequireDistributedCache { get; set; }
+    public bool RequireMessageBus { get; set; }
+}
+
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
@@ -22,8 +28,11 @@ public static class DependencyInjection
         services.AddCache(configuration, requireRedis: false);
         services.AddVendingAdHealthChecks();
         services.Configure<DevicePresenceOptions>(configuration.GetSection("DevicePresence"));
+        services.Configure<MobilePlaybackCacheOptions>(configuration.GetSection("MobilePlaybackCache"));
         services.Configure<MobileRateLimitOptions>(configuration.GetSection("MobileRateLimiting"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
+        services.Configure<ProductionReadinessOptions>(configuration.GetSection("ProductionReadiness"));
+        ValidateProductionReadiness(configuration, requireWorkerDependencies: false);
 
         services.AddSingleton<IApplicationMetrics, NullApplicationMetrics>();
         services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
@@ -59,6 +68,8 @@ public static class DependencyInjection
         services.AddPersistence(configuration);
         services.AddCache(configuration, requireRedis: true);
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMQ"));
+        services.Configure<ProductionReadinessOptions>(configuration.GetSection("ProductionReadiness"));
+        ValidateProductionReadiness(configuration, requireWorkerDependencies: true);
 
         services.AddSingleton<IApplicationMetrics, NullApplicationMetrics>();
         services.AddScoped<ITimeService, TimeService>();
@@ -79,6 +90,48 @@ public static class DependencyInjection
             .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "ready" });
 
         return services;
+    }
+
+    private static void ValidateProductionReadiness(IConfiguration configuration, bool requireWorkerDependencies)
+    {
+        var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? "Production";
+        var isDevelopment = string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase);
+        if (isDevelopment)
+            return;
+
+        var requireDistributedCache = requireWorkerDependencies
+            || configuration.GetValue<bool>("ProductionReadiness:RequireDistributedCache");
+        var requireMessageBus = requireWorkerDependencies
+            || configuration.GetValue<bool>("ProductionReadiness:RequireMessageBus");
+
+        if (requireDistributedCache)
+        {
+            var redisEnabled = configuration.GetValue<bool>("Redis:Enabled");
+            var redisConnectionString = configuration["Redis:ConnectionString"];
+            if (!redisEnabled || string.IsNullOrWhiteSpace(redisConnectionString))
+            {
+                throw new InvalidOperationException(
+                    "Production readiness check failed: Redis must be enabled with Redis:ConnectionString for distributed mobile cache and device presence.");
+            }
+        }
+
+        if (requireMessageBus)
+        {
+            var rabbitMqEnabled = configuration.GetValue<bool>("RabbitMQ:Enabled");
+            var rabbitMqHost = configuration["RabbitMQ:HostName"];
+            var rabbitMqUser = configuration["RabbitMQ:UserName"];
+            var rabbitMqPassword = configuration["RabbitMQ:Password"];
+            if (!rabbitMqEnabled
+                || string.IsNullOrWhiteSpace(rabbitMqHost)
+                || string.IsNullOrWhiteSpace(rabbitMqUser)
+                || string.IsNullOrWhiteSpace(rabbitMqPassword))
+            {
+                throw new InvalidOperationException(
+                    "Production readiness check failed: RabbitMQ must be enabled with host, username, and password for schedule cache invalidation.");
+            }
+        }
     }
 
     private static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)

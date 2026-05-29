@@ -340,9 +340,20 @@ else
   let quickPlaySource = 'media';
   const quickPlayDeviceData = {};
 
-  function showAddModal() { document.getElementById('addModal').style.display = 'flex'; }
+  function showModalAtViewportCenter(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  function showAddModal() { showModalAtViewportCenter('addModal'); }
   function hideAddModal() { document.getElementById('addModal').style.display = 'none'; }
-  function openDeviceDetail(id) { document.getElementById('deviceDetail-' + id).style.display = 'flex'; }
+  function openDeviceDetail(id) { showModalAtViewportCenter('deviceDetail-' + id); }
   function closeDeviceDetail(id) { document.getElementById('deviceDetail-' + id).style.display = 'none'; }
 
   document.getElementById('claimCodeInput')?.addEventListener('input', function () {
@@ -394,7 +405,7 @@ else
     setQuickPlayDateTime();
     clearQuickPlaySelection();
     switchQuickPlaySource('media');
-    document.getElementById('quickPlayModal').style.display = 'flex';
+    showModalAtViewportCenter('quickPlayModal');
   }
 
   function hideQuickPlayModal() {

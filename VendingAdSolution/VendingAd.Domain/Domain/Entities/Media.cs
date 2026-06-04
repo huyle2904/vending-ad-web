@@ -1,5 +1,11 @@
 namespace VendingAdSystem.Domain.Entities;
 
+public enum MediaType
+{
+    Uploaded = 0,
+    YouTube = 1
+}
+
 public class Media
 {
     public int Id { get; set; }
@@ -8,6 +14,7 @@ public class Media
     public long FileSize { get; set; }
     public string? ThumbnailUrl { get; set; }
     public int? DurationSeconds { get; set; }
+    public MediaType MediaType { get; set; } = MediaType.Uploaded;
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
     public int? UserId { get; set; }

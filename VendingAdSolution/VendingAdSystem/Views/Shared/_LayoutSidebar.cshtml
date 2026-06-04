@@ -91,6 +91,11 @@
             <span class="nav-label">Danh sách phát</span>
             <i class="bi bi-chevron-right nav-caret"></i>
           </a>
+          <a href="/portal/youtube" class="nav-item @(currentUrl.StartsWith("/portal/youtube") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-youtube"></i></span>
+            <span class="nav-label">YouTube</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
+          </a>
         </div>
       }
       @if (isAdmin)
@@ -123,6 +128,11 @@
           <a href="/admin/playlists" class="nav-item @(currentUrl.Contains("/admin/playlists") ? "active" : "")">
             <span class="nav-icon"><i class="bi bi-card-checklist"></i></span>
             <span class="nav-label">Danh sách phát</span>
+            <i class="bi bi-chevron-right nav-caret"></i>
+          </a>
+          <a href="/admin/youtube" class="nav-item @(currentUrl.Contains("/admin/youtube") ? "active" : "")">
+            <span class="nav-icon"><i class="bi bi-youtube"></i></span>
+            <span class="nav-label">YouTube</span>
             <i class="bi bi-chevron-right nav-caret"></i>
           </a>
           <a href="/admin/schedules" class="nav-item @(currentUrl.Contains("/admin/schedules") ? "active" : "")">

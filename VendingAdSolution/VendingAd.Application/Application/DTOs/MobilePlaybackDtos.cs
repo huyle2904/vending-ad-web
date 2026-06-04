@@ -70,6 +70,7 @@ public class MobilePlaybackItemResponse
     public long FileSize { get; set; }
     public string? Checksum { get; set; }
     public int? DurationSeconds { get; set; }
+    public string MediaType { get; set; } = "Uploaded";
 }
 
 public class MobileScheduleContentCache

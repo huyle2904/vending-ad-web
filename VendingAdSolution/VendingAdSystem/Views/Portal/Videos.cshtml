@@ -11,7 +11,7 @@
 <div class="video-page">
   <section class="video-overview">
     <div class="video-drop-area" id="dropZone" role="button" tabindex="0" aria-label="Tải video lên thư viện" onclick="openVideoPicker(event)" onkeydown="onDropZoneKeydown(event)" ondragover="onDropDragOver(event)" ondragleave="onDropDragLeave(event)" ondrop="onDropFile(event)">
-      <input type="file" id="videoFile" accept="video/*" onchange="onFileSelect(this)" hidden />
+      <input type="file" id="videoFile" accept="video/*" multiple onchange="onFileSelect(this)" hidden />
       <div class="upload-circle"><i class="bi bi-cloud-arrow-up-fill"></i></div>
       <div class="video-drop-copy">
         <h3>Kéo & thả video vào đây</h3>
@@ -27,8 +27,9 @@
         <button type="button" class="video-select-btn" onclick="openVideoPicker(event)"><i class="bi bi-folder2-open"></i>Chọn file</button>
         <small>hoặc thả file vào vùng này</small>
       </div>
-      <p id="fileName" class="media-selected-file"></p>
-      <div id="uploadLoading" class="upload-loading u-hidden" style="display:none" aria-live="polite"><span class="upload-spinner"></span><span>Đang tải video...</span></div>
+      <p id="fileName" class="media-selected-file u-hidden"></p>
+      <ul id="uploadQueueList" class="upload-queue u-hidden" aria-live="polite"></ul>
+      <div id="uploadLoading" class="upload-loading u-hidden" style="display:none" aria-live="polite"><span class="upload-spinner"></span><span id="uploadLoadingText">Đang tải video...</span></div>
     </div>
 
     <div class="video-stat-actions video-metric-grid">
@@ -117,6 +118,9 @@
 
 <script>
   const maxUploadBytes = 50 * 1024 * 1024;
+  const uploadQueue = [];
+  let uploadQueueSeq = 0;
+  let uploadInProgress = false;
 
   var uploadLoadingEl = document.getElementById('uploadLoading');
   if (uploadLoadingEl) {
@@ -142,21 +146,90 @@
   }
 
   function onFileSelect(input) {
-    var file = input.files[0];
-    if (!file) return;
-    if (file.type && !file.type.startsWith('video/')) { window.showToast('Chỉ hỗ trợ file video', 'error'); input.value = ''; return; }
-    if (file.size > maxUploadBytes) { window.showToast('File phải nhỏ hơn 50MB', 'error'); input.value = ''; return; }
-    document.getElementById('fileName').textContent = file.name;
-    doUpload();
+    var files = Array.from(input.files || []);
+    input.value = '';
+    if (!files.length) return;
+    enqueueFiles(files);
   }
 
-  function setUploadState(isUploading) {
+  function enqueueFiles(files) {
+    var added = 0;
+    files.forEach(function(file) {
+      if (file.type && !file.type.startsWith('video/')) {
+        addQueueItem(file, 'failed', 'Chỉ hỗ trợ file video');
+        return;
+      }
+      if (file.size > maxUploadBytes) {
+        addQueueItem(file, 'failed', 'File phải nhỏ hơn 50MB');
+        return;
+      }
+      addQueueItem(file, 'pending', '');
+      added++;
+    });
+    renderQueue();
+    if (added > 0) processQueue();
+  }
+
+  function addQueueItem(file, status, message) {
+    uploadQueue.push({
+      id: ++uploadQueueSeq,
+      file: file,
+      name: file.name,
+      sizeMb: (file.size / 1024 / 1024).toFixed(1),
+      status: status,
+      message: message || ''
+    });
+  }
+
+  function setItemStatus(id, status, message) {
+    var item = uploadQueue.find(function(x) { return x.id === id; });
+    if (!item) return;
+    item.status = status;
+    item.message = message || '';
+    renderQueue();
+  }
+
+  function renderQueue() {
+    var list = document.getElementById('uploadQueueList');
+    if (!list) return;
+    if (!uploadQueue.length) {
+      list.innerHTML = '';
+      list.classList.add('u-hidden');
+      return;
+    }
+    list.classList.remove('u-hidden');
+    list.innerHTML = uploadQueue.map(function(item) {
+      var icon = '';
+      var statusText = '';
+      if (item.status === 'pending') { icon = 'bi-hourglass-split'; statusText = 'Đang chờ'; }
+      else if (item.status === 'uploading') { icon = 'bi-arrow-repeat'; statusText = 'Đang tải'; }
+      else if (item.status === 'success') { icon = 'bi-check-circle-fill'; statusText = 'Thành công'; }
+      else if (item.status === 'failed') { icon = 'bi-x-circle-fill'; statusText = 'Thất bại' + (item.message ? ': ' + escapeHtml(item.message) : ''); }
+      return '<li class="upload-queue-item upload-queue-' + item.status + '">'
+        + '<i class="bi ' + icon + '"></i>'
+        + '<div class="upload-queue-meta">'
+        +   '<strong title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</strong>'
+        +   '<small>' + item.sizeMb + ' MB · ' + statusText + '</small>'
+        + '</div>'
+        + '</li>';
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function setUploadState(isUploading, label) {
     var loading = document.getElementById('uploadLoading');
+    var loadingText = document.getElementById('uploadLoadingText');
     var dropZone = document.getElementById('dropZone');
     if (loading) {
       loading.classList.toggle('u-hidden', !isUploading);
       loading.style.display = isUploading ? 'flex' : 'none';
     }
+    if (loadingText && label) loadingText.textContent = label;
     dropZone?.classList.toggle('uploading', isUploading);
   }
 
@@ -171,54 +244,93 @@
     }
   }
 
-  async function doUpload() {
-    var file = document.getElementById('videoFile').files[0];
-    if (!file) return;
-    var formData = new FormData();
-    formData.append('file', file);
-    var xhr = new XMLHttpRequest(); xhr.open('POST', '/api/portal/upload');
-    var token = window.getRequestVerificationToken?.() || '';
-    if (token) xhr.setRequestHeader('RequestVerificationToken', token);
-    setUploadState(true);
-    xhr.upload.onprogress = function(e) { };
-    xhr.onload = async function(){
-      if(xhr.status >= 200 && xhr.status < 300){
+  async function processQueue() {
+    if (uploadInProgress) return;
+    uploadInProgress = true;
+    var hadSuccess = false;
+    try {
+      while (true) {
+        var next = uploadQueue.find(function(x) { return x.status === 'pending'; });
+        if (!next) break;
+        var pendingCount = uploadQueue.filter(function(x) { return x.status === 'pending'; }).length;
+        var totalActive = pendingCount + 1;
+        var doneCount = uploadQueue.filter(function(x) { return x.status === 'success' || x.status === 'failed'; }).length;
+        setUploadState(true, 'Đang tải video ' + (doneCount + 1) + '/' + (doneCount + totalActive));
+        setItemStatus(next.id, 'uploading');
         try {
-          const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
-          const html = await res.text();
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const newLibrary = doc.querySelector('.video-library-card');
-          const newStats = doc.querySelector('.video-stat-actions');
-          if (newLibrary) {
-            const currentLibrary = document.querySelector('.video-library-card');
-            if (currentLibrary) currentLibrary.replaceWith(newLibrary);
-          }
-          if (newStats) {
-            const currentStats = document.querySelector('.video-stat-actions');
-            if (currentStats) currentStats.replaceWith(newStats);
-          }
-          window.refreshCustomSelects?.();
-          resetBatchDeleteMode();
-          document.getElementById('videoFile').value = '';
-          document.getElementById('fileName').textContent = '';
-          window.showToast('Tải lên thành công', 'success');
-        } catch {
-          window.showToast('Tải lên thành công', 'success');
+          await uploadOne(next);
+          hadSuccess = true;
+        } catch (err) {
+          // setItemStatus đã được gọi trong uploadOne, chỉ cần tiếp tục.
         }
-      } else {
-        window.showToast(readUploadError(xhr),'error');
       }
+    } finally {
       setUploadState(false);
-    };
-    xhr.onerror = function(){
-      setUploadState(false);
-      window.showToast('Lỗi mạng', 'error');
-    };
-    xhr.onabort = function(){
-      setUploadState(false);
-    };
-    xhr.send(formData);
+      uploadInProgress = false;
+      var failures = uploadQueue.filter(function(x) { return x.status === 'failed'; }).length;
+      if (hadSuccess) {
+        await refreshLibrary();
+        if (failures === 0) {
+          window.showToast('Đã tải lên ' + uploadQueue.filter(function(x){return x.status==='success';}).length + ' video', 'success');
+        } else {
+          window.showToast('Tải xong, ' + failures + ' video thất bại', 'error');
+        }
+      } else if (failures > 0) {
+        window.showToast(failures + ' video thất bại', 'error');
+      }
+    }
+  }
+
+  function uploadOne(item) {
+    return new Promise(function(resolve, reject) {
+      var formData = new FormData();
+      formData.append('file', item.file);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/portal/upload');
+      var token = window.getRequestVerificationToken?.() || '';
+      if (token) xhr.setRequestHeader('RequestVerificationToken', token);
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setItemStatus(item.id, 'success');
+          resolve();
+        } else {
+          setItemStatus(item.id, 'failed', readUploadError(xhr));
+          reject();
+        }
+      };
+      xhr.onerror = function() {
+        setItemStatus(item.id, 'failed', 'Lỗi mạng');
+        reject();
+      };
+      xhr.onabort = function() {
+        setItemStatus(item.id, 'failed', 'Đã hủy');
+        reject();
+      };
+      xhr.send(formData);
+    });
+  }
+
+  async function refreshLibrary() {
+    try {
+      const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+      const html = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const newLibrary = doc.querySelector('.video-library-card');
+      const newStats = doc.querySelector('.video-stat-actions');
+      if (newLibrary) {
+        const currentLibrary = document.querySelector('.video-library-card');
+        if (currentLibrary) currentLibrary.replaceWith(newLibrary);
+      }
+      if (newStats) {
+        const currentStats = document.querySelector('.video-stat-actions');
+        if (currentStats) currentStats.replaceWith(newStats);
+      }
+      window.refreshCustomSelects?.();
+      resetBatchDeleteMode();
+    } catch {
+      // Refresh thất bại không cần báo, batch đã xong.
+    }
   }
 
 
@@ -235,13 +347,9 @@
   function onDropFile(event) {
     event.preventDefault();
     document.getElementById('dropZone').classList.remove('drag-over');
-    var file = event.dataTransfer?.files?.[0];
-    if (!file) return;
-    var input = document.getElementById('videoFile');
-    var dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-    onFileSelect(input);
+    var files = Array.from(event.dataTransfer?.files || []);
+    if (!files.length) return;
+    enqueueFiles(files);
   }
 
   function startBatchDeleteMode() {

@@ -1165,3 +1165,19 @@
 @keyframes spinUpload { to { transform: rotate(360deg); } }
 
 .upload-loading.u-hidden { display: none !important; }
+
+.upload-queue { grid-column: 1 / -1; list-style: none; margin: .55rem 0 0; padding: 0; display: grid; gap: .4rem; max-height: 220px; overflow-y: auto; }
+.upload-queue.u-hidden { display: none !important; }
+.upload-queue-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: .6rem; padding: .45rem .65rem; border-radius: 10px; background: #f4f7fc; border: 1px solid #e1e8f4; }
+.upload-queue-item > i { font-size: 1.05rem; color: #607494; }
+.upload-queue-meta { min-width: 0; display: grid; gap: .15rem; }
+.upload-queue-meta strong { color: #14264b; font-size: .88rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-queue-meta small { color: #6f84a2; font-size: .75rem; font-weight: 600; }
+.upload-queue-pending { background: #f4f7fc; }
+.upload-queue-uploading { background: #eef4ff; border-color: #c8d8fb; }
+.upload-queue-uploading > i { color: #2f57eb; animation: spinUpload .8s linear infinite; }
+.upload-queue-success { background: #ecfdf5; border-color: #c4ecd8; }
+.upload-queue-success > i { color: #157347; }
+.upload-queue-failed { background: #fef2f2; border-color: #f5cccc; }
+.upload-queue-failed > i { color: #c0392b; }
+.upload-queue-failed .upload-queue-meta small { color: #c0392b; }

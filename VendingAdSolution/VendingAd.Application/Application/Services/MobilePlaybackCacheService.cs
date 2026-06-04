@@ -154,7 +154,8 @@ public class MobilePlaybackCacheService : IMobilePlaybackCacheService
                 OrderIndex = i.OrderIndex,
                 FileSize = i.Media.FileSize,
                 Checksum = null,
-                DurationSeconds = i.Media.DurationSeconds
+                DurationSeconds = i.Media.DurationSeconds,
+                MediaType = i.Media.MediaType == Domain.Entities.MediaType.YouTube ? "YouTube" : "Uploaded"
             }).ToList()
         };
     }

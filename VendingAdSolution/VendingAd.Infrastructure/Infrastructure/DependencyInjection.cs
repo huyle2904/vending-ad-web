@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<IMobilePlaybackCacheService, MobilePlaybackCacheService>();
         services.AddScoped<IDevicePresenceService, DevicePresenceService>();
         services.AddScoped<IScheduleCacheEventHandler, ScheduleCacheEventHandler>();
+        services.AddScoped<IYouTubeService, YouTubeService>();
         services.AddSingleton<IMobileRateLimitService, MobileRateLimitService>();
         if (configuration.GetValue<bool>("RabbitMQ:Enabled"))
             services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();

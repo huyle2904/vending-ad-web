@@ -1,0 +1,74 @@
+@model List<Media>
+@{
+    ViewData["Title"] = "YouTube Video";
+    const string youTubePlaceholder = "/images/video-placeholder.svg";
+}
+
+<div class="video-page">
+  <section class="video-overview">
+    <div class="card" style="padding:1.5rem;">
+      <h3 style="margin-bottom:0.75rem;"><i class="bi bi-youtube" style="color:red;margin-right:0.5rem;"></i>Thêm link YouTube</h3>
+      <p style="margin-bottom:1rem;color:var(--text-muted);font-size:0.9rem;">Dán link YouTube vào ô bên dưới để thêm video vào thư viện. Video sẽ có sẵn trong danh sách phát và lịch phát.</p>
+      <form method="post" action="/portal/youtube/add" class="u-flex" style="gap:0.75rem;align-items:end;">
+        @Html.AntiForgeryToken()
+        <div class="form-group" style="flex:1;">
+          <label class="form-label" for="youtubeUrl">Link YouTube</label>
+          <input type="url" id="youtubeUrl" name="youtubeUrl" class="form-input" placeholder="https://www.youtube.com/watch?v=..." required style="width:100%;" />
+        </div>
+        <button type="submit" class="btn btn-primary" style="white-space:nowrap;"><i class="bi bi-plus-lg"></i>Thêm video</button>
+      </form>
+    </div>
+
+    <div class="video-stat-actions video-metric-grid">
+      <article class="video-metric-card">
+        <span><i class="bi bi-youtube" style="color:red;"></i></span>
+        <div><strong>@Model.Count</strong><small>Tổng YouTube video</small></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="video-library-card">
+    <header class="video-library-head">
+      <div>
+        <h2>Danh sách YouTube video (@Model.Count)</h2>
+        <p>Các video YouTube đã thêm vào thư viện.</p>
+      </div>
+    </header>
+
+    @if (!Model.Any())
+    {
+      <div class="empty-box video-empty-min">Chưa có YouTube video nào trong thư viện.</div>
+    }
+    else
+    {
+      <div class="video-list">
+          @foreach (var video in Model)
+          {
+            <article class="video-list-row fx-list-row">
+              <div class="col-media">
+                <img src="@(string.IsNullOrWhiteSpace(video.ThumbnailUrl) ? youTubePlaceholder : video.ThumbnailUrl)" onerror="this.onerror=null;this.src='@youTubePlaceholder';" alt="thumb" />
+                <div>
+                  <strong title="@video.FileName">@video.FileName</strong>
+                  <small>YouTube</small>
+                </div>
+              </div>
+              <div class="video-row-meta"><strong>YouTube</strong><small>Nguồn</small></div>
+              <div class="video-row-meta" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                <strong title="@video.FileUrl">@video.FileUrl</strong><small>Link</small>
+              </div>
+              <div class="video-row-meta"><strong>@VietnamTimeFormatter.FormatUtc(video.UploadedAt, "dd/MM/yyyy")</strong><small>Ngày thêm</small></div>
+              <div class="col-actions">
+                <a class="icon-btn" href="@video.FileUrl" target="_blank" title="Mở trong YouTube"><i class="bi bi-box-arrow-up-right"></i></a>
+                <form method="post" action="/portal/youtube/delete" class="u-inline">
+                  @Html.AntiForgeryToken()
+                  <input type="hidden" name="mediaId" value="@video.Id" />
+                  <button class="icon-btn danger-outline" type="submit" title="Xóa link YouTube" aria-label="Xóa @video.FileName" onclick="return confirm('Bạn có chắc muốn xóa link YouTube này?')"><i class="bi bi-trash3"></i></button>
+                </form>
+              </div>
+            </article>
+          }
+      </div>
+      <div class="video-list-foot">Hiển thị 1 đến @Model.Count của @Model.Count video</div>
+    }
+  </section>
+</div>

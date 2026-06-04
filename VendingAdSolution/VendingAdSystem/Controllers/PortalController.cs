@@ -22,6 +22,7 @@ public class PortalController : Controller
     private readonly IPlaybackScheduleService _playbackScheduleService;
     private readonly IPlaybackScheduleResolver _scheduleResolver;
     private readonly IDevicePresenceService _devicePresenceService;
+    private readonly IYouTubeService _youTubeService;
 
     public PortalController(
         ICurrentSession currentSession,
@@ -33,7 +34,8 @@ public class PortalController : Controller
         IPlaylistManagementService playlistManagementService,
         IPlaybackScheduleService playbackScheduleService,
         IPlaybackScheduleResolver scheduleResolver,
-        IDevicePresenceService devicePresenceService)
+        IDevicePresenceService devicePresenceService,
+        IYouTubeService youTubeService)
     {
         _currentSession = currentSession;
         _deviceService = deviceService;
@@ -45,6 +47,7 @@ public class PortalController : Controller
         _playbackScheduleService = playbackScheduleService;
         _scheduleResolver = scheduleResolver;
         _devicePresenceService = devicePresenceService;
+        _youTubeService = youTubeService;
     }
 
     private static string DateRangeText(PlaybackSchedule schedule)
@@ -623,6 +626,43 @@ public class PortalController : Controller
 
         TempData["Success"] = result.Message;
         return RedirectToAction("Playlist");
+    }
+
+    [HttpGet("/portal/youtube")]
+    public async Task<IActionResult> YouTube()
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return RedirectToAction("Login", "Account");
+
+        var youTubeLinks = await _youTubeService.GetUserYouTubeLinksAsync(userId.Value);
+        return View("~/Views/Portal/YouTube.cshtml", youTubeLinks);
+    }
+
+    [HttpPost("/portal/youtube/add")]
+    public async Task<IActionResult> AddYouTubeLink([FromForm] string youtubeUrl)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var result = await _youTubeService.AddYouTubeLinkAsync(youtubeUrl, userId.Value);
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
+        return RedirectToAction("YouTube");
+    }
+
+    [HttpPost("/portal/youtube/delete")]
+    public async Task<IActionResult> DeleteYouTubeLink([FromForm] int mediaId)
+    {
+        var userId = _currentSession.UserId;
+        if (userId == null || userId <= 0)
+            return Unauthorized();
+
+        var deleted = await _youTubeService.DeleteYouTubeLinkAsync(mediaId, userId.Value);
+        TempData[deleted ? "Success" : "Error"] = deleted
+            ? "Đã xóa link YouTube khỏi thư viện."
+            : "Không tìm thấy link YouTube.";
+        return RedirectToAction("YouTube");
     }
 }
 

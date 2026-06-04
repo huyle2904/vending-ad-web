@@ -26,6 +26,7 @@ public class AdminController : Controller
     private readonly IDeviceCredentialService _deviceCredentialService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IAuditService _auditService;
+    private readonly IYouTubeService _youTubeService;
 
     public AdminController(
         ICurrentSession currentSession,
@@ -40,7 +41,8 @@ public class AdminController : Controller
         IPasswordHashingService passwordHashingService,
         IDeviceCredentialService deviceCredentialService,
         IFileStorageService fileStorageService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IYouTubeService youTubeService)
     {
         _currentSession = currentSession;
         _userService = userService;
@@ -55,6 +57,7 @@ public class AdminController : Controller
         _deviceCredentialService = deviceCredentialService;
         _fileStorageService = fileStorageService;
         _auditService = auditService;
+        _youTubeService = youTubeService;
     }
 
     [HttpGet("/admin")]
@@ -583,4 +586,58 @@ public class AdminController : Controller
         return currentTime >= schedule.StartTime && currentTime <= schedule.EndTime;
     }
 
+    [HttpGet("/admin/youtube")]
+    public async Task<IActionResult> YouTube([FromQuery] int? userId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return RedirectToAction("Login", "Account");
+
+        var users = await _userService.GetAllUsersSortedAsync();
+        ViewBag.Users = users;
+        ViewBag.SelectedUserId = userId;
+
+        if (userId.HasValue && userId.Value > 0)
+        {
+            var youTubeLinks = await _youTubeService.GetUserYouTubeLinksAsync(userId.Value);
+            return View("~/Views/Admin/YouTube.cshtml", youTubeLinks);
+        }
+
+        var allMedia = await _mediaService.GetAllMediaWithDetailsAsync();
+        var youTubeForAll = allMedia.Where(m => m.MediaType == Domain.Entities.MediaType.YouTube)
+            .OrderByDescending(m => m.UploadedAt)
+            .ToList();
+        return View("~/Views/Admin/YouTube.cshtml", youTubeForAll);
+    }
+
+    [HttpPost("/admin/youtube/delete")]
+    public async Task<IActionResult> DeleteYouTubeLink([FromForm] int mediaId)
+    {
+        if (!_currentSession.IsAdminLoggedIn)
+            return Unauthorized();
+
+        var media = await _mediaService.GetByIdAsync(mediaId);
+        if (media == null || media.MediaType != Domain.Entities.MediaType.YouTube)
+        {
+            TempData["Error"] = "Không tìm thấy link YouTube.";
+            return RedirectToAction("YouTube");
+        }
+
+        _mediaService.Remove(media);
+        await _mediaService.SaveChangesAsync();
+        await _auditService.LogAsync(new AuditLogEntry
+        {
+            Action = AuditActions.DeleteVideo,
+            TargetType = AuditTargets.Media,
+            TargetId = media.Id,
+            Details = new
+            {
+                media.FileName,
+                media.FileUrl,
+                media.UserId
+            }
+        });
+
+        TempData["Success"] = "Đã xóa link YouTube.";
+        return RedirectToAction("YouTube");
+    }
 }

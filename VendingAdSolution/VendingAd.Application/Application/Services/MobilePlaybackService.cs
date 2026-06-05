@@ -9,8 +9,10 @@ namespace VendingAdSystem.Application.Services;
 public interface IMobilePlaybackService
 {
     Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode);
-    Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode);
+    Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode, string? currentFileName = null, string? playbackMode = null);
     Task<MobilePlaybackStateResponse?> GetPlaybackStateAsync(string deviceCode);
+    Task<MobileSetPlaybackModeResponse?> SetPlaybackModeAsync(string deviceCode, string mode, string? localFileName = null, DateTime? localFileStartedUtc = null);
+    Task<MobileSetPlaybackModeResponse?> ForceOnlineAsync(string deviceCode);
 }
 
 public class MobilePlaybackCacheOptions
@@ -68,7 +70,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         return device == null ? null : ToDeviceResponse(device);
     }
 
-    public async Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode)
+    public async Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode, string? currentFileName = null, string? playbackMode = null)
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
         Device? device;
@@ -87,6 +89,25 @@ public class MobilePlaybackService : IMobilePlaybackService
         if (_devicePresence.ShouldUpdateLastSeen(device.LastSeen, utcNow))
         {
             device.LastSeen = utcNow;
+        }
+
+        // Update real-time status from heartbeat
+        if (currentFileName != null)
+        {
+            device.CurrentFileName = currentFileName;
+        }
+        if (playbackMode != null)
+        {
+            device.PlaybackMode = playbackMode;
+        }
+
+        await _devices.SaveChangesAsync();
+
+        var forceOnline = device.PlaybackMode == "Online" && device.LocalFileName != null;
+        if (forceOnline)
+        {
+            device.LocalFileName = null;
+            device.LocalFileStartedUtc = null;
             await _devices.SaveChangesAsync();
         }
 
@@ -94,7 +115,10 @@ public class MobilePlaybackService : IMobilePlaybackService
         {
             DeviceCode = device.DeviceCode,
             ServerTimeUtc = utcNow,
-            LastSeen = device.LastSeen
+            LastSeen = device.LastSeen,
+            PlaybackMode = device.PlaybackMode,
+            CurrentFileName = device.CurrentFileName,
+            ForceOnline = forceOnline ? true : null
         };
     }
 
@@ -168,6 +192,65 @@ public class MobilePlaybackService : IMobilePlaybackService
         return response;
     }
 
+    public async Task<MobileSetPlaybackModeResponse?> SetPlaybackModeAsync(string deviceCode, string mode, string? localFileName = null, DateTime? localFileStartedUtc = null)
+    {
+        var normalizedCode = NormalizeDeviceCode(deviceCode);
+        Device? device;
+        using (_metrics.ObserveDatabaseQuery("mobile_set_playback_mode"))
+        {
+            device = await _devices.Query()
+                .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        }
+
+        if (device == null)
+            return null;
+
+        device.PlaybackMode = mode;
+        device.LocalFileName = mode == "Local" ? localFileName : null;
+        device.LocalFileStartedUtc = mode == "Local" ? localFileStartedUtc : null;
+        await _devices.SaveChangesAsync();
+
+        // Invalidate playback state cache so next poll picks up the change
+        var cacheKey = _playbackCache.PlaybackStateKey(normalizedCode);
+        await _cacheService.RemoveAsync(cacheKey);
+
+        return new MobileSetPlaybackModeResponse
+        {
+            DeviceCode = device.DeviceCode,
+            PlaybackMode = device.PlaybackMode,
+            Message = mode == "Local" ? "Switched to local playback" : "Switched to online schedule"
+        };
+    }
+
+    public async Task<MobileSetPlaybackModeResponse?> ForceOnlineAsync(string deviceCode)
+    {
+        var normalizedCode = NormalizeDeviceCode(deviceCode);
+        Device? device;
+        using (_metrics.ObserveDatabaseQuery("mobile_force_online"))
+        {
+            device = await _devices.Query()
+                .FirstOrDefaultAsync(d => d.DeviceCode == normalizedCode);
+        }
+
+        if (device == null)
+            return null;
+
+        device.PlaybackMode = "Online";
+        device.LocalFileName = null;
+        device.LocalFileStartedUtc = null;
+        await _devices.SaveChangesAsync();
+
+        var cacheKey = _playbackCache.PlaybackStateKey(normalizedCode);
+        await _cacheService.RemoveAsync(cacheKey);
+
+        return new MobileSetPlaybackModeResponse
+        {
+            DeviceCode = device.DeviceCode,
+            PlaybackMode = "Online",
+            Message = "Device forced back to online mode"
+        };
+    }
+
     private MobilePlaybackStateResponse CreateEmptyPlaybackState(Device device, DateTime utcNow)
     {
         var claimRequired = device.UserId == null;
@@ -195,6 +278,9 @@ public class MobilePlaybackService : IMobilePlaybackService
             ClaimCode = claimRequired ? device.ClaimCode : null,
             ClaimedAt = device.ClaimedAt,
             LastSeen = device.LastSeen,
+            PlaybackMode = device.PlaybackMode,
+            LocalFileName = device.LocalFileName,
+            LocalFileStartedUtc = device.LocalFileStartedUtc,
             AssignedUser = device.User == null ? null : new MobileAssignedUserResponse
             {
                 Id = device.User.Id,

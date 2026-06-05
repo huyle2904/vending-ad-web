@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Filters;
+using VendingAdSystem.Hubs;
 
 namespace VendingAdSystem.Controllers;
 
@@ -20,8 +22,19 @@ public class PortalApiController : ControllerBase
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly ICurrentSession _currentSession;
     private readonly IDeviceCredentialService _deviceCredentialService;
+    private readonly IMobilePlaybackService _mobilePlaybackService;
+    private readonly IHubContext<DeviceStatusHub> _hubContext;
 
-    public PortalApiController(IDeviceService deviceService, ITimeService timeService, IMediaUploadService mediaUploadService, IPlaylistService playlistService, IDevicePresenceService devicePresenceService, ICurrentSession currentSession, IDeviceCredentialService deviceCredentialService)
+    public PortalApiController(
+        IDeviceService deviceService,
+        ITimeService timeService,
+        IMediaUploadService mediaUploadService,
+        IPlaylistService playlistService,
+        IDevicePresenceService devicePresenceService,
+        ICurrentSession currentSession,
+        IDeviceCredentialService deviceCredentialService,
+        IMobilePlaybackService mobilePlaybackService,
+        IHubContext<DeviceStatusHub> hubContext)
     {
         _deviceService = deviceService;
         _timeService = timeService;
@@ -30,6 +43,8 @@ public class PortalApiController : ControllerBase
         _devicePresenceService = devicePresenceService;
         _currentSession = currentSession;
         _deviceCredentialService = deviceCredentialService;
+        _mobilePlaybackService = mobilePlaybackService;
+        _hubContext = hubContext;
     }
 
     [HttpPost("upload")]
@@ -157,6 +172,31 @@ public class PortalApiController : ControllerBase
             IsActive = device.IsActive,
             LastSeen = device.LastSeen
         });
+    }
+
+    [HttpPost("devices/{deviceCode}/force-online")]
+    [Authorize(Roles = "User")]
+    public async Task<IActionResult> ForceOnline(string deviceCode)
+    {
+        if (string.IsNullOrWhiteSpace(deviceCode))
+            return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
+
+        var response = await _mobilePlaybackService.ForceOnlineAsync(deviceCode);
+        if (response == null)
+            return NotFound(new { message = "Không tìm thấy thiết bị." });
+
+        // Broadcast mode change to dashboard via SignalR
+        await _hubContext.Clients.Group("dashboard").SendAsync("DeviceStatusUpdated", new
+        {
+            deviceCode = response.DeviceCode,
+            playbackMode = "Online",
+            currentFileName = (string?)null,
+            isOnline = true,
+            lastSeen = (DateTime?)null,
+            serverTimeUtc = DateTime.UtcNow
+        });
+
+        return Ok(response);
     }
 
     private async Task<bool> CanAccessDeviceEndpointAsync(string deviceCode)

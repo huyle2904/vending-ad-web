@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Primitives;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Filters;
+using VendingAdSystem.Hubs;
 
 namespace VendingAdSystem.Controllers;
 
@@ -15,17 +17,20 @@ public class MobileApiController : ControllerBase
     private readonly IDeviceCredentialService _deviceCredentialService;
     private readonly IDeviceService _deviceService;
     private readonly ITimeService _timeService;
+    private readonly IHubContext<DeviceStatusHub> _hubContext;
 
     public MobileApiController(
         IMobilePlaybackService mobilePlaybackService,
         IDeviceCredentialService deviceCredentialService,
         IDeviceService deviceService,
-        ITimeService timeService)
+        ITimeService timeService,
+        IHubContext<DeviceStatusHub> hubContext)
     {
         _mobilePlaybackService = mobilePlaybackService;
         _deviceCredentialService = deviceCredentialService;
         _deviceService = deviceService;
         _timeService = timeService;
+        _hubContext = hubContext;
     }
 
     [HttpPost("devices/register")]
@@ -95,9 +100,24 @@ public class MobileApiController : ControllerBase
         if (!await IsDeviceAuthenticatedAsync(request.DeviceCode))
             return Unauthorized(new { message = "Thông tin xác thực thiết bị không hợp lệ." });
 
-        var response = await _mobilePlaybackService.HeartbeatAsync(request.DeviceCode);
+        var response = await _mobilePlaybackService.HeartbeatAsync(
+            request.DeviceCode,
+            currentFileName: request.CurrentFileName,
+            playbackMode: request.PlaybackMode);
+
         if (response == null)
             return NotFound(new { message = "Không tìm thấy thiết bị." });
+
+        // Broadcast real-time status to dashboard via SignalR
+        await _hubContext.Clients.Group("dashboard").SendAsync("DeviceStatusUpdated", new
+        {
+            deviceCode = response.DeviceCode,
+            playbackMode = response.PlaybackMode,
+            currentFileName = response.CurrentFileName,
+            isOnline = true,
+            lastSeen = response.LastSeen,
+            serverTimeUtc = response.ServerTimeUtc
+        });
 
         return Ok(response);
     }
@@ -115,6 +135,41 @@ public class MobileApiController : ControllerBase
         var response = await _mobilePlaybackService.GetPlaybackStateAsync(deviceCode);
         if (response == null)
             return NotFound(new { message = "Không tìm thấy thiết bị." });
+
+        return Ok(response);
+    }
+
+    [HttpPost("playback-mode")]
+    [MobileRateLimit(MobileRateLimitPolicy.PlaybackState)]
+    public async Task<IActionResult> SetPlaybackMode([FromBody] MobileSetPlaybackModeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.DeviceCode))
+            return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
+
+        if (string.IsNullOrWhiteSpace(request.Mode) ||
+            (request.Mode != "Online" && request.Mode != "Local"))
+            return BadRequest(new { message = "Chế độ không hợp lệ. Chỉ chấp nhận 'Online' hoặc 'Local'." });
+
+        if (!await IsDeviceAuthenticatedAsync(request.DeviceCode))
+            return Unauthorized(new { message = "Thông tin xác thực thiết bị không hợp lệ." });
+
+        var response = await _mobilePlaybackService.SetPlaybackModeAsync(
+            request.DeviceCode, request.Mode,
+            request.LocalFileName, request.LocalFileStartedUtc);
+
+        if (response == null)
+            return NotFound(new { message = "Không tìm thấy thiết bị." });
+
+        // Broadcast mode change to dashboard via SignalR
+        await _hubContext.Clients.Group("dashboard").SendAsync("DeviceStatusUpdated", new
+        {
+            deviceCode = response.DeviceCode,
+            playbackMode = response.PlaybackMode,
+            currentFileName = request.Mode == "Local" ? request.LocalFileName : (string?)null,
+            isOnline = true,
+            lastSeen = (DateTime?)null,
+            serverTimeUtc = DateTime.UtcNow
+        });
 
         return Ok(response);
     }

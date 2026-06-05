@@ -102,8 +102,7 @@ public class MobileApiController : ControllerBase
 
         var response = await _mobilePlaybackService.HeartbeatAsync(
             request.DeviceCode,
-            currentFileName: request.CurrentFileName,
-            playbackMode: request.PlaybackMode);
+            currentFileName: request.CurrentFileName);
 
         if (response == null)
             return NotFound(new { message = "Không tìm thấy thiết bị." });

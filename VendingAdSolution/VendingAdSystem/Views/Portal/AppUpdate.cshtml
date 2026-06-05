@@ -1,0 +1,166 @@
+@model AppUpdateInfo
+@{
+    ViewData["Title"] = "Cập nhật App";
+}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Cập nhật App APK</h1>
+    <p class="page-subtitle">Upload phiên bản mới cho thiết bị di động.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card" style="padding:1.5rem;margin-bottom:1rem;">
+      <h3 style="margin-bottom:1rem;">Thông tin hiện tại</h3>
+      <div class="update-info-grid">
+        <div class="info-row">
+          <span class="info-label">Phiên bản hiện tại:</span>
+          <span class="info-value" id="currentVersion">
+            @if (!string.IsNullOrEmpty(Model.LatestVersion))
+            {
+              @Model.LatestVersion
+            }
+            else
+            {
+              <span class="text-muted">Chưa có</span>
+            }
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Ngày cập nhật:</span>
+          <span class="info-value" id="currentUpdatedAt">
+            @if (!string.IsNullOrEmpty(Model.UpdatedAt))
+            {
+              @Model.UpdatedAt
+            }
+            else
+            {
+              <span class="text-muted">--</span>
+            }
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">File APK:</span>
+          <span class="info-value" id="currentApkUrl">
+            @if (!string.IsNullOrEmpty(Model.ApkUrl))
+            {
+              <a href="@Model.ApkUrl" target="_blank">@Model.ApkUrl.Split('/').Last()</a>
+            }
+            else
+            {
+              <span class="text-muted">Chưa upload</span>
+            }
+          </span>
+        </div>
+        @if (!string.IsNullOrEmpty(Model.Notes))
+        {
+          <div class="info-row">
+            <span class="info-label">Ghi chú:</span>
+            <span class="info-value">@Model.Notes</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card" style="padding:1.5rem;">
+      <h3 style="margin-bottom:1rem;">Upload phiên bản mới</h3>
+      <form id="apkUploadForm" enctype="multipart/form-data" method="post" action="/api/app/upload">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="version">Phiên bản</label>
+          <input type="text" id="version" name="version" class="form-control"
+                 placeholder="VD: 1.0.1" required
+                 style="margin-top:0.25rem;" />
+          <small class="text-muted">Phiên bản phải khớp với version trong pubspec.yaml của app.</small>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label for="notes">Ghi chú</label>
+          <textarea id="notes" name="notes" class="form-control" rows="2"
+                    placeholder="Mô tả thay đổi trong phiên bản này..."
+                    style="margin-top:0.25rem;"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1.25rem;">
+          <label for="file">File APK</label>
+          <input type="file" id="file" name="file" class="form-control"
+                 accept=".apk" required
+                 style="margin-top:0.25rem;" />
+        </div>
+
+        <div id="uploadProgress" class="d-none" style="margin-bottom:1rem;">
+          <div class="progress" style="height:8px;">
+            <div class="progress-bar" role="progressbar" style="width:0%;" id="progressBar"></div>
+          </div>
+          <small class="text-muted" id="progressText">Đang upload...</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="uploadBtn">
+          <i class="bi bi-upload"></i> Upload & Cập nhật
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  .update-info-grid { display: grid; gap: .75rem; }
+  .info-row { display: flex; align-items: center; gap: .5rem; }
+  .info-label { font-weight: 600; color: var(--muted-foreground); min-width: 140px; font-size: .85rem; }
+  .info-value { color: var(--foreground); font-size: .85rem; }
+  .progress { background: var(--border); border-radius: 4px; overflow: hidden; }
+  .progress-bar { background: var(--primary); height: 8px; border-radius: 4px; transition: width .3s ease; }
+</style>
+
+<script>
+  document.getElementById('apkUploadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+    const btn = document.getElementById('uploadBtn');
+    const progress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Đang upload...';
+    progress.classList.remove('d-none');
+    progressBar.style.width = '10%';
+    progressText.textContent = 'Đang kết nối...';
+
+    try {
+      // We don't use fetch progress for upload (complex), just simulate
+      const response = await fetch('/api/app/upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Don't set Content-Type — browser will set it with boundary for multipart
+        }
+      });
+
+      progressBar.style.width = '100%';
+      progressText.textContent = 'Hoàn tất!';
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        alert('✅ ' + data.message);
+        location.reload();
+      } else {
+        alert('❌ ' + (data.message || 'Upload thất bại'));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-upload"></i> Upload & Cập nhật';
+        progress.classList.add('d-none');
+      }
+    } catch (err) {
+      alert('❌ Lỗi kết nối: ' + err);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-upload"></i> Upload & Cập nhật';
+      progress.classList.add('d-none');
+    }
+  });
+</script>

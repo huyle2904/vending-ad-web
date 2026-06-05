@@ -337,6 +337,31 @@ public class PortalController : Controller
         return View("~/Views/Portal/DeviceWall.cshtml", devices);
     }
 
+    [HttpGet("/portal/app-update")]
+    public async Task<IActionResult> AppUpdate()
+    {
+        if (!IsPortalLoggedIn())
+            return RedirectToAction("Login", "Account");
+
+        // Fetch current update info from the API
+        var uploadsPath = HttpContext.RequestServices
+            .GetRequiredService<IConfiguration>()["UploadsPath"] ?? "uploads";
+        var jsonPath = Path.Combine(uploadsPath, "app-update.json");
+        AppUpdateInfo? currentInfo = null;
+
+        if (System.IO.File.Exists(jsonPath))
+        {
+            try
+            {
+                var json = await System.IO.File.ReadAllTextAsync(jsonPath);
+                currentInfo = System.Text.Json.JsonSerializer.Deserialize<AppUpdateInfo>(json);
+            }
+            catch { /* ignore parse errors */ }
+        }
+
+        return View("~/Views/Portal/AppUpdate.cshtml", currentInfo ?? new AppUpdateInfo());
+    }
+
     private async Task<Dictionary<string, bool>> GetOnlineDeviceMapAsync(IEnumerable<Device> devices, DateTime utcNow)
     {
         var checks = devices.Select(async device => new
@@ -681,4 +706,12 @@ public class PlaylistOrderRequest
 {
     public int PlaylistId { get; set; }
     public List<VendingAdSystem.Application.DTOs.PlaylistOrderUpdate> Updates { get; set; } = new();
+}
+
+public class AppUpdateInfo
+{
+    public string LatestVersion { get; set; } = "";
+    public string ApkUrl { get; set; } = "";
+    public string Notes { get; set; } = "";
+    public string UpdatedAt { get; set; } = "";
 }

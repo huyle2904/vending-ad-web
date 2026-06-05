@@ -323,6 +323,17 @@ public class PortalController : Controller
         ViewBag.OnlineCount = onlineByDeviceCode.Count(x => x.Value);
         ViewBag.OnlineByDeviceCode = onlineByDeviceCode;
 
+        // For local-mode devices, determine if they have an active schedule
+        // so the view can show the correct button label.
+        var localDeviceScheduleMap = new Dictionary<string, bool>();
+        foreach (var device in devices.Where(d => d.PlaybackMode == "Local"))
+        {
+            var schedule = await _scheduleResolver.ResolveCurrentForDeviceCodeAsync(
+                device.DeviceCode, now);
+            localDeviceScheduleMap[device.DeviceCode] = schedule != null;
+        }
+        ViewBag.LocalDeviceScheduleMap = localDeviceScheduleMap;
+
         return View("~/Views/Portal/DeviceWall.cshtml", devices);
     }
 

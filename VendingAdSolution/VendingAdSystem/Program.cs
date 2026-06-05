@@ -69,6 +69,7 @@ try
     builder.Services.AddAntiforgery(options => options.HeaderName = "RequestVerificationToken");
 
     builder.Services.AddControllersWithViews();
+    builder.Services.AddSignalR();
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -113,10 +114,10 @@ try
             "form-action 'self'; " +
             "frame-ancestors 'none'; " +
             "img-src 'self' data: blob:; " +
-            "script-src 'self' 'unsafe-inline'; " +
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "font-src 'self' data:; " +
-            "connect-src 'self';";
+            "connect-src 'self' ws: wss:;";
 
         await next();
     });
@@ -164,6 +165,7 @@ try
         pattern: "{controller=Home}/{action=Index}/{id?}");
 
     app.MapControllers();
+    app.MapHub<VendingAdSystem.Hubs.DeviceStatusHub>("/hub/device-status");
     app.MapMetrics();
     app.MapHealthChecks("/health/live", new HealthCheckOptions
     {

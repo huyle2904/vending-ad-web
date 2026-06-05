@@ -1,16 +1,29 @@
 @model List<Device>
 @{
     ViewData["Title"] = "Màn hình thiết bị";
+    var initialJson = System.Text.Json.JsonSerializer.Serialize(Model.Select(d => new
+    {
+        id = d.Id,
+        deviceCode = d.DeviceCode,
+        deviceName = d.DeviceName ?? d.DeviceCode,
+        location = d.Location,
+        playbackMode = d.PlaybackMode,
+        currentFileName = d.CurrentFileName,
+        isOnline = ViewBag.OnlineByDeviceCode?[d.DeviceCode] == true,
+        lastSeen = d.LastSeen,
+        localFileName = d.LocalFileName,
+        hasSchedule = ViewBag.LocalDeviceScheduleMap?.ContainsKey(d.DeviceCode) == true
+            && ViewBag.LocalDeviceScheduleMap[d.DeviceCode] == true,
+    }));
 }
 
 <div class="page-header device-wall-page-header" style="align-items: flex-start; gap: 1rem;">
   <div>
     <h1 class="page-title">Màn Hình Thiết Bị</h1>
-    <p class="page-subtitle">Trang hiển thị màn hình hiện tại của các thiết bị.</p>
+    <p class="page-subtitle">Trạng thái thiết bị thực tế — cập nhật real-time qua SignalR.</p>
   </div>
   <div class="flex gap-2" style="flex-wrap: wrap;">
-    <button class="btn btn-secondary" type="button" onclick="reloadAllDevices()">Tải lại tất cả</button>
-    <button class="btn btn-secondary" type="button" onclick="toggleMutedAll()">Bật/tắt âm thanh</button>
+    <button class="btn btn-secondary" type="button" onclick="location.reload()">Tải lại</button>
   </div>
 </div>
 
@@ -20,12 +33,12 @@
     <div class="stat-label">Tổng device</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value stat-success">@ViewBag.OnlineCount</div>
+    <div class="stat-value stat-success" id="onlineCount">@ViewBag.OnlineCount</div>
     <div class="stat-label">Đang online</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value stat-primary" id="wallPlayingCount">0</div>
-    <div class="stat-label">Đang phát</div>
+    <div class="stat-value stat-primary" id="localCount">0</div>
+    <div class="stat-label">Đang Local</div>
   </div>
 </div>
 
@@ -38,31 +51,75 @@
 }
 else
 {
-  <div class="device-wall-grid">
+  <div class="device-wall-grid" id="deviceGrid">
     @foreach (var device in Model)
     {
-      <div class="device-wall-card" data-device-code="@device.DeviceCode" id="deviceCard-@device.Id">
+      var isOnline = ViewBag.OnlineByDeviceCode?[device.DeviceCode] == true;
+      var deviceHasSchedule = ViewBag.LocalDeviceScheduleMap?.ContainsKey(device.DeviceCode) == true
+          && ViewBag.LocalDeviceScheduleMap[device.DeviceCode] == true;
+      <div class="device-wall-card" data-device-code="@device.DeviceCode" id="card-@device.Id">
         <div class="device-wall-header">
           <div>
-            <div class="device-wall-title">@device.DeviceCode</div>
-            <div class="device-wall-subtitle">@(device.Location ?? "Chưa có vị trí")</div>
+            <div class="device-wall-title" id="title-@device.Id">
+              <span class="device-code">@device.DeviceCode</span>
+              <span class="device-name-text">@(device.DeviceName ?? "")</span>
+              <span class="badge-local @(device.PlaybackMode == "Local" ? "" : "d-none")" id="localBadge-@device.Id">🔌 Local USB</span>
+            </div>
+            <div class="device-wall-subtitle" id="location-@device.Id">@(device.Location ?? "Chưa có vị trí")</div>
           </div>
-          <span class="badge badge-secondary" id="deviceStatus-@device.Id">Đang chờ</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <span class="badge @(isOnline ? "badge-success" : "badge-danger")" id="status-@device.Id">@(isOnline ? "Online" : "Offline")</span>
+            <button class="btn-action @(device.PlaybackMode == "Local" ? "" : "d-none")"
+                    id="actionBtn-@device.Id"
+                    data-device-code="@device.DeviceCode"
+                    onclick="forceOnline(this.dataset.deviceCode)">
+              @(deviceHasSchedule ? "🔄 Online" : "▶ Play")
+            </button>
+          </div>
         </div>
 
         <div class="device-screen">
-          <video id="deviceVideo-@device.Id" muted autoplay playsinline preload="metadata"></video>
-          <div class="device-placeholder" id="devicePlaceholder-@device.Id">
+          <div class="device-placeholder" id="placeholder-@device.Id">
             <div class="device-placeholder-icon">📺</div>
-            <div class="device-placeholder-title">Chưa có video</div>
-            <div class="device-placeholder-text">Chờ lịch phát đang hoạt động hoặc danh sách phát mới.</div>
+            <div class="device-placeholder-title" id="screenTitle-@device.Id">
+              @if (device.PlaybackMode == "Local")
+              {
+                @:🔌 Local USB
+              }
+              else if (isOnline)
+              {
+                @:🟢 Online
+              }
+              else
+              {
+                @:📴 Offline
+              }
+            </div>
+            <div class="device-placeholder-text" id="screenText-@device.Id">
+              @if (!string.IsNullOrEmpty(device.LocalFileName ?? device.CurrentFileName))
+              {
+                @(device.LocalFileName ?? device.CurrentFileName)
+              }
+              else
+              {
+                @:Chờ thiết bị gửi heartbeat...
+              }
+            </div>
           </div>
         </div>
 
         <div class="device-wall-meta">
-          <div>Hiện tại: <strong id="deviceNow-@device.Id">--</strong></div>
-          <div>Video: <strong id="deviceVideoName-@device.Id">--</strong></div>
-          <div class="text-muted text-sm" id="deviceInfo-@device.Id">Đang khởi tạo...</div>
+          <div>Video: <strong id="videoName-@device.Id">@(!string.IsNullOrEmpty(device.LocalFileName ?? device.CurrentFileName) ? (device.LocalFileName ?? device.CurrentFileName) : "--")</strong></div>
+          <div class="text-muted text-sm" id="lastSeen-@device.Id">
+            @if (device.LastSeen.HasValue)
+            {
+              @:Lần cuối: @device.LastSeen.Value.ToLocalTime().ToString("HH:mm:ss")
+            }
+            else
+            {
+              @:Chưa có heartbeat
+            }
+          </div>
         </div>
       </div>
     }
@@ -77,11 +134,12 @@ else
   .device-wall-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
   .device-wall-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); padding: .75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
   .device-wall-header { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; margin-bottom: .5rem; }
-  .device-wall-title { font-size: .9rem; font-weight: 700; color: var(--foreground); }
+  .device-wall-title { font-size: .9rem; font-weight: 700; color: var(--foreground); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .device-code { font-weight: 700; }
+  .device-name-text { font-weight: 400; color: var(--muted-foreground); font-size: .82rem; }
   .device-wall-subtitle { font-size: .72rem; color: var(--muted-foreground); margin-top: .125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
   .device-wall-card .badge { font-size: .7rem; padding: .2rem .45rem; }
   .device-screen { position: relative; background: #000; border-radius: calc(var(--radius) - 2px); overflow: hidden; aspect-ratio: 16 / 9; }
-  .device-screen video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
   .device-placeholder { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background: linear-gradient(180deg, rgba(15,23,42,.92), rgba(15,23,42,.78)); color: #fff; padding: .75rem; }
   .device-placeholder-icon { font-size: 1.35rem; margin-bottom: .25rem; }
   .device-placeholder-title { font-size: .85rem; font-weight: 700; }
@@ -90,271 +148,182 @@ else
   .device-wall-meta strong { color: var(--foreground); font-weight: 600; }
   @@media (max-width: 1200px) { .device-wall-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @@media (max-width: 768px) { .device-wall-grid, .device-wall-stats { grid-template-columns: 1fr; } }
+  .badge-local { display: inline-flex; align-items: center; gap: 3px; font-size: .68rem; font-weight: 600; padding: .15rem .45rem; border-radius: 4px; background: #fff3cd; color: #856404; vertical-align: middle; }
+  .btn-action { font-size: .68rem; font-weight: 600; padding: .2rem .5rem; border-radius: 4px; border: 1px solid var(--primary); background: transparent; color: var(--primary); cursor: pointer; white-space: nowrap; }
+  .btn-action:hover { background: var(--primary); color: #fff; }
+  .d-none { display: none !important; }
 </style>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
-  const deviceStates = {};
-  let wallMuted = true;
+  // ── Initial data from server ──
+  const devices = @Html.Raw(initialJson);
 
-  function initDeviceState(deviceId, deviceCode) {
-    deviceStates[deviceId] = {
-      deviceId,
-      deviceCode,
-      playlist: [],
-      playlistSignature: '',
-      currentIndex: 0,
-      pollTimer: null,
-      heartbeatTimer: null,
-      reloadTimer: null,
-      isLoading: false,
-      muted: wallMuted,
-      lastSeenAt: null,
-      isPlaying: false,
-      suppressVideoError: false
-    };
+  // ── Helpers ──
+  function el(id) { return document.getElementById(id); }
+
+  function setBadge(deviceId, text, className) {
+    const s = el('status-' + deviceId);
+    if (!s) return;
+    s.textContent = text;
+    s.className = 'badge ' + className;
   }
 
-  function setStatus(deviceId, text, badgeClass) {
-    const el = document.getElementById('deviceStatus-' + deviceId);
-    if (!el) return;
-    el.textContent = text;
-    el.className = 'badge ' + badgeClass;
-  }
+  function updateCard(deviceId, data) {
+    const card = el('card-' + deviceId);
+    if (!card) return;
 
-  function updateDeviceInfo(deviceId, text) {
-    const el = document.getElementById('deviceInfo-' + deviceId);
-    if (el) el.textContent = text;
-  }
+    // Status badge
+    const isOnline = data.isOnline === true;
+    setBadge(deviceId, isOnline ? 'Online' : 'Offline', isOnline ? 'badge-success' : 'badge-danger');
 
-  function setDeviceNow(deviceId, text) {
-    const el = document.getElementById('deviceNow-' + deviceId);
-    if (el) el.textContent = text;
-  }
-
-  function setDeviceVideoName(deviceId, text) {
-    const el = document.getElementById('deviceVideoName-' + deviceId);
-    if (el) el.textContent = text;
-  }
-
-  function getVideoEl(deviceId) {
-    return document.getElementById('deviceVideo-' + deviceId);
-  }
-
-  function getPlaceholderEl(deviceId) {
-    return document.getElementById('devicePlaceholder-' + deviceId);
-  }
-
-  function setPlayingCount() {
-    const playing = Object.values(deviceStates).filter(state => state.isPlaying).length;
-    document.getElementById('wallPlayingCount').textContent = playing;
-  }
-
-  function playlistSignature(items) {
-    return items.map(x => x.orderIndex + ':' + x.fileUrl).join('|');
-  }
-
-  function normalizeItems(items) {
-    return (items || []).map(x => ({
-      fileUrl: resolveMediaUrl(x.fileUrl || x.FileUrl || ''),
-      fileName: x.fileName || x.FileName || '',
-      orderIndex: x.orderIndex ?? x.OrderIndex ?? 0
-    })).sort((a, b) => a.orderIndex - b.orderIndex);
-  }
-
-  function resolveMediaUrl(rawUrl) {
-    if (!rawUrl) return '';
-
-    try {
-      const parsed = new URL(rawUrl, window.location.origin);
-      if (parsed.pathname.startsWith('/uploads/')) {
-        return parsed.pathname + parsed.search;
-      }
-
-      return parsed.href;
-    } catch {
-      return rawUrl;
+    // Playback mode badge
+    const localBadge = el('localBadge-' + deviceId);
+    if (localBadge) {
+      localBadge.classList.toggle('d-none', data.playbackMode !== 'Local');
     }
-  }
 
-  async function fetchPlaylist(deviceId) {
-    const state = deviceStates[deviceId];
-    if (!state || state.isLoading) return;
-
-    state.isLoading = true;
-    try {
-      const response = await fetch('/api/portal/playlist/' + encodeURIComponent(state.deviceCode), { cache: 'no-store' });
-      if (!response.ok) {
-        state.playlist = [];
-        state.playlistSignature = '';
-        state.currentIndex = 0;
-        stopDevice(deviceId, 'No active schedule', 'badge-secondary');
-        return;
-      }
-
-      const items = normalizeItems(await response.json());
-      const signature = playlistSignature(items);
-      const changed = signature !== state.playlistSignature;
-
-      if (changed) {
-        state.playlist = items;
-        state.playlistSignature = signature;
-        state.currentIndex = 0;
-        updateDeviceInfo(deviceId, items.length + ' video(s) loaded');
-        setStatus(deviceId, 'Ready', 'badge-success');
-        if (items.length > 0) {
-          playCurrentVideo(deviceId);
-        } else {
-          stopDevice(deviceId, 'No video in schedule', 'badge-secondary');
-        }
-      } else if (items.length > 0 && !isVideoPlaying(deviceId)) {
-        playCurrentVideo(deviceId);
-      }
-
-      setPlayingCount();
-    } catch (error) {
-      console.error('fetchPlaylist error', deviceId, error);
-      stopDevice(deviceId, 'Fetch error', 'badge-danger');
-    } finally {
-      state.isLoading = false;
+    // Screen info
+    const screenTitle = el('screenTitle-' + deviceId);
+    const screenText = el('screenText-' + deviceId);
+    if (screenTitle) {
+      screenTitle.textContent = data.playbackMode === 'Local'
+        ? '🔌 Local USB'
+        : (isOnline ? '🟢 Online' : '📴 Offline');
     }
-  }
-
-  function isVideoPlaying(deviceId) {
-    const video = getVideoEl(deviceId);
-    return !!video && !video.paused && !video.ended && video.readyState > 2;
-  }
-
-  function stopDevice(deviceId, message, badgeClass) {
-    const state = deviceStates[deviceId];
-    const video = getVideoEl(deviceId);
-    const placeholder = getPlaceholderEl(deviceId);
-    if (video) {
-      if (state) state.suppressVideoError = true;
-      video.pause();
-      video.removeAttribute('src');
-      video.load();
-      window.setTimeout(() => {
-        if (state) state.suppressVideoError = false;
-      }, 0);
+    if (screenText) {
+      screenText.textContent = data.currentFileName || (data.playbackMode === 'Local' ? 'Đang phát Local' : 'Đang chờ...');
     }
-    if (placeholder) placeholder.style.display = 'flex';
-    if (state) state.isPlaying = false;
-    setStatus(deviceId, message, badgeClass);
-    setDeviceNow(deviceId, '--');
-    setDeviceVideoName(deviceId, '--');
-    if (state) state.currentIndex = 0;
-    setPlayingCount();
+
+    // Video name
+    const videoName = el('videoName-' + deviceId);
+    if (videoName) {
+      videoName.textContent = data.currentFileName || '--';
+    }
+
+    // Last seen
+    const lastSeen = el('lastSeen-' + deviceId);
+    if (lastSeen && data.lastSeen) {
+      const d = new Date(data.lastSeen);
+      lastSeen.textContent = 'Lần cuối: ' + d.toLocaleTimeString();
+    }
+
+    // Action button
+    const actionBtn = el('actionBtn-' + deviceId);
+    if (actionBtn) {
+      if (data.playbackMode === 'Local') {
+        actionBtn.classList.remove('d-none');
+        actionBtn.textContent = data.hasSchedule === false ? '▶ Play' : '🔄 Online';
+        actionBtn.title = data.hasSchedule === false
+          ? 'Không có lịch — vẫn sẽ chuyển về Online'
+          : 'Chuyển thiết bị về Online';
+      } else {
+        actionBtn.classList.add('d-none');
+      }
+    }
+
+    // Update counters
+    updateCounters();
   }
 
-  function playCurrentVideo(deviceId) {
-    const state = deviceStates[deviceId];
-    if (!state || !state.playlist.length) {
-      stopDevice(deviceId, 'Waiting', 'badge-secondary');
+  function updateCounters() {
+    let online = 0, local = 0;
+    devices.forEach(d => {
+      if (d.isOnline) online++;
+      if (d.playbackMode === 'Local') local++;
+    });
+    const oc = document.getElementById('onlineCount');
+    const lc = document.getElementById('localCount');
+    if (oc) oc.textContent = online;
+    if (lc) lc.textContent = local;
+  }
+
+  function forceOnline(deviceCode) {
+    const msg = 'Dừng phát Local và chuyển thiết bị ' + deviceCode + ' về Online?';
+    if (!confirm(msg)) return;
+
+    fetch('/api/portal/devices/' + encodeURIComponent(deviceCode) + '/force-online', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        alert('Lỗi: ' + (data.message || 'Không thể chuyển về Online'));
+      }
+      // Card will be updated via SignalR broadcast from the ForceOnline endpoint
+    })
+    .catch(err => alert('Lỗi kết nối: ' + err));
+  }
+
+  function applySignalRUpdate(data) {
+    const d = devices.find(x => x.deviceCode === data.deviceCode);
+    if (!d) {
+      // Unknown device — add it? For now skip
       return;
     }
+    d.isOnline = data.isOnline === true;
+    if (data.playbackMode) d.playbackMode = data.playbackMode;
+    if (data.currentFileName !== undefined) d.currentFileName = data.currentFileName;
+    if (data.lastSeen) d.lastSeen = data.lastSeen;
 
-    const item = state.playlist[state.currentIndex % state.playlist.length];
-    const video = getVideoEl(deviceId);
-    const placeholder = getPlaceholderEl(deviceId);
-    if (!video || !item) return;
-
-    if (placeholder) placeholder.style.display = 'none';
-    state.isPlaying = true;
-    setStatus(deviceId, 'Playing', 'badge-success');
-    setDeviceNow(deviceId, (state.currentIndex + 1) + ' / ' + state.playlist.length);
-    setDeviceVideoName(deviceId, item.fileName || item.fileUrl.split('/').pop());
-    updateDeviceInfo(deviceId, 'Autoplay muted=' + state.muted);
-
-    video.muted = state.muted;
-    video.loop = false;
-    state.suppressVideoError = false;
-    video.src = item.fileUrl;
-    video.load();
-    const playPromise = video.play();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch(err => {
-        console.warn('video play blocked', deviceId, err);
-        setStatus(deviceId, 'Tap to play', 'badge-secondary');
-      });
-    }
+    // Determine if this device has an active schedule
+    // We do a quick check — if device is Local, hasSchedule stays as initially set from server
+    // The server sets it on page load. For dynamic updates, we could fetch it,
+    // but for now trust the server's initial value.
+    updateCard(d.id, d);
   }
 
-  function nextVideo(deviceId) {
-    const state = deviceStates[deviceId];
-    if (!state || !state.playlist.length) return;
-    state.currentIndex = (state.currentIndex + 1) % state.playlist.length;
-    playCurrentVideo(deviceId);
-  }
+  // ── SignalR ──
+  let connection = null;
+  let reconnectAttempts = 0;
 
-  function startDeviceTimers(deviceId) {
-    const state = deviceStates[deviceId];
-    if (!state) return;
+  function startSignalR() {
+    connection = new signalR.HubConnectionBuilder()
+      .withUrl('/hub/device-status')
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+      .build();
 
-    state.pollTimer = setInterval(() => fetchPlaylist(deviceId), 5000);
-    state.heartbeatTimer = setInterval(() => sendHeartbeat(deviceId), 15000);
-    state.reloadTimer = setInterval(() => {
-      const video = getVideoEl(deviceId);
-      if (video && video.ended) nextVideo(deviceId);
-    }, 1000);
-
-    const video = getVideoEl(deviceId);
-    if (video) {
-      video.addEventListener('ended', () => nextVideo(deviceId));
-      video.addEventListener('error', () => {
-        if (state.suppressVideoError || !video.currentSrc) return;
-        state.isPlaying = false;
-        setStatus(deviceId, 'Video error', 'badge-danger');
-        updateDeviceInfo(deviceId, 'Video load error: ' + video.currentSrc);
-        setPlayingCount();
-      });
-    }
-  }
-
-  async function sendHeartbeat(deviceId) {
-    const state = deviceStates[deviceId];
-    if (!state) return;
-
-    try {
-      const response = await fetch('/api/portal/heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceCode: state.deviceCode })
-      });
-
-      if (response.ok) {
-        state.lastSeenAt = new Date();
-      }
-    } catch (error) {
-      console.error('heartbeat error', deviceId, error);
-    }
-  }
-
-  function reloadAllDevices() {
-    Object.keys(deviceStates).forEach(deviceId => fetchPlaylist(deviceId));
-  }
-
-  function toggleMutedAll() {
-    wallMuted = !wallMuted;
-    Object.values(deviceStates).forEach(state => {
-      state.muted = wallMuted;
-      const video = getVideoEl(state.deviceId);
-      if (video) video.muted = wallMuted;
-      updateDeviceInfo(state.deviceId, 'Muted=' + wallMuted);
+    connection.on('DeviceStatusUpdated', (data) => {
+      console.log('SignalR update:', data);
+      applySignalRUpdate(data);
     });
+
+    connection.onreconnecting(() => {
+      console.log('SignalR reconnecting...');
+    });
+
+    connection.onreconnected(() => {
+      console.log('SignalR reconnected');
+      reconnectAttempts = 0;
+      connection.invoke('JoinDashboard').catch(() => {});
+    });
+
+    connection.onclose(() => {
+      console.log('SignalR connection closed');
+      setTimeout(startSignalR, 5000);
+    });
+
+    connection.start()
+      .then(() => {
+        console.log('SignalR connected');
+        reconnectAttempts = 0;
+        return connection.invoke('JoinDashboard');
+      })
+      .catch(err => {
+        console.error('SignalR connection error:', err);
+        reconnectAttempts++;
+        const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttempts));
+        setTimeout(startSignalR, delay);
+      });
   }
 
+  // ── Init ──
   document.addEventListener('DOMContentLoaded', () => {
-    @foreach (var device in Model)
-    {
-      <text>initDeviceState(@device.Id, @Html.Raw(System.Text.Json.JsonSerializer.Serialize(device.DeviceCode)));</text>
-    }
+    // Initial render
+    devices.forEach(d => updateCard(d.id, d));
 
-    Object.keys(deviceStates).forEach(deviceId => {
-      fetchPlaylist(deviceId);
-      startDeviceTimers(deviceId);
-      sendHeartbeat(deviceId);
-    });
-
-    setPlayingCount();
+    // Connect SignalR
+    startSignalR();
   });
 </script>

@@ -14,6 +14,14 @@ public class Device
     public DateTime? LastSeen { get; set; }
     public bool IsActive { get; set; } = true;
 
+    // Playback mode: "Online" (default) or "Local"
+    public string PlaybackMode { get; set; } = "Online";
+    public string? LocalFileName { get; set; }
+    public DateTime? LocalFileStartedUtc { get; set; }
+
+    // Real-time status — updated on each heartbeat from the mobile device
+    public string? CurrentFileName { get; set; }
+
     public int? UserId { get; set; }
     public User? User { get; set; }
 

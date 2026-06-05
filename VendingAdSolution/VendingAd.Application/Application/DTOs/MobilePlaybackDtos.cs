@@ -3,6 +3,9 @@ namespace VendingAdSystem.Application.DTOs;
 public class MobileHeartbeatRequest
 {
     public string DeviceCode { get; set; } = string.Empty;
+    public string? CurrentFileName { get; set; }
+    public string? PlaybackMode { get; set; }
+    public bool? IsPlaying { get; set; }
 }
 
 public class MobileDeviceResponse
@@ -17,6 +20,9 @@ public class MobileDeviceResponse
     public DateTime? ClaimedAt { get; set; }
     public DateTime? LastSeen { get; set; }
     public MobileAssignedUserResponse? AssignedUser { get; set; }
+    public string PlaybackMode { get; set; } = "Online";
+    public string? LocalFileName { get; set; }
+    public DateTime? LocalFileStartedUtc { get; set; }
 }
 
 public class MobileAssignedUserResponse
@@ -33,6 +39,9 @@ public class MobileHeartbeatResponse
     public string DeviceCode { get; set; } = string.Empty;
     public DateTime ServerTimeUtc { get; set; }
     public DateTime? LastSeen { get; set; }
+    public string? PlaybackMode { get; set; }
+    public string? CurrentFileName { get; set; }
+    public bool? ForceOnline { get; set; }
 }
 
 public class MobilePlaybackStateResponse
@@ -85,4 +94,20 @@ public class MobileDeviceScheduleCache
     public string Version { get; set; } = string.Empty;
     public bool HasActiveSchedule { get; set; }
     public DateTime ResolvedAtUtc { get; set; }
+}
+
+public class MobileSetPlaybackModeRequest
+{
+    public string DeviceCode { get; set; } = string.Empty;
+    public string Mode { get; set; } = "Online";
+    public string? LocalFileName { get; set; }
+    public DateTime? LocalFileStartedUtc { get; set; }
+}
+
+public class MobileSetPlaybackModeResponse
+{
+    public bool Success { get; set; } = true;
+    public string DeviceCode { get; set; } = string.Empty;
+    public string PlaybackMode { get; set; } = "Online";
+    public string? Message { get; set; }
 }

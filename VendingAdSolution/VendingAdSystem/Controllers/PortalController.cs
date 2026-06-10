@@ -62,6 +62,14 @@ public class PortalController : Controller
         return $"{schedule.StartTime:hh\\:mm} - {schedule.EndTime:hh\\:mm}";
     }
 
+    private static string? ScheduleThumbnailUrl(PlaybackSchedule schedule)
+    {
+        return schedule.Items
+            .OrderBy(item => item.OrderIndex)
+            .Select(item => item.Media?.ThumbnailUrl)
+            .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url));
+    }
+
     private static string LastSeenText(Device device)
     {
         return device.LastSeen.HasValue
@@ -172,6 +180,7 @@ public class PortalController : Controller
                 TimeText = TimeRangeText(nowPlaying),
                 DeviceCode = nowPlaying.Devices.OrderBy(d => d.Device.DeviceCode).Select(d => d.Device.DeviceCode).FirstOrDefault() ?? "N/A",
                 VideoCount = nowPlaying.Items.Count,
+                ThumbnailUrl = ScheduleThumbnailUrl(nowPlaying),
                 CtaUrl = "/portal/schedules"
             },
             Upcoming = upcomingScheduleCard == null ? new PlaylistViewModel { IsEmpty = true } : new PlaylistViewModel
@@ -181,6 +190,7 @@ public class PortalController : Controller
                 TimeText = TimeRangeText(upcomingScheduleCard),
                 DeviceCode = upcomingScheduleCard.Devices.OrderBy(d => d.Device.DeviceCode).Select(d => d.Device.DeviceCode).FirstOrDefault() ?? "N/A",
                 VideoCount = upcomingScheduleCard.Items.Count,
+                ThumbnailUrl = ScheduleThumbnailUrl(upcomingScheduleCard),
                 CtaUrl = "/portal/schedules"
             },
             Devices = devices
@@ -306,35 +316,6 @@ public class PortalController : Controller
         ViewBag.OnlineByDeviceCode = onlineByDeviceCode;
 
         return View("~/Views/PortalDevices/Index.cshtml", visibleDevices.ToList());
-    }
-
-    [HttpGet("/portal/device-wall")]
-    public async Task<IActionResult> DeviceWall()
-    {
-        if (!IsPortalLoggedIn())
-            return RedirectToAction("Login", "Account");
-
-        var userId = _currentSession.UserId ?? 0;
-        var devices = await _deviceService.GetUserDevicesAsync(userId, activeOnly: false);
-
-        ViewBag.TotalDevices = devices.Count;
-        var now = _timeService.UtcNow;
-        var onlineByDeviceCode = await GetOnlineDeviceMapAsync(devices, now);
-        ViewBag.OnlineCount = onlineByDeviceCode.Count(x => x.Value);
-        ViewBag.OnlineByDeviceCode = onlineByDeviceCode;
-
-        // For local-mode devices, determine if they have an active schedule
-        // so the view can show the correct button label.
-        var localDeviceScheduleMap = new Dictionary<string, bool>();
-        foreach (var device in devices.Where(d => d.PlaybackMode == "Local"))
-        {
-            var schedule = await _scheduleResolver.ResolveCurrentForDeviceCodeAsync(
-                device.DeviceCode, now);
-            localDeviceScheduleMap[device.DeviceCode] = schedule != null;
-        }
-        ViewBag.LocalDeviceScheduleMap = localDeviceScheduleMap;
-
-        return View("~/Views/Portal/DeviceWall.cshtml", devices);
     }
 
     [HttpGet("/portal/app-update")]

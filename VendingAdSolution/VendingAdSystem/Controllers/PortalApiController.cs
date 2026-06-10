@@ -49,9 +49,9 @@ public class PortalApiController : ControllerBase
 
     [HttpPost("upload")]
     [Authorize(Roles = "User")]
-    [RequestSizeLimit(52_428_800)] // 50 MiB max
-    [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
-    public async Task<IActionResult> Upload(IFormFile? file)
+    [RequestSizeLimit(52_953_088)] // 50 MiB video + 512 KiB thumbnail
+    [RequestFormLimits(MultipartBodyLengthLimit = 52_953_088)]
+    public async Task<IActionResult> Upload(IFormFile? file, IFormFile? thumbnail)
     {
         var userId = _currentSession.UserId;
         if (userId == null || userId <= 0)
@@ -60,6 +60,7 @@ public class PortalApiController : ControllerBase
         var result = await _mediaUploadService.UploadAsync(new UploadVideoRequest
         {
             File = file,
+            Thumbnail = thumbnail,
             UserId = userId.Value
         }, Request.Scheme, Request.Host);
 
@@ -69,7 +70,8 @@ public class PortalApiController : ControllerBase
         return Ok(new {
             message = result.Message,
             fileName = result.FileName,
-            fileUrl = result.FileUrl
+            fileUrl = result.FileUrl,
+            thumbnailUrl = result.ThumbnailUrl
         });
     }
 
@@ -180,6 +182,10 @@ public class PortalApiController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(deviceCode))
             return BadRequest(new { message = "Mã thiết bị là bắt buộc." });
+
+        var userId = _currentSession.UserId;
+        if (userId == null || !await _deviceService.IsDeviceOwnedByUserAsync(deviceCode.Trim(), userId.Value))
+            return NotFound(new { message = "Không tìm thấy thiết bị." });
 
         var response = await _mobilePlaybackService.ForceOnlineAsync(deviceCode);
         if (response == null)

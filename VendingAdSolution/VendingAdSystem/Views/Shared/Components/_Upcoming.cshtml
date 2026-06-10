@@ -2,6 +2,7 @@
 @model PlaylistViewModel?
 @{
   var ctaUrl = Model?.CtaUrl ?? "/portal/schedules";
+  const string videoPlaceholder = "/images/video-placeholder.svg";
   var emptyMessage = string.IsNullOrWhiteSpace(Model?.EmptyMessage) || Model.EmptyMessage == "Chưa có dữ liệu"
     ? "Chưa có danh sách phát sắp tới."
     : Model.EmptyMessage;
@@ -24,7 +25,7 @@ else
 {
   <div class="playlist-item playlist-focus">
     <div class="playlist-thumb-wrap">
-      <img src="@(string.IsNullOrWhiteSpace(Model.ThumbnailUrl) ? "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&q=60" : Model.ThumbnailUrl)" alt="preview" />
+      <img src="@(string.IsNullOrWhiteSpace(Model.ThumbnailUrl) ? videoPlaceholder : Model.ThumbnailUrl)" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="preview" />
       <span><i class="bi bi-clock"></i>Sắp phát</span>
     </div>
     <div class="playlist-copy">

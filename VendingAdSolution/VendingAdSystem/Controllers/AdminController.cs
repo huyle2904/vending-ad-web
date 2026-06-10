@@ -164,6 +164,8 @@ public class AdminController : Controller
             _playlistItems.Delete(item);
 
         await _fileStorageService.DeleteAsync(media.FileUrl);
+        if (!string.IsNullOrWhiteSpace(media.ThumbnailUrl))
+            await _fileStorageService.DeleteAsync(media.ThumbnailUrl);
         _mediaService.Remove(media);
         await _mediaService.SaveChangesAsync();
         await _auditService.LogAsync(new AuditLogEntry

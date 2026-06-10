@@ -5,6 +5,7 @@
     var medias = (List<Media>)ViewBag.Medias;
     var scheduleDraftJson = ViewBag.ScheduleDraftJson as string ?? string.Empty;
     var vietnamNow = DateTime.UtcNow.AddHours(7);
+    const string videoPlaceholder = "/images/video-placeholder.svg";
     ViewData["Title"] = "Lịch phát";
     string DateRangeText(PlaybackSchedule s) => s.StartDate.AddHours(7).ToString("dd/MM/yyyy") == s.EndDate.AddHours(7).ToString("dd/MM/yyyy") ? s.StartDate.AddHours(7).ToString("dd/MM/yyyy") : $"{s.StartDate.AddHours(7):dd/MM/yyyy} - {s.EndDate.AddHours(7):dd/MM/yyyy}";
     string TimeRangeText(PlaybackSchedule s) => $"{s.StartTime:hh\\:mm} - {s.EndTime:hh\\:mm}";
@@ -399,48 +400,75 @@ else
               </div>
 
               <div class="schedule-item-toolbar">
-                <form method="post" action="/portal/schedules/add-item" class="schedule-add-item-form">
+                <form method="post" action="/portal/schedules/add-item" class="schedule-add-item-form" data-schedule-add-item-form="true">
                   @Html.AntiForgeryToken()
                   <input type="hidden" name="scheduleId" value="@s.Id" />
-                  <select class="form-input" name="mediaId" required>
-                    <option value="">Chọn video để thêm</option>
-                    @foreach (var media in medias)
-                    {
-                      <option value="@media.Id">@media.FileName</option>
-                    }
-                  </select>
-                  <button type="submit" class="btn btn-primary fx-btn"><i class="bi bi-plus-lg"></i>Thêm</button>
+                  <div class="schedule-add-item-shell">
+                    <div class="schedule-add-item-field">
+                      <select class="form-input" name="mediaId" required onchange="updateScheduleAddPreview(this)">
+                        <option value="" data-thumbnail="@videoPlaceholder" data-name="Chọn video để thêm" data-size="">Chọn video để thêm</option>
+                        @foreach (var media in medias.OrderBy(m => m.FileName))
+                        {
+                          var mediaThumbnail = string.IsNullOrWhiteSpace(media.ThumbnailUrl) ? videoPlaceholder : media.ThumbnailUrl;
+                          <option value="@media.Id" data-thumbnail="@mediaThumbnail" data-name="@media.FileName" data-size="@((media.FileSize / 1024 / 1024).ToString()) MB">@media.FileName</option>
+                        }
+                      </select>
+                      <button type="submit" class="btn btn-primary fx-btn" data-schedule-add-submit><i class="bi bi-plus-lg"></i>Thêm</button>
+                    </div>
+
+                    <div class="schedule-add-item-preview is-empty" data-schedule-add-preview>
+                      <img src="@videoPlaceholder" alt="thumb" />
+                      <div class="schedule-add-item-preview-copy">
+                        <strong data-schedule-add-preview-name>Chọn video để xem thumbnail</strong>
+                        <p data-schedule-add-preview-note>Preview sẽ hiển thị ảnh, tên video và dung lượng để thao tác nhanh hơn.</p>
+                        <div class="schedule-add-item-meta">
+                          <span class="schedule-meta-chip" data-schedule-add-preview-size>Chưa chọn</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </form>
               </div>
 
-              <div class="table-wrapper detail-table-wrap u-mt-075">
-                <table class="table schedule-item-table">
-                  <thead>
-                    <tr class="fx-list-row"><th>Thứ tự</th><th>Tên video</th><th>Dung lượng</th><th>Thao tác</th></tr>
-                  </thead>
-                  <tbody>
-                    @foreach (var item in s.Items.OrderBy(i => i.OrderIndex))
-                    {
-                      <tr data-item-id="@item.Id" data-schedule-id="@s.Id" class="schedule-item-row" draggable="true">
-                        <td class="schedule-order-cell">
-                          <span class="schedule-item-handle">☰</span>
-                          <span>#@(item.OrderIndex + 1)</span>
-                        </td>
-                        <td><span class="detail-media-name">@item.Media.FileName</span></td>
-                        <td><span class="detail-size-chip">@(item.Media.FileSize / 1024 / 1024) MB</span></td>
-                        <td>
-                          <div class="flex gap-2">
-                            <form method="post" action="/portal/schedules/remove-item" onsubmit="return confirm('Xóa video khỏi schedule?')">
-                              @Html.AntiForgeryToken()
-                              <input type="hidden" name="scheduleItemId" value="@item.Id" />
-                              <button type="submit" class="detail-danger-btn"><i class="bi bi-trash"></i>Xóa</button>
-                            </form>
-                          </div>
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
+              <div class="schedule-item-list u-mt-075">
+                @if (!s.Items.Any())
+                {
+                  <div class="schedule-item-empty">
+                    <i class="bi bi-film"></i>
+                    <span>Chưa có video nào trong lịch này.</span>
+                  </div>
+                }
+                else
+                {
+                  foreach (var item in s.Items.OrderBy(i => i.OrderIndex))
+                  {
+                    var itemThumbnail = string.IsNullOrWhiteSpace(item.Media.ThumbnailUrl) ? videoPlaceholder : item.Media.ThumbnailUrl;
+                    <article data-item-id="@item.Id" data-schedule-id="@s.Id" class="schedule-item-card schedule-item-row" draggable="true">
+                      <div class="schedule-item-order schedule-order-cell">
+                        <span class="schedule-item-handle"><i class="bi bi-grip-vertical"></i></span>
+                        <span class="schedule-order-label">#@(item.OrderIndex + 1)</span>
+                      </div>
+
+                      <img class="schedule-item-thumb" src="@itemThumbnail" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="thumb" />
+
+                      <div class="schedule-item-main">
+                        <div class="schedule-item-copy">
+                          <strong class="detail-media-name">@item.Media.FileName</strong>
+                          <span class="schedule-item-subtitle">Video quảng cáo trong lịch phát</span>
+                        </div>
+
+                        <div class="schedule-item-actions">
+                          <span class="detail-size-chip">@(item.Media.FileSize / 1024 / 1024) MB</span>
+                          <form method="post" action="/portal/schedules/remove-item" onsubmit="return confirm('Xóa video khỏi schedule?')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="scheduleItemId" value="@item.Id" />
+                            <button type="submit" class="detail-danger-btn"><i class="bi bi-trash"></i>Xóa</button>
+                          </form>
+                        </div>
+                      </div>
+                    </article>
+                  }
+                }
               </div>
             </section>
           </div>
@@ -553,12 +581,34 @@ else
   .schedule-preview-chip.muted { background:#f1f5f9; color:#64748b; }
   .schedule-detail-modal .modal-body { max-height: 80vh; overflow-y: auto; overflow-x: hidden; }
   .schedule-item-toolbar { display:flex; justify-content:space-between; gap:1rem; margin-top: 1rem; flex-wrap: wrap; }
-  .schedule-add-item-form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:.5rem; width:100%; }
+  .schedule-add-item-form { width:100%; }
+  .schedule-add-item-shell { display:grid; gap:.75rem; width:100%; }
+  .schedule-add-item-field { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:.65rem; align-items:center; }
   .schedule-add-item-form select { min-width:0; width:100%; }
-  .schedule-item-table tbody tr { cursor: grab; }
-  .schedule-item-table tbody tr.dragging { opacity: .5; }
-  .schedule-order-cell { display:flex; align-items:center; gap:.5rem; }
-  .schedule-item-handle { color: var(--muted-foreground); font-size:.9rem; }
+  .schedule-add-item-preview { display:grid; grid-template-columns:112px minmax(0, 1fr); gap:.85rem; align-items:center; border:1px solid #dbe7f5; border-radius:10px; background:#f8fbff; padding:.75rem; }
+  .schedule-add-item-preview.is-empty { opacity:.9; }
+  .schedule-add-item-preview img { width:112px; height:63px; object-fit:cover; border-radius:8px; border:1px solid #dbe7f5; background:#fff; }
+  .schedule-add-item-preview-copy { min-width:0; }
+  .schedule-add-item-preview-copy strong { display:block; color:#0f172a; font-size:.9rem; line-height:1.3; }
+  .schedule-add-item-preview-copy p { margin:.3rem 0 0; color:#64748b; font-size:.78rem; }
+  .schedule-add-item-meta { display:flex; gap:.45rem; flex-wrap:wrap; margin-top:.55rem; }
+  .schedule-meta-chip { display:inline-flex; align-items:center; border-radius:999px; border:1px solid #dbe7f5; background:#fff; color:#334155; font-size:.74rem; font-weight:700; padding:.24rem .55rem; }
+  .schedule-item-list { display:grid; gap:.75rem; }
+  .schedule-item-empty { display:flex; align-items:center; justify-content:center; gap:.55rem; min-height:112px; border:1px dashed #cbd5e1; border-radius:10px; background:#f8fbff; color:#64748b; font-weight:600; }
+  .schedule-item-card { display:grid; grid-template-columns:auto 112px minmax(0, 1fr); align-items:center; gap:.85rem; border:1px solid #dbe7f5; border-radius:10px; background:#fff; padding:.78rem; cursor:grab; transition:border-color .15s, box-shadow .15s, transform .15s; }
+  .schedule-item-card:hover { border-color:#93c5fd; box-shadow:0 10px 24px rgba(37, 99, 235, .08); transform:translateY(-1px); }
+  .schedule-item-card.dragging { opacity:.5; }
+  .schedule-item-order { display:flex; flex-direction:column; align-items:center; gap:.4rem; min-width:46px; }
+  .schedule-order-cell { display:flex; }
+  .schedule-item-handle { width:32px; height:32px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:#eef2ff; color:#2563eb; font-size:.95rem; }
+  .schedule-order-label { color:#0f172a; font-size:.8rem; font-weight:800; }
+  .schedule-item-thumb { width:112px; height:63px; object-fit:cover; border-radius:8px; border:1px solid #dbe7f5; background:#f8fafc; }
+  .schedule-item-main { min-width:0; display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  .schedule-item-copy { min-width:0; display:grid; gap:.3rem; }
+  .schedule-item-copy strong { display:block; color:#0f172a; font-size:.92rem; line-height:1.3; overflow-wrap:anywhere; }
+  .schedule-item-subtitle { color:#64748b; font-size:.76rem; }
+  .schedule-item-actions { display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; justify-content:flex-end; }
+  .schedule-item-actions form { margin:0; }
   @@media (max-width: 1180px) {
     .schedule-builder-grid { grid-template-columns: 1fr; }
     .schedule-builder-actions { position:static; }
@@ -584,7 +634,14 @@ else
     .schedule-action-btn { flex:1; justify-content:center; }
     .schedule-live-actions form { flex:1; }
     .schedule-live-actions form .schedule-action-btn { width:100%; }
-    .schedule-add-item-form { grid-template-columns:1fr; }
+    .schedule-add-item-field { grid-template-columns:1fr; }
+    .schedule-add-item-preview,
+    .schedule-item-card { grid-template-columns:1fr; }
+    .schedule-add-item-preview img,
+    .schedule-item-thumb { width:100%; height:auto; aspect-ratio:16/9; }
+    .schedule-item-order { flex-direction:row; justify-content:flex-start; }
+    .schedule-item-main { flex-direction:column; align-items:flex-start; }
+    .schedule-item-actions { width:100%; justify-content:space-between; }
   }
 
   /* CMS tone: restrained, scan-friendly schedule UI */
@@ -1147,6 +1204,44 @@ else
   initPlaylistDrag();
   initScheduleDrag();
   restoreScheduleDraft();
+
+  document.querySelectorAll('.schedule-add-item-form select[name="mediaId"]').forEach(updateScheduleAddPreview);
+
+  function updateScheduleAddPreview(select) {
+    const form = select.closest('.schedule-add-item-form');
+    const preview = form?.querySelector('[data-schedule-add-preview]');
+    if (!preview) return;
+
+    const option = select.options[select.selectedIndex];
+    const image = preview.querySelector('img');
+    const name = preview.querySelector('[data-schedule-add-preview-name]');
+    const note = preview.querySelector('[data-schedule-add-preview-note]');
+    const size = preview.querySelector('[data-schedule-add-preview-size]');
+    const submit = form.querySelector('[data-schedule-add-submit]');
+    const hasValue = !!select.value;
+
+    if (image) {
+      image.src = option?.dataset.thumbnail || '@videoPlaceholder';
+      image.onerror = function () { this.onerror = null; this.src = '@videoPlaceholder'; };
+    }
+
+    if (name) {
+      name.textContent = option?.dataset.name || 'Chọn video để xem thumbnail';
+    }
+
+    if (note) {
+      note.textContent = hasValue
+        ? 'Video sẽ được thêm vào cuối danh sách phát, sau đó có thể kéo-thả để đổi thứ tự.'
+        : 'Preview sẽ hiển thị ảnh, tên video và dung lượng để thao tác nhanh hơn.';
+    }
+
+    if (size) {
+      size.textContent = option?.dataset.size || 'Chưa chọn';
+    }
+
+    preview.classList.toggle('is-empty', !hasValue);
+    if (submit) submit.disabled = !hasValue;
+  }
 
   function openScheduleDetail(id) {
     const modal = document.getElementById('scheduleDetail-' + id);

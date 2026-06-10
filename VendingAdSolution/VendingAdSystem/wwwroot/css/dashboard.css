@@ -322,39 +322,59 @@
 .devices-kpi .kpi-value { font-size: 1.65rem; }
 .devices-kpi .kpi-label { margin-top: .35rem; }
 .devices-page .device-section { border-radius: 16px; padding: 1rem; }
-.devices-page .device-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: stretch; gap: .7rem; }
+.devices-page .device-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: .85rem; }
 .devices-page .device-card { min-height: 0; display: flex; flex-direction: column; }
-.devices-page .device-card-compact { padding: .68rem; border-radius: 12px; }
-.devices-page .device-card-compact .device-card-head { align-items: flex-start; gap: .45rem; }
-.devices-page .device-card-compact .device-name { gap: .45rem; flex: 1; overflow: hidden; }
-.devices-page .device-card-compact .device-icon { width: 30px; height: 30px; border-radius: 10px; font-size: .8rem; }
-.devices-page .device-card-compact .device-name strong { font-size: .84rem; line-height: 1.12; letter-spacing: 0; }
-.devices-page .device-card-compact .device-name small { font-size: .67rem; max-width: 100%; line-height: 1.15; }
-.devices-page .device-card-compact .status-pill { padding: .18rem .42rem; font-size: .63rem; line-height: 1.1; white-space: nowrap; }
+.devices-page .device-card-compact { padding: .85rem; border-radius: 14px; }
+.devices-page .device-card-compact .device-card-head { align-items: flex-start; gap: .55rem; }
+.devices-page .device-card-compact .device-name { gap: .55rem; flex: 1; overflow: hidden; }
+.devices-page .device-card-compact .device-icon { width: 36px; height: 36px; border-radius: 12px; font-size: .9rem; }
+.devices-page .device-card-compact .device-name strong { font-size: .92rem; line-height: 1.15; letter-spacing: 0; }
+.devices-page .device-card-compact .device-name small { font-size: .74rem; max-width: 100%; line-height: 1.2; }
+.devices-page .device-card-compact .status-pill { padding: .24rem .52rem; font-size: .68rem; line-height: 1.1; white-space: nowrap; }
+.status-pill.local { background: #fff3df; color: #b45309; }
 .devices-page .device-card-online,
 .devices-page .device-card-offline { border-color: var(--border); box-shadow: 0 6px 16px rgba(10, 35, 90, .04); }
-.devices-page .device-card-compact .device-status-list { margin-top: .52rem; }
-.devices-page .device-card-compact .device-status-item { padding: .4rem 0; }
-.devices-page .device-card-compact .device-status-item > div { grid-template-columns: 58px minmax(0, 1fr); gap: .38rem; }
-.devices-page .device-card-compact .device-status-item small { font-size: .63rem; }
-.devices-page .device-card-compact .device-status-item strong { font-size: .7rem; line-height: 1.2; }
+.devices-page .device-card-local { border-color: #f7d69b; box-shadow: inset 0 3px 0 #f59e0b, 0 8px 18px rgba(146, 64, 14, .08); }
+.device-playback-banner { margin-top: .75rem; display: flex; align-items: center; gap: .55rem; border-radius: 12px; padding: .58rem .65rem; border: 1px solid #dce6f3; background: #f7fbff; color: #244168; min-width: 0; }
+.device-playback-banner.local { border-color: #f6d7a8; background: #fff8ec; color: #92400e; }
+.device-playback-banner > span { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: #eaf1ff; color: var(--primary); flex: 0 0 auto; }
+.device-playback-banner.local > span { background: #ffedd5; color: #d97706; }
+.device-playback-banner div { min-width: 0; display: grid; line-height: 1.15; }
+.device-playback-banner small { color: #65758f; font-size: .7rem; font-weight: 800; }
+.device-playback-banner strong { color: currentColor; font-size: .82rem; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.devices-page .device-card-compact .device-status-list { margin-top: .64rem; }
+.devices-page .device-card-compact .device-status-item { padding: .46rem 0; }
+.devices-page .device-card-compact .device-status-item > div { grid-template-columns: 68px minmax(0, 1fr); gap: .44rem; }
+.devices-page .device-card-compact .device-status-item small { font-size: .69rem; }
+.devices-page .device-card-compact .device-status-item strong { font-size: .76rem; line-height: 1.22; }
 .devices-page .device-card-compact .device-status-meta { margin-top: .18rem; font-size: .62rem; }
 .devices-page .device-card .device-body { gap: .38rem; }
 .devices-page .device-card .device-body p { font-size: .86rem; }
 .devices-page .device-card .label { font-size: .8rem; }
 .devices-page .device-card footer { justify-content: stretch; margin-top: auto; }
-.devices-page .device-card-compact .device-card-footer { display: grid; gap: .45rem; padding-top: .5rem; }
-.devices-page .device-card-compact .last-active { width: 100%; display: inline-flex; align-items: center; justify-content: flex-start; justify-self: stretch; gap: .28rem; font-size: .64rem; text-align: left; }
+.devices-page .device-card-compact .device-card-footer { display: grid; gap: .5rem; padding-top: .62rem; }
+.devices-page .device-card-compact .last-active { width: 100%; display: inline-flex; align-items: center; justify-content: flex-start; justify-self: stretch; gap: .32rem; font-size: .7rem; text-align: left; }
+.devices-page .device-card-compact .device-local-started { color: #9a5b14; }
 .devices-page .device-actions { display: grid; grid-template-columns: minmax(0, 1fr) 32px 32px; gap: .35rem; width: 100%; }
+.devices-page .device-actions.has-force-online { grid-template-columns: minmax(92px, 1fr) minmax(70px, .75fr) 32px 32px; }
 .devices-page .device-actions form { display: block !important; }
 .devices-page .device-actions .btn-primary,
-.devices-page .device-actions .btn-outline { height: 30px; padding: 0 .32rem; font-size: .68rem; width: 100%; justify-content: center; }
+.devices-page .device-actions .btn-outline,
+.devices-page .device-actions .btn-warning { height: 32px; padding: 0 .38rem; font-size: .72rem; width: 100%; justify-content: center; }
 .devices-page .device-actions .icon-only { padding: 0; }
+.btn-warning { color: #92400e; background: #fff7ed; border: 1px solid #f3c37a; border-radius: 10px; height: 36px; padding: 0 .85rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; }
+.btn-warning:hover { background: #ffedd5; border-color: #f59e0b; }
+.btn-warning:disabled { opacity: .7; cursor: wait; }
+.detail-status.warning { background: #fff3df; color: #b45309; }
+.detail-force-online-btn { width: 100%; justify-content: center; margin-top: .75rem; }
 .devices-empty-box { min-height: 220px; margin-top: 0; }
 .devices-empty-box i { font-size: 1.6rem; color: #8aa0bd; }
 .devices-empty-action { height: 40px; padding: 0 .9rem; }
-@media (max-width: 1199px) {
+@media (min-width: 1600px) {
   .devices-page .device-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1320px) {
+  .devices-page .device-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
   .devices-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -362,20 +382,21 @@
   .devices-filter-form .search-box { grid-column: 1 / -1; }
 }
 @media (max-width: 980px) {
-  .devices-page .device-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .devices-page .device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .devices-kpi, .devices-kpi-wrap .kpi-grid { grid-template-columns: 1fr; }
   .devices-toolbar-head { align-items: stretch; flex-direction: column; }
   .devices-add-btn { width: 100%; }
   .devices-filter-form { grid-template-columns: 1fr; }
-  .devices-page .device-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .devices-page .device-grid { grid-template-columns: 1fr; }
   .device-info-row { grid-template-columns: 1fr; gap: .24rem; }
   .device-info-row strong { text-align: left; }
   .devices-page .device-card-compact .device-info-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   .devices-page .device-grid { grid-template-columns: 1fr; }
+  .devices-page .device-actions.has-force-online { grid-template-columns: 1fr 1fr 36px 36px; }
 }
 
 .dashboard-page .kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }

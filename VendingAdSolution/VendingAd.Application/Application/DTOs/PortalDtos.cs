@@ -5,6 +5,7 @@ namespace VendingAdSystem.Application.DTOs;
 public class UploadVideoRequest
 {
     public IFormFile? File { get; set; }
+    public IFormFile? Thumbnail { get; set; }
     public int UserId { get; set; }
 }
 
@@ -14,6 +15,7 @@ public class UploadVideoResult
     public string Message { get; set; } = string.Empty;
     public string? FileName { get; set; }
     public string? FileUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public int DeviceCount { get; set; }
     public int? PlaylistId { get; set; }
     public string? PlaylistName { get; set; }

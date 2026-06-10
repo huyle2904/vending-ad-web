@@ -4,6 +4,7 @@
     int? selectedUserId = ViewBag.SelectedUserId;
     string? keyword = ViewBag.Keyword;
     ViewData["Title"] = "Quản lý toàn bộ Video";
+    const string videoPlaceholder = "/images/video-placeholder.svg";
 }
 
 <div class="page-header">
@@ -55,7 +56,12 @@
         @foreach (var video in Model)
         {
           <tr class="fx-list-row">
-            <td>@video.FileName</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:.65rem;min-width:220px;">
+                <img src="@(string.IsNullOrWhiteSpace(video.ThumbnailUrl) ? videoPlaceholder : video.ThumbnailUrl)" style="width:80px;height:45px;object-fit:cover;border-radius:6px;background:#f3f4f6;" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="" />
+                <span>@video.FileName</span>
+              </div>
+            </td>
             <td><span class="badge badge-primary">@(video.User?.Username ?? "-")</span></td>
             <td>
               @foreach (var playlist in video.PlaylistItems.Select(i => i.Playlist).DistinctBy(p => p.Id).OrderBy(p => p.Name))

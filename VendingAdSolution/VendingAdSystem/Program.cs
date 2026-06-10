@@ -114,6 +114,7 @@ try
             "form-action 'self'; " +
             "frame-ancestors 'none'; " +
             "img-src 'self' data: blob:; " +
+            "media-src 'self' blob:; " +
             "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "font-src 'self' data:; " +

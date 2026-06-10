@@ -9,7 +9,7 @@ namespace VendingAdSystem.Application.Services;
 public interface IMobilePlaybackService
 {
     Task<MobileDeviceResponse?> GetDeviceAsync(string deviceCode);
-    Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode, string? currentFileName = null, string? playbackMode = null);
+    Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode, string? currentFileName = null);
     Task<MobilePlaybackStateResponse?> GetPlaybackStateAsync(string deviceCode);
     Task<MobileSetPlaybackModeResponse?> SetPlaybackModeAsync(string deviceCode, string mode, string? localFileName = null, DateTime? localFileStartedUtc = null);
     Task<MobileSetPlaybackModeResponse?> ForceOnlineAsync(string deviceCode);
@@ -70,7 +70,7 @@ public class MobilePlaybackService : IMobilePlaybackService
         return device == null ? null : ToDeviceResponse(device);
     }
 
-    public async Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode, string? currentFileName = null, string? playbackMode = null)
+    public async Task<MobileHeartbeatResponse?> HeartbeatAsync(string deviceCode, string? currentFileName = null)
     {
         var normalizedCode = NormalizeDeviceCode(deviceCode);
         Device? device;
@@ -91,18 +91,17 @@ public class MobilePlaybackService : IMobilePlaybackService
             device.LastSeen = utcNow;
         }
 
-        // Update real-time status from heartbeat
+        // Update CurrentFileName from heartbeat (for dashboard display)
         if (currentFileName != null)
         {
             device.CurrentFileName = currentFileName;
         }
-        if (playbackMode != null)
-        {
-            device.PlaybackMode = playbackMode;
-        }
 
         await _devices.SaveChangesAsync();
 
+        // Detect force-online: PlaybackMode was set to "Online" by the portal
+        // (via ForceOnlineAsync) but LocalFileName still has a value from
+        // the previous local session. Tell the device to switch back.
         var forceOnline = device.PlaybackMode == "Online" && device.LocalFileName != null;
         if (forceOnline)
         {
@@ -236,8 +235,9 @@ public class MobilePlaybackService : IMobilePlaybackService
             return null;
 
         device.PlaybackMode = "Online";
-        device.LocalFileName = null;
-        device.LocalFileStartedUtc = null;
+        // Don't clear LocalFileName — the next heartbeat detects the mismatch
+        // (PlaybackMode==Online + LocalFileName!=null) and clears it, sending
+        // forceOnline=true so the device knows to switch back.
         await _devices.SaveChangesAsync();
 
         var cacheKey = _playbackCache.PlaybackStateKey(normalizedCode);

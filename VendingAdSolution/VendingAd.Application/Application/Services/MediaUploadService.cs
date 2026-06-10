@@ -23,6 +23,7 @@ public interface IMediaUploadService
 public class MediaUploadService : IMediaUploadService
 {
     private const long MaxUploadBytes = 50 * 1024 * 1024;
+    private const long MaxThumbnailBytes = 512 * 1024;
     private static readonly Dictionary<string, string[]> AllowedVideoContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         [".mp4"] = new[] { "video/mp4", "application/mp4" },
@@ -59,7 +60,7 @@ public class MediaUploadService : IMediaUploadService
         if (!validation.Success)
             return new UploadVideoResult { Success = false, Message = validation.Message };
 
-        var storedMedia = await CreateStoredMediaAsync(request.File!, request.UserId, validation.Extension);
+        var storedMedia = await CreateStoredMediaAsync(request.File!, request.UserId, validation.Extension, request.Thumbnail);
         if (!storedMedia.Success)
             return new UploadVideoResult { Success = false, Message = storedMedia.Message };
 
@@ -87,7 +88,8 @@ public class MediaUploadService : IMediaUploadService
                 Success = true,
                 Message = "Đã tải lên video",
                 FileName = media.FileName,
-                FileUrl = media.FileUrl
+                FileUrl = media.FileUrl,
+                ThumbnailUrl = media.ThumbnailUrl
             };
         }
         catch
@@ -138,6 +140,8 @@ public class MediaUploadService : IMediaUploadService
         foreach (var video in videos)
         {
             await _fileStorageService.DeleteAsync(video.FileUrl);
+            if (!string.IsNullOrWhiteSpace(video.ThumbnailUrl))
+                await _fileStorageService.DeleteAsync(video.ThumbnailUrl);
             _mediaService.Remove(video);
         }
 
@@ -204,6 +208,7 @@ public class MediaUploadService : IMediaUploadService
                 Message = "Đã thêm video vào danh sách phát",
                 FileName = media.FileName,
                 FileUrl = media.FileUrl,
+                ThumbnailUrl = media.ThumbnailUrl,
                 PlaylistId = playlist.Id,
                 PlaylistName = playlist.Name,
                 DeviceCount = 0
@@ -216,9 +221,11 @@ public class MediaUploadService : IMediaUploadService
         }
     }
 
-    private async Task<StoredMediaResult> CreateStoredMediaAsync(IFormFile uploadFile, int userId, string extension)
+    private async Task<StoredMediaResult> CreateStoredMediaAsync(IFormFile uploadFile, int userId, string extension, IFormFile? thumbnail = null)
     {
-        var uniqueName = $"{Guid.NewGuid():N}{extension}";
+        var uniqueToken = $"{Guid.NewGuid():N}";
+        var uniqueName = $"{uniqueToken}{extension}";
+        var thumbnailName = $"{uniqueToken}.thumb.jpg";
         var tempFilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}{extension}");
 
         try
@@ -233,12 +240,14 @@ public class MediaUploadService : IMediaUploadService
                 return StoredMediaResult.Invalid(probeResult.Message);
 
             var storedFile = await _fileStorageService.SaveAsync(tempFilePath, uniqueName);
+            var thumbnailUrl = await TrySaveThumbnailAsync(thumbnail, thumbnailName);
 
             return StoredMediaResult.Valid(new Media
             {
                 FileName = Path.GetFileName(uploadFile.FileName),
                 FileUrl = storedFile.FileUrl,
                 FileSize = uploadFile.Length,
+                ThumbnailUrl = thumbnailUrl,
                 DurationSeconds = probeResult.DurationSeconds,
                 UserId = userId,
                 UploadedAt = _timeService.UtcNow
@@ -247,6 +256,43 @@ public class MediaUploadService : IMediaUploadService
         finally
         {
             TryDeleteTempFile(tempFilePath);
+        }
+    }
+
+    private async Task<string?> TrySaveThumbnailAsync(IFormFile? thumbnail, string thumbnailName)
+    {
+        if (thumbnail == null || thumbnail.Length == 0)
+            return null;
+
+        try
+        {
+            var validation = await ValidateThumbnailFileAsync(thumbnail);
+            if (!validation.Success)
+            {
+                _logger.LogWarning("Ignored uploaded video thumbnail because it failed validation: {Message}", validation.Message);
+                return null;
+            }
+
+            var tempThumbnailPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.jpg");
+            try
+            {
+                await using (var stream = new FileStream(tempThumbnailPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    await thumbnail.CopyToAsync(stream);
+                }
+
+                var storedThumbnail = await _fileStorageService.SaveAsync(tempThumbnailPath, thumbnailName);
+                return storedThumbnail.FileUrl;
+            }
+            finally
+            {
+                TryDeleteTempFile(tempThumbnailPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to store uploaded video thumbnail. Video upload will continue without a thumbnail.");
+            return null;
         }
     }
 
@@ -280,6 +326,41 @@ public class MediaUploadService : IMediaUploadService
         }
 
         return AllowedVideoContentTypes[extension].Contains(contentType.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static async Task<ThumbnailFileValidationResult> ValidateThumbnailFileAsync(IFormFile thumbnail)
+    {
+        if (thumbnail.Length > MaxThumbnailBytes)
+            return ThumbnailFileValidationResult.Invalid("Thumbnail file size must be 512KB or smaller");
+
+        if (!IsAllowedThumbnailContentType(thumbnail.ContentType))
+            return ThumbnailFileValidationResult.Invalid("Thumbnail content type must be image/jpeg");
+
+        if (!await HasJpegSignatureAsync(thumbnail))
+            return ThumbnailFileValidationResult.Invalid("Thumbnail content does not match JPEG format");
+
+        return ThumbnailFileValidationResult.Valid();
+    }
+
+    private static bool IsAllowedThumbnailContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType) ||
+            contentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return contentType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase) ||
+            contentType.Equals("image/jpg", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<bool> HasJpegSignatureAsync(IFormFile thumbnail)
+    {
+        await using var stream = thumbnail.OpenReadStream();
+        var header = new byte[2];
+        var bytesRead = await stream.ReadAsync(header.AsMemory(0, header.Length));
+
+        return bytesRead >= 2 && header[0] == 0xFF && header[1] == 0xD8;
     }
 
     private static async Task<bool> HasAllowedVideoSignatureAsync(IFormFile file, string extension)
@@ -320,23 +401,8 @@ public class MediaUploadService : IMediaUploadService
         {
             using var process = new Process
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = ffprobePath,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
+                StartInfo = CreateFfprobeStartInfo(ffprobePath, filePath)
             };
-
-            process.StartInfo.ArgumentList.Add("-v");
-            process.StartInfo.ArgumentList.Add("error");
-            process.StartInfo.ArgumentList.Add("-show_entries");
-            process.StartInfo.ArgumentList.Add("stream=codec_type,codec_name,duration:format=duration");
-            process.StartInfo.ArgumentList.Add("-of");
-            process.StartInfo.ArgumentList.Add("json");
-            process.StartInfo.ArgumentList.Add(filePath);
 
             if (!process.Start())
                 return requireFfprobe
@@ -375,6 +441,41 @@ public class MediaUploadService : IMediaUploadService
                 ? VideoProbeResult.Invalid("ffprobe chưa được cài đặt hoặc không chạy được.")
                 : VideoProbeResult.Valid(null);
         }
+    }
+
+    private static ProcessStartInfo CreateFfprobeStartInfo(string ffprobePath, string filePath)
+    {
+        var runViaCmd = OperatingSystem.IsWindows()
+            && (ffprobePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase)
+                || ffprobePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase));
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = runViaCmd
+                ? Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe"
+                : ffprobePath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        if (runViaCmd)
+        {
+            startInfo.ArgumentList.Add("/d");
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(ffprobePath);
+        }
+
+        startInfo.ArgumentList.Add("-v");
+        startInfo.ArgumentList.Add("error");
+        startInfo.ArgumentList.Add("-show_entries");
+        startInfo.ArgumentList.Add("stream=codec_type,codec_name,duration:format=duration");
+        startInfo.ArgumentList.Add("-of");
+        startInfo.ArgumentList.Add("json");
+        startInfo.ArgumentList.Add(filePath);
+
+        return startInfo;
     }
 
     private VideoProbeResult ParseFfprobeOutput(string json)
@@ -486,6 +587,8 @@ public class MediaUploadService : IMediaUploadService
         try
         {
             await _fileStorageService.DeleteAsync(media.FileUrl);
+            if (!string.IsNullOrWhiteSpace(media.ThumbnailUrl))
+                await _fileStorageService.DeleteAsync(media.ThumbnailUrl);
         }
         catch (Exception ex)
         {
@@ -510,6 +613,12 @@ public class MediaUploadService : IMediaUploadService
     {
         public static VideoFileValidationResult Valid(string extension) => new(true, string.Empty, extension);
         public static VideoFileValidationResult Invalid(string message) => new(false, message, string.Empty);
+    }
+
+    private sealed record ThumbnailFileValidationResult(bool Success, string Message)
+    {
+        public static ThumbnailFileValidationResult Valid() => new(true, string.Empty);
+        public static ThumbnailFileValidationResult Invalid(string message) => new(false, message);
     }
 
     private sealed record StoredMediaResult(bool Success, string Message, Media? Media)

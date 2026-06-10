@@ -281,10 +281,14 @@
     }
   }
 
-  function uploadOne(item) {
+  async function uploadOne(item) {
+    var thumbnailBlob = await createVideoThumbnail(item.file);
     return new Promise(function(resolve, reject) {
       var formData = new FormData();
       formData.append('file', item.file);
+      if (thumbnailBlob) {
+        formData.append('thumbnail', thumbnailBlob, getThumbnailFileName(item.name));
+      }
       var xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/portal/upload');
       var token = window.getRequestVerificationToken?.() || '';
@@ -307,6 +311,72 @@
         reject();
       };
       xhr.send(formData);
+    });
+  }
+
+  function getThumbnailFileName(fileName) {
+    var baseName = String(fileName || 'video').replace(/\.[^/.]+$/, '') || 'video';
+    return baseName + '.thumb.jpg';
+  }
+
+  function createVideoThumbnail(file) {
+    return new Promise(function(resolve) {
+      if (!file || typeof URL === 'undefined' || typeof document === 'undefined') {
+        resolve(null);
+        return;
+      }
+
+      var objectUrl = URL.createObjectURL(file);
+      var video = document.createElement('video');
+      var settled = false;
+      var timeoutId = window.setTimeout(function() { finish(null); }, 10000);
+
+      function finish(blob) {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
+        video.removeAttribute('src');
+        video.load();
+        URL.revokeObjectURL(objectUrl);
+        resolve(blob);
+      }
+
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      video.onerror = function() { finish(null); };
+      video.onloadedmetadata = function() {
+        if (!Number.isFinite(video.duration) || video.duration <= 0 || video.videoWidth <= 0 || video.videoHeight <= 0) {
+          finish(null);
+          return;
+        }
+
+        var targetTime = Math.min(video.duration - 0.05, Math.max(0.05, video.duration / 2));
+        video.currentTime = Math.max(0, targetTime);
+      };
+      video.onseeked = function() {
+        try {
+          var maxWidth = 640;
+          var scale = Math.min(1, maxWidth / video.videoWidth);
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+          canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+          var context = canvas.getContext('2d');
+          if (!context) {
+            finish(null);
+            return;
+          }
+
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(function(blob) {
+            finish(blob && blob.size <= 512 * 1024 ? blob : null);
+          }, 'image/jpeg', 0.82);
+        } catch {
+          finish(null);
+        }
+      };
+
+      video.src = objectUrl;
     });
   }
 

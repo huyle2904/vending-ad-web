@@ -56,6 +56,19 @@ public class SecurityIntegrationTests
     }
 
     [Fact]
+    public async Task ContentSecurityPolicy_AllowsBrowserGeneratedVideoThumbnails()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/account/login");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("Content-Security-Policy", out var values));
+        Assert.Contains("media-src 'self' blob:", Assert.Single(values));
+    }
+
+    [Fact]
     public async Task MetricsEndpoint_ExposesHttpAndCustomPrometheusMetrics()
     {
         await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
@@ -375,6 +388,62 @@ public class SecurityIntegrationTests
     }
 
     [Fact]
+    public async Task PortalUpload_WithValidThumbnail_StoresThumbnailUrl()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
+        await factory.SeedUserAsync(1);
+        var client = factory.CreateClient();
+        client.UseTestUser(role: "User", userId: 1);
+
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(CreateMinimalMp4Header());
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse("video/mp4");
+        form.Add(file, "file", "clip.mp4");
+
+        var thumbnail = new ByteArrayContent(CreateMinimalJpeg());
+        thumbnail.Headers.ContentType = MediaTypeHeaderValue.Parse("image/jpeg");
+        form.Add(thumbnail, "thumbnail", "clip.thumb.jpg");
+
+        var response = await client.PostAsync("/api/portal/upload", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var media = await db.Medias.OrderByDescending(m => m.Id).FirstAsync();
+        Assert.StartsWith("/uploads/", media.ThumbnailUrl);
+        Assert.True(File.Exists(GetStoredFilePath(factory.UploadsPath, media.ThumbnailUrl!)));
+    }
+
+    [Fact]
+    public async Task PortalUpload_WithInvalidThumbnail_IgnoresThumbnailAndStoresVideo()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
+        await factory.SeedUserAsync(1);
+        var client = factory.CreateClient();
+        client.UseTestUser(role: "User", userId: 1);
+
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(CreateMinimalMp4Header());
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse("video/mp4");
+        form.Add(file, "file", "clip.mp4");
+
+        var thumbnail = new ByteArrayContent(new byte[] { 0x00, 0x01, 0x02 });
+        thumbnail.Headers.ContentType = MediaTypeHeaderValue.Parse("image/jpeg");
+        form.Add(thumbnail, "thumbnail", "clip.thumb.jpg");
+
+        var response = await client.PostAsync("/api/portal/upload", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var media = await db.Medias.OrderByDescending(m => m.Id).FirstAsync();
+        Assert.StartsWith("/uploads/", media.FileUrl);
+        Assert.Null(media.ThumbnailUrl);
+    }
+
+    [Fact]
     public async Task MediaUploadDeleteVideos_RemovesStoredFileFromStorage()
     {
         await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
@@ -388,6 +457,10 @@ public class SecurityIntegrationTests
             file.Headers.ContentType = MediaTypeHeaderValue.Parse("video/mp4");
             form.Add(file, "file", "cleanup.mp4");
 
+            var thumbnail = new ByteArrayContent(CreateMinimalJpeg());
+            thumbnail.Headers.ContentType = MediaTypeHeaderValue.Parse("image/jpeg");
+            form.Add(thumbnail, "thumbnail", "cleanup.thumb.jpg");
+
             var response = await client.PostAsync("/api/portal/upload", form);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -395,16 +468,20 @@ public class SecurityIntegrationTests
 
         int mediaId;
         string fileUrl;
+        string thumbnailUrl;
         await using (var uploadScope = factory.Services.CreateAsyncScope())
         {
             var db = uploadScope.ServiceProvider.GetRequiredService<AppDbContext>();
             var media = await db.Medias.AsNoTracking().OrderByDescending(m => m.Id).FirstAsync();
             mediaId = media.Id;
             fileUrl = media.FileUrl;
+            thumbnailUrl = media.ThumbnailUrl!;
         }
 
         var storedFilePath = GetStoredFilePath(factory.UploadsPath, fileUrl);
+        var storedThumbnailPath = GetStoredFilePath(factory.UploadsPath, thumbnailUrl);
         Assert.True(File.Exists(storedFilePath));
+        Assert.True(File.Exists(storedThumbnailPath));
 
         await using (var deleteScope = factory.Services.CreateAsyncScope())
         {
@@ -415,6 +492,7 @@ public class SecurityIntegrationTests
         }
 
         Assert.False(File.Exists(storedFilePath));
+        Assert.False(File.Exists(storedThumbnailPath));
 
         await using var verifyScope = factory.Services.CreateAsyncScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -429,6 +507,22 @@ public class SecurityIntegrationTests
             (byte)'f', (byte)'t', (byte)'y', (byte)'p',
             (byte)'i', (byte)'s', (byte)'o', (byte)'m',
             0x00, 0x00, 0x02, 0x00
+        };
+    }
+
+    private static byte[] CreateMinimalJpeg()
+    {
+        return new byte[]
+        {
+            0xFF, 0xD8,
+            0xFF, 0xE0,
+            0x00, 0x10,
+            (byte)'J', (byte)'F', (byte)'I', (byte)'F', 0x00,
+            0x01, 0x01, 0x00,
+            0x00, 0x01,
+            0x00, 0x01,
+            0x00, 0x00,
+            0xFF, 0xD9
         };
     }
 
@@ -621,6 +715,16 @@ public class SecurityIntegrationTests
 
     private static string CreateFakeFfprobe()
     {
+        if (OperatingSystem.IsWindows())
+        {
+            var cmdPath = Path.Combine(Path.GetTempPath(), $"fake-ffprobe-{Guid.NewGuid():N}.cmd");
+            File.WriteAllText(cmdPath, """
+                @echo off
+                powershell -NoProfile -Command "Write-Output '{\"streams\":[{\"codec_type\":\"video\",\"codec_name\":\"h264\",\"duration\":\"12.4\"}],\"format\":{\"duration\":\"12.4\"}}'"
+                """.Replace("\n", "\r\n"));
+            return cmdPath;
+        }
+
         var scriptPath = Path.Combine(Path.GetTempPath(), $"fake-ffprobe-{Guid.NewGuid():N}.sh");
         File.WriteAllText(scriptPath, """
             #!/usr/bin/env sh
@@ -629,13 +733,10 @@ public class SecurityIntegrationTests
             JSON
             """);
 
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(scriptPath,
-                UnixFileMode.UserRead |
-                UnixFileMode.UserWrite |
-                UnixFileMode.UserExecute);
-        }
+        File.SetUnixFileMode(scriptPath,
+            UnixFileMode.UserRead |
+            UnixFileMode.UserWrite |
+            UnixFileMode.UserExecute);
 
         return scriptPath;
     }

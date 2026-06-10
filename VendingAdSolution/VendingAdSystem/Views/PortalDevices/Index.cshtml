@@ -21,6 +21,7 @@
         new() { Key = "online", Label = "Đang online", Value = onlineCount.ToString(), Description = "Sẵn sàng phát", Icon = "bi-wifi", Tone = "success" },
         new() { Key = "offline", Label = "Ngoại tuyến", Value = offlineCount.ToString(), Description = "Cần kiểm tra", Icon = "bi-power", Tone = "danger" }
     };
+    const string videoPlaceholder = "/images/video-placeholder.svg";
 
     string VietnamDate(DateTime utcDate) => utcDate.AddHours(7).ToString("dd/MM/yyyy");
     string DateRangeText(PlaybackSchedule schedule) => VietnamDate(schedule.StartDate) == VietnamDate(schedule.EndDate) ? VietnamDate(schedule.StartDate) : $"{VietnamDate(schedule.StartDate)} - {VietnamDate(schedule.EndDate)}";
@@ -92,7 +93,13 @@ else
       var currentScheduleText = currentSchedule?.Name ?? "Chưa có";
       var upcomingScheduleText = upcomingSchedule?.Name ?? "Chưa có";
       var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
-      <article class="device-card device-card-compact fx-card @(isOnline ? "device-card-online" : "device-card-offline")">
+      var isLocalPlayback = string.Equals(device.PlaybackMode, "Local", StringComparison.OrdinalIgnoreCase);
+      var localStartedVietnam = device.LocalFileStartedUtc.HasValue ? vietnamNow.Add(device.LocalFileStartedUtc.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
+      var playbackModeText = isLocalPlayback ? "Phát local" : "Phát online";
+      var currentFileText = isLocalPlayback
+          ? (string.IsNullOrWhiteSpace(device.LocalFileName) ? "File local trên thiết bị" : device.LocalFileName)
+          : (string.IsNullOrWhiteSpace(device.CurrentFileName) ? "Theo lịch phát" : device.CurrentFileName);
+      <article class="device-card device-card-compact fx-card @(isOnline ? "device-card-online" : "device-card-offline") @(isLocalPlayback ? "device-card-local" : "")">
         <header class="device-card-head">
           <div class="device-name">
             <span class="device-icon"><i class="bi bi-phone"></i></span>
@@ -101,15 +108,30 @@ else
               <small title="@locationText">@locationText</small>
             </span>
           </div>
-          <span class="status-pill @(isOnline ? "online" : "offline")">@(isOnline ? "Online" : "Offline")</span>
+          <span class="status-pill @(isLocalPlayback ? "local" : (isOnline ? "online" : "offline"))">@(isLocalPlayback ? "Local" : (isOnline ? "Online" : "Offline"))</span>
         </header>
 
+        <div class="device-playback-banner @(isLocalPlayback ? "local" : "online")">
+          <span><i class="bi @(isLocalPlayback ? "bi-device-hdd" : "bi-cloud-check")"></i></span>
+          <div>
+            <small>Chế độ phát</small>
+            <strong>@playbackModeText</strong>
+          </div>
+        </div>
+
         <div class="device-status-list">
-          <div class="device-status-item current">
-            <span class="device-status-icon"><i class="bi bi-play-circle"></i></span>
+          <div class="device-status-item">
+            <span class="device-status-icon"><i class="bi bi-wifi"></i></span>
             <div>
-              <small>Đang phát</small>
-              <strong class="@(currentSchedule == null ? "is-muted" : "")" title="@currentScheduleText">@currentScheduleText</strong>
+              <small>Kết nối</small>
+              <strong class="@(isOnline ? "" : "is-muted")">@(isOnline ? "Đang online" : "Ngoại tuyến")</strong>
+            </div>
+          </div>
+          <div class="device-status-item current">
+            <span class="device-status-icon"><i class="bi @(isLocalPlayback ? "bi-file-play" : "bi-play-circle")"></i></span>
+            <div>
+              <small>@(isLocalPlayback ? "File local" : "Đang phát")</small>
+              <strong class="@(!isLocalPlayback && currentSchedule == null ? "is-muted" : "")" title="@currentFileText">@currentFileText</strong>
             </div>
           </div>
           <div class="device-status-item upcoming">
@@ -123,7 +145,15 @@ else
 
         <footer class="device-card-footer">
           <span class="last-active" title="Hoạt động cuối: @lastSeenVietnam"><i class="bi bi-activity"></i>@lastSeenVietnam</span>
-          <div class="device-actions">
+          @if (isLocalPlayback)
+          {
+            <span class="last-active device-local-started" title="Bắt đầu phát local: @localStartedVietnam"><i class="bi bi-clock-history"></i>@localStartedVietnam</span>
+          }
+          <div class="device-actions @(isLocalPlayback ? "has-force-online" : "")">
+            @if (isLocalPlayback)
+            {
+              <button type="button" class="btn-warning device-force-online" data-device-code="@device.DeviceCode" onclick="forceDeviceOnline(this.dataset.deviceCode, this); return false;" title="Đưa thiết bị về phát online"><i class="bi bi-cloud-arrow-up"></i>Online lại</button>
+            }
             <button type="button" class="btn-primary" onclick="openQuickPlay(@device.Id); return false;" title="Phát nhanh"><i class="bi bi-play-fill"></i>Phát</button>
             <button type="button" class="btn-outline icon-only" onclick="openDeviceDetail(@device.Id); return false;" title="Chi tiết" aria-label="Chi tiết thiết bị @device.DeviceCode"><i class="bi bi-info-circle"></i></button>
             <form method="post" action="/portal/devices/delete" class="u-inline">
@@ -145,6 +175,8 @@ else
   var upcomingSchedule = upcomingByDevice.ContainsKey(device.Id) ? upcomingByDevice[device.Id] : null;
   var isOnline = onlineByDeviceCode.GetValueOrDefault(device.DeviceCode);
   var lastSeenVietnam = device.LastSeen.HasValue ? vietnamNow.Add(device.LastSeen.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
+  var isLocalPlayback = string.Equals(device.PlaybackMode, "Local", StringComparison.OrdinalIgnoreCase);
+  var localStartedVietnam = device.LocalFileStartedUtc.HasValue ? vietnamNow.Add(device.LocalFileStartedUtc.Value - utcNow).ToString("dd/MM/yyyy HH:mm") : "Chưa có";
   <div class="modal-overlay u-hidden" id="deviceDetail-@device.Id">
     <div class="modal modal-wide detail-modal device-detail-modal">
       <div class="detail-modal-header">
@@ -168,8 +200,18 @@ else
               <div class="detail-fact"><span>Mã thiết bị</span><strong>@device.DeviceCode</strong></div>
               <div class="detail-fact"><span>Vị trí</span><strong>@(device.Location ?? "Chưa có")</strong></div>
               <div class="detail-fact"><span>Trạng thái</span><strong class="detail-status @(isOnline ? "active" : "danger")">@(isOnline ? "Đang online" : "Ngoại tuyến")</strong></div>
+              <div class="detail-fact"><span>Chế độ phát</span><strong class="detail-status @(isLocalPlayback ? "warning" : "active")">@(isLocalPlayback ? "Phát local" : "Phát online")</strong></div>
+              <div class="detail-fact"><span>File hiện tại</span><strong>@(isLocalPlayback ? (device.LocalFileName ?? "File local") : (device.CurrentFileName ?? "Theo lịch phát"))</strong></div>
+              @if (isLocalPlayback)
+              {
+                <div class="detail-fact"><span>Bắt đầu local</span><strong>@localStartedVietnam</strong></div>
+              }
               <div class="detail-fact"><span>Lần hoạt động cuối</span><strong>@lastSeenVietnam</strong></div>
             </div>
+            @if (isLocalPlayback)
+            {
+              <button type="button" class="btn-warning detail-force-online-btn" data-device-code="@device.DeviceCode" onclick="forceDeviceOnline(this.dataset.deviceCode, this); return false;"><i class="bi bi-cloud-arrow-up"></i>Force online lại</button>
+            }
           </section>
           <section class="detail-panel">
             <div class="detail-panel-head">
@@ -291,7 +333,10 @@ else
             {
               <label class="quick-play-item">
                 <input type="checkbox" name="MediaIds" value="@media.Id" data-quickplay-media />
-                <div>
+                <div class="quick-play-thumb">
+                  <img src="@(string.IsNullOrWhiteSpace(media.ThumbnailUrl) ? videoPlaceholder : media.ThumbnailUrl)" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="thumb" />
+                </div>
+                <div class="quick-play-info">
                   <div class="quick-play-title">@media.FileName</div>
                   <div class="quick-play-subtitle">@((media.FileSize / 1024 / 1024).ToString()) MB</div>
                 </div>
@@ -314,9 +359,17 @@ else
             @foreach (var playlist in playlists)
             {
               var playlistItems = playlist.Items.OrderBy(i => i.OrderIndex).ToList();
+              var firstThumb = playlistItems.Select(i => i.Media?.ThumbnailUrl).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
               <label class="quick-play-item">
                 <input type="radio" name="playlistChoice" value="@playlist.Id" data-quickplay-playlist />
-                <div>
+                <div class="quick-play-thumb playlist-thumb">
+                  <img src="@(string.IsNullOrWhiteSpace(firstThumb) ? videoPlaceholder : firstThumb)" onerror="this.onerror=null;this.src='@videoPlaceholder';" alt="thumb" />
+                  @if (playlistItems.Count > 1)
+                  {
+                    <span class="quick-play-thumb-count"><i class="bi bi-collection-play-fill"></i>@playlistItems.Count</span>
+                  }
+                </div>
+                <div class="quick-play-info">
                   <div class="quick-play-title">@playlist.Name</div>
                   <div class="quick-play-subtitle">@playlistItems.Count video(s)</div>
                 </div>
@@ -427,6 +480,38 @@ else
     if (modal) modal.style.display = 'none';
   }
 
+  async function forceDeviceOnline(deviceCode, button) {
+    if (!deviceCode || !button) return;
+
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="bi bi-arrow-repeat"></i>Đang xử lý';
+
+    try {
+      const response = await fetch('/api/portal/devices/' + encodeURIComponent(deviceCode) + '/force-online', {
+        method: 'POST',
+        headers: { 'RequestVerificationToken': window.getRequestVerificationToken?.() || '' },
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        let message = 'Không thể force online thiết bị.';
+        try {
+          const payload = await response.json();
+          message = payload.message || message;
+        } catch {}
+        throw new Error(message);
+      }
+
+      window.showToast('Đã gửi lệnh force online cho ' + deviceCode + '.', 'success');
+      window.setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+      button.disabled = false;
+      button.innerHTML = originalText;
+      window.showToast(error.message || 'Không thể force online thiết bị.', 'error');
+    }
+  }
+
   document.querySelectorAll('#quickPlayForm input[data-quickplay-playlist]').forEach(input => {
     input.addEventListener('change', function () {
       if (!this.checked) return;
@@ -476,9 +561,15 @@ else
   .quick-play-tab { border: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); border-radius: 999px; padding: .45rem .9rem; font-size: .85rem; font-weight: 600; cursor: pointer; }
   .quick-play-tab.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
   .quick-play-list { display: grid; gap: .5rem; margin-top: 1rem; max-height: 42vh; overflow: auto; padding-right: .25rem; }
-  .quick-play-item { display:flex; align-items:flex-start; gap:.75rem; border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem .9rem; cursor: pointer; background: var(--card); }
-  .quick-play-item input { margin-top: .2rem; }
-  .quick-play-title { font-weight: 600; color: var(--foreground); }
+  .quick-play-item { display:flex; align-items:center; gap:.85rem; border: 1px solid var(--border); border-radius: var(--radius); padding: .65rem .9rem; cursor: pointer; background: var(--card); transition: border-color .15s ease, box-shadow .15s ease; }
+  .quick-play-item:hover { border-color: var(--primary); }
+  .quick-play-item input { margin: 0; flex-shrink: 0; }
+  .quick-play-thumb { position: relative; width: 88px; height: 56px; border-radius: 6px; overflow: hidden; background: var(--muted); flex-shrink: 0; border: 1px solid var(--border); }
+  .quick-play-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .quick-play-thumb-count { position: absolute; right: 4px; bottom: 4px; background: rgba(0,0,0,.65); color: #fff; font-size: .68rem; font-weight: 600; padding: 2px 6px; border-radius: 999px; display: inline-flex; align-items: center; gap: 3px; }
+  .quick-play-thumb-count i { font-size: .7rem; }
+  .quick-play-info { min-width: 0; flex: 1; }
+  .quick-play-title { font-weight: 600; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .quick-play-subtitle { font-size: .78rem; color: var(--muted-foreground); margin-top: .15rem; }
   .device-card-actions { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:.5rem; padding-top: 0.75rem; margin-top: 0.75rem; border-top: 1px solid var(--border); }
   .device-card-actions form { margin: 0; }

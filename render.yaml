@@ -1,11 +1,12 @@
 services:
   - type: web
     name: vending-ad-system
-    env: docker
+    runtime: docker
     plan: starter
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health/live
-    autoDeploy: true
+    autoDeployTrigger: checksPass
+    preDeployCommand: dotnet VendingAdSystem.dll --migrate
     disk:
       name: uploads
       mountPath: /data
@@ -13,6 +14,10 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: AllowedHosts
+        value: "*.onrender.com"
+      - key: DatabaseProvider
+        value: Postgres
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: vending-ad-db
@@ -20,7 +25,7 @@ services:
       - key: UploadsPath
         value: /data/uploads
       - key: Database__ApplyMigrationsOnStartup
-        value: "true"
+        value: "false"
       - key: Redis__Enabled
         value: "false"
       - key: RabbitMQ__Enabled

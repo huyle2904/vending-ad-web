@@ -46,7 +46,7 @@ public class YouTubeService : IYouTubeService
             FileUrl = normalizedUrl,
             FileSize = 0,
             DurationSeconds = null,
-            ThumbnailUrl = $"https://img.youtube.com/vi/{videoId}/mqdefault.jpg",
+            ThumbnailUrl = $"https://img.youtube.com/vi/{videoId}/hqdefault.jpg",
             MediaType = MediaType.YouTube,
             UploadedAt = _timeService.UtcNow,
             UserId = userId

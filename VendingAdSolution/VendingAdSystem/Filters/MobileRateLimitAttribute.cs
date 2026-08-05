@@ -16,8 +16,8 @@ public class MobileRateLimitAttribute : Attribute, IAsyncActionFilter
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var deviceCode = ResolveDeviceCode(context);
-        if (string.IsNullOrWhiteSpace(deviceCode))
+        var clientKey = ResolveClientKey(context);
+        if (string.IsNullOrWhiteSpace(clientKey))
         {
             await next();
             return;
@@ -25,7 +25,7 @@ public class MobileRateLimitAttribute : Attribute, IAsyncActionFilter
 
         var rateLimiter = context.HttpContext.RequestServices.GetRequiredService<IMobileRateLimitService>();
         var timeService = context.HttpContext.RequestServices.GetRequiredService<ITimeService>();
-        var result = rateLimiter.Check(_policy, deviceCode, timeService.UtcNow);
+        var result = rateLimiter.Check(_policy, clientKey, timeService.UtcNow);
 
         if (result.IsAllowed)
         {
@@ -45,7 +45,7 @@ public class MobileRateLimitAttribute : Attribute, IAsyncActionFilter
         };
     }
 
-    private static string? ResolveDeviceCode(ActionExecutingContext context)
+    private string? ResolveClientKey(ActionExecutingContext context)
     {
         if (context.ActionArguments.TryGetValue("deviceCode", out var routeCode))
             return routeCode?.ToString();
@@ -56,6 +56,12 @@ public class MobileRateLimitAttribute : Attribute, IAsyncActionFilter
             var value = property?.GetValue(argument)?.ToString();
             if (!string.IsNullOrWhiteSpace(value))
                 return value;
+        }
+
+        if (_policy == MobileRateLimitPolicy.Registration)
+        {
+            return context.HttpContext.Connection.RemoteIpAddress?.ToString()
+                ?? "unknown-client";
         }
 
         return null;

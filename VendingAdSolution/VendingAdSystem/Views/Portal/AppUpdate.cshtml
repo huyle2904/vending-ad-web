@@ -28,6 +28,13 @@
             }
           </span>
         </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Sha256))
+        {
+          <div class="info-row">
+            <span class="info-label">SHA-256:</span>
+            <code class="info-value" title="@Model.Sha256">@Model.Sha256</code>
+          </div>
+        }
         <div class="info-row">
           <span class="info-label">Ngày cập nhật:</span>
           <span class="info-value" id="currentUpdatedAt">
@@ -69,6 +76,7 @@
     <div class="card" style="padding:1.5rem;">
       <h3 style="margin-bottom:1rem;">Upload phiên bản mới</h3>
       <form id="apkUploadForm" enctype="multipart/form-data" method="post" action="/api/app/upload">
+        @Html.AntiForgeryToken()
         <div class="form-group" style="margin-bottom:1rem;">
           <label for="version">Phiên bản</label>
           <input type="text" id="version" name="version" class="form-control"

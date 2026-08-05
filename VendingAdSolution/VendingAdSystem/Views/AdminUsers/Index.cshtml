@@ -30,7 +30,7 @@
       <button type="submit" class="btn btn-primary">Tạo mới</button>
     </div>
   </form>
-    <p class="text-sm text-muted u-mt-075">Mật khẩu mặc định: <strong>TD@12345</strong></p>
+    <p class="text-sm text-muted u-mt-075">Hệ thống tạo mật khẩu tạm thời ngẫu nhiên và chỉ hiển thị một lần.</p>
 </div>
 
 @if (!Model.Any())
@@ -71,7 +71,7 @@ else
                 <form method="post" action="/admin/users/reset-password">
                   @Html.AntiForgeryToken()
                   <input type="hidden" name="userId" value="@user.Id" />
-                  <button type="submit" class="action-btn" onclick="return confirm('Đặt lại mật khẩu cho @user.Username về TD@12345?')">🔑</button>
+                  <button type="submit" class="action-btn" onclick="return confirm('Tạo mật khẩu tạm thời mới cho @user.Username?')">🔑</button>
                 </form>
                 <form method="post" action="/admin/users/toggle-active">
                   @Html.AntiForgeryToken()

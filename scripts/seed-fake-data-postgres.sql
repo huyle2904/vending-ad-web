@@ -12,9 +12,9 @@ WITH seeded_user AS (
         "IsActive"
     )
     VALUES (
-        'test@test',
-        'test@test',
-        encode(digest('test@test', 'sha256'), 'base64'),
+        :'demo_username',
+        :'demo_username',
+        encode(digest(:'demo_password', 'sha256'), 'base64'),
         'Test User',
         NOW() AT TIME ZONE 'UTC',
         TRUE
@@ -46,7 +46,7 @@ SELECT
     format('Zone %s', ((series_id - 1) / 10) + 1) AS "Location",
     format('CLAIM-%s', lpad(series_id::text, 6, '0')) AS "ClaimCode",
     (NOW() AT TIME ZONE 'UTC') - make_interval(days => series_id % 5) AS "ClaimedAt",
-    encode(digest(format('dev-secret-DEVICE-%s', lpad(series_id::text, 3, '0')), 'sha256'), 'base64') AS "DeviceSecretHash",
+    encode(digest(format('%sDEVICE-%s', :'device_secret_prefix', lpad(series_id::text, 3, '0')), 'sha256'), 'base64') AS "DeviceSecretHash",
     (NOW() AT TIME ZONE 'UTC') - make_interval(days => series_id % 5) AS "DeviceSecretCreatedAt",
     NULL AS "DeviceSecretRevokedAt",
     (NOW() AT TIME ZONE 'UTC') - make_interval(mins => series_id % 30) AS "LastSeen",
@@ -70,11 +70,11 @@ SET
 COMMIT;
 
 SELECT
-    'test@test' AS username,
-    'test@test' AS password;
+    :'demo_username' AS username,
+    :'demo_password' AS password;
 
 SELECT
     format('DEVICE-%s', lpad(series_id::text, 3, '0')) AS device_code,
-    format('dev-secret-DEVICE-%s', lpad(series_id::text, 3, '0')) AS device_secret
+    format('%sDEVICE-%s', :'device_secret_prefix', lpad(series_id::text, 3, '0')) AS device_secret
 FROM generate_series(1, 50) AS source(series_id)
 ORDER BY series_id;

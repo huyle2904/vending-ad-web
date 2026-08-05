@@ -4,12 +4,16 @@ import { Counter, Rate } from 'k6/metrics';
 
 const DEVICE_COUNT = parseInt(__ENV.DEVICE_COUNT || '50', 10);
 const DEVICE_PREFIX = __ENV.DEVICE_PREFIX || 'TAB-';
-const DEVICE_SECRET_PREFIX = __ENV.DEVICE_SECRET_PREFIX || 'dev-secret-';
+const DEVICE_SECRET_PREFIX = __ENV.DEVICE_SECRET_PREFIX;
 const DEVICE_PAD_WIDTH = parseInt(__ENV.DEVICE_PAD_WIDTH || '2', 10);
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const PLAYBACK_INTERVAL_SECONDS = parseFloat(__ENV.PLAYBACK_INTERVAL_SECONDS || '15');
 const HEARTBEAT_INTERVAL_SECONDS = parseFloat(__ENV.HEARTBEAT_INTERVAL_SECONDS || '30');
 const INCLUDE_HEALTH_CHECKS = (__ENV.INCLUDE_HEALTH_CHECKS || 'true').toLowerCase() !== 'false';
+
+if (!DEVICE_SECRET_PREFIX) {
+  throw new Error('DEVICE_SECRET_PREFIX is required.');
+}
 
 const playbackErrors = new Rate('playback_errors');
 const heartbeatErrors = new Rate('heartbeat_errors');

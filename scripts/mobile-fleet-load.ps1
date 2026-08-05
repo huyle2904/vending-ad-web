@@ -2,7 +2,8 @@ param(
     [string]$BaseUrl = "http://localhost:8080",
     [int]$DeviceCount = 20,
     [string]$DevicePrefix = "TAB-",
-    [string]$DeviceSecretPrefix = "dev-secret-",
+    [Parameter(Mandatory = $true)]
+    [string]$DeviceSecretPrefix,
     [int]$DevicePadWidth = 2,
     [int]$DurationSeconds = 120,
     [int]$PlaybackIntervalSeconds = 15,

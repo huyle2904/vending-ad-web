@@ -14,6 +14,26 @@ namespace VendingAd.Tests;
 public class PasswordHashingServiceTests
 {
     [Fact]
+    public void TemporaryPasswordGenerator_GeneratesUniqueComplexPasswords()
+    {
+        var generator = new TemporaryPasswordGenerator();
+
+        var passwords = Enumerable.Range(0, 50)
+            .Select(_ => generator.Generate())
+            .ToArray();
+
+        Assert.Equal(passwords.Length, passwords.Distinct().Count());
+        Assert.All(passwords, password =>
+        {
+            Assert.Equal(16, password.Length);
+            Assert.Contains(password, char.IsUpper);
+            Assert.Contains(password, char.IsLower);
+            Assert.Contains(password, char.IsDigit);
+            Assert.Contains(password, character => "!@$%*-_".Contains(character));
+        });
+    }
+
+    [Fact]
     public void HashPassword_UsesIdentityHasherAndVerifiesPassword()
     {
         var service = new PasswordHashingService();

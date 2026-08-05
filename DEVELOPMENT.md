@@ -55,26 +55,19 @@
 
 ## Test Accounts
 
-| Role | Username | Password |
-|---|---|---|
-| Admin | `admin@admin` | `admin@admin` |
-| User | `test@test` | `test@test` |
-| User mới tạo | — | `TD@12345` (⚠️ cần đổi) |
+- Demo accounts are allowed only in disposable Development environments.
+- Admin-created users receive a random temporary password that is displayed once.
+- Never reuse demo credentials in a shared or production environment.
 
 ## Database
 
 - **Local / Codespaces:** PostgreSQL or SQL Server
 - **Production target:** configurable per environment
 - PostgreSQL connection string: `Host=localhost;Port=5432;Database=vendingad;Username=vendingad;Password=<your-password>`
-- SQL Server connection string: `Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=true`
+- SQL Server connection string: `Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=<your-password>;TrustServerCertificate=true`
 - Startup config keys:
   - `DatabaseProvider`
   - `Database:ApplyMigrationsOnStartup`
-  - `Database:EnsureCreatedOnStartup`
-  - `Database:ResetOnStartup`
-  - `Database:ResetSchemaOnStartup`
-  - `Seed:EnableDemoData`
-  - `Seed:AllowDemoDataOutsideDevelopment`
 
 ## Local Infrastructure (Docker Compose)
 
@@ -91,13 +84,13 @@ docker compose -f docker-compose.infra.yml up -d sqlserver
 
 | Service | URL / Port | Credentials |
 |---|---|---|
-| SQL Server | `localhost,1433` | `sa` / `VendingAd@12345` |
-| Redis | `localhost:6379` | — |
-| RabbitMQ | `localhost:5672` | `vendingad` / `vendingad@123` |
-| RabbitMQ UI | `http://localhost:15672` | `vendingad` / `vendingad@123` |
-| Seq | `http://localhost:5341` | — |
-| Prometheus | `http://localhost:9090` | — |
-| Grafana | `http://localhost:3000` | `admin` / `vendingad@123` |
+| SQL Server | `localhost,1433` | Configure in `.env` |
+| Redis | `localhost:6379` | None by default |
+| RabbitMQ | `localhost:5672` | Configure in `.env` |
+| RabbitMQ UI | `http://localhost:15672` | Configure in `.env` |
+| Seq | `http://localhost:5341` | None by default |
+| Prometheus | `http://localhost:9090` | None by default |
+| Grafana | `http://localhost:3000` | Configure in `.env` |
 
 ## Useful Commands
 
@@ -112,7 +105,7 @@ dotnet test "VendingAdSolution/VendingAdSolution.sln"
 dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
 
 # Run app với SQL Server
-ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=true" \
+ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=<local-sqlserver-password>;TrustServerCertificate=true" \
 dotnet run --no-launch-profile --project "VendingAdSolution/VendingAdSystem"
 
 # Run app với Redis + RabbitMQ
@@ -215,27 +208,11 @@ curl http://localhost:8080/health/ready
 | 9.7 | Security Hardening Baseline |
 | — | UI/UX CMS Improvements |
 
-### 🔄 Phase 1 (Production Readiness) — đang làm
+### Production Readiness
 
-Xem chi tiết trong `VendingAdSolution/VendingAdSystem/wwwroot/production-readiness-analysis.html`.
-
-| Task | Mô tả | Status |
-|---|---|---|
-| 1.1 | Serilog Structured Logging | ✅ Done |
-| 1.2 | Correlation ID Middleware | ✅ Done |
-| 1.3 | Fix Default Password | Pending |
-| 1.4 | Audit Logging | Pending |
-| 1.5 | Global Exception Handling | Pending |
-| 1.6 | File Storage Abstraction | Pending |
-| 1.7 | Prometheus Metrics | Pending |
-| 1.8 | Grafana Dashboards | Pending |
-| 1.9 | Load Testing (k6) | Pending |
-| 1.10 | SQL Server Migration Testing | Pending |
-| 1.11 | Production Config Hardening | Pending |
-| 1.12 | Security Headers | Pending |
-| 1.13 | Database Backup Strategy | Pending |
-| 1.14 | Deployment Documentation | Pending |
-| 1.15 | Production Smoke Tests | Pending |
+The current handover and release requirements are maintained in `HANDOVER.md`, `DEPLOYMENT.md`, and `RUNBOOK.md`.
+Structured logging, correlation IDs, audit logging, exception handling, storage abstraction, metrics, security headers, temporary password generation, CI, load-test scripts, and smoke-test scripts are implemented.
+Production ownership transfer, credential rotation, backup restore verification, and Android release-key transfer remain operational checklist items.
 
 ### 📋 Planned
 
@@ -248,43 +225,13 @@ Xem chi tiết trong `VendingAdSolution/VendingAdSystem/wwwroot/production-readi
 
 ---
 
-## Known Issues & Technical Debt
+## Known Technical Debt
 
-### 🔴 Cần làm trước production
-
-**1. Mật khẩu mặc định cố định (`TD@12345`)**
-- File: `AdminController.cs`
-- Vấn đề: Tạo user và reset password dùng chung password cố định
-- Cần làm: Generate password ngẫu nhiên, hiển thị một lần, thêm flag `MustChangePassword`
-
-**2. Audit log cho thao tác nhạy cảm**
-- Chưa có audit trail cho: login/logout, tạo/reset user, rotate/revoke device secret, upload/delete video, thay đổi schedule
-- Cần làm: Tạo bảng `AuditLogs`, ghi actor/action/target/timestamp/IP
-
-**3. Device secret lifecycle thiếu audit**
-- File: `DeviceCredentialService.cs`
-- Rotate/revoke đã có nhưng chưa ghi audit trail
-
-### 🟡 Nên làm sớm
-
-**4. Session/manual auth check lẫn với Cookie Auth**
-- Files: `AdminController.cs`, `PortalController.cs`, `CurrentSession.cs`
-- Nhiều action vẫn tự check `_currentSession` thay vì dùng `[Authorize]`
-- Cần làm: Chuyển sang policy/role-based authorization
-
-**5. Upload video cần validation sâu hơn**
-- File: `MediaUploadService.cs`
-- Chưa có: malware scan, cleanup job cho orphan files
-- ffprobe đã đủ cho giai đoạn hiện tại
-
-**6. Thiếu integration tests**
-- Cần thêm: test `/dashboard` redirect theo role, anonymous/user/admin trên portal/admin routes, POST thiếu anti-forgery token
-
-### 🟢 Production secret management
-
-- Dùng environment variables hoặc secret manager
-- Không commit `appsettings.Development.json` chứa secret thật
-- CI/CD set `ConnectionStrings`, RabbitMQ, Redis qua repository secrets
+- Some controllers still retain session compatibility checks in addition to role authorization.
+- Uploaded media has format and ffprobe validation but no malware scanning service.
+- Object storage and CDN support are not implemented.
+- Multi-instance deployments need shared Data Protection keys and distributed infrastructure enabled.
+- Production credentials, ownership, backup restore, and incident contacts must be completed in `HANDOVER.md`.
 
 ---
 

@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.IO.Compression;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Encodings.Web;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using VendingAdSystem.Application.DTOs;
 using VendingAdSystem.Application.Services;
+using VendingAdSystem.Controllers;
 using VendingAdSystem.Domain.Entities;
 using VendingAdSystem.Infrastructure.Persistence;
 using VendingAdSystem.Infrastructure.Repositories.Implementations;
@@ -188,6 +192,104 @@ public class SecurityIntegrationTests
         Assert.Equal("TV Box Lobby", device.DeviceName);
         Assert.True(device.ClaimRequired);
         Assert.Equal(registered.ClaimCode, device.ClaimCode);
+    }
+
+    [Fact]
+    public async Task MobileDeviceRegister_WhenRequestLimitExceeded_ReturnsTooManyRequests()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: false);
+        var client = factory.CreateClient();
+
+        var first = await client.PostAsJsonAsync("/api/mobile/devices/register", new RegisterDeviceRequestDto
+        {
+            DeviceName = "First TV",
+            Location = "Lobby"
+        });
+        var second = await client.PostAsJsonAsync("/api/mobile/devices/register", new RegisterDeviceRequestDto
+        {
+            DeviceName = "Second TV",
+            Location = "Lobby"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+        Assert.True(second.Headers.RetryAfter?.Delta?.TotalSeconds >= 1);
+    }
+
+    [Fact]
+    public async Task AppUpdateUpload_UserRole_ReturnsForbidden()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        client.UseTestUser(role: "User", userId: 1);
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("1.0.1"), "version");
+        form.Add(new ByteArrayContent([0x50, 0x4B, 0x03, 0x04]), "file", "app.apk");
+
+        var response = await client.PostAsync("/api/app/upload", form);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AppUpdateUpload_AdminWithoutAntiforgeryToken_ReturnsBadRequest()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        client.UseTestUser(role: "Admin", userId: 1);
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("1.0.1"), "version");
+        form.Add(new ByteArrayContent([0x50, 0x4B, 0x03, 0x04]), "file", "app.apk");
+
+        var response = await client.PostAsync("/api/app/upload", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AppUpdateUpload_AdminWithValidApk_PublishesChecksum()
+    {
+        await using var factory = new VendingAdWebApplicationFactory(useTestAuth: true);
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        client.UseTestUser(role: "Admin", userId: 1);
+
+        var formPage = await client.GetAsync("/admin/app-update");
+        var formHtml = await formPage.Content.ReadAsStringAsync();
+        var tokenMatch = Regex.Match(
+            formHtml,
+            "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"");
+
+        Assert.Equal(HttpStatusCode.OK, formPage.StatusCode);
+        Assert.True(tokenMatch.Success);
+
+        var apk = CreateMinimalApk();
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent("1.0.1"), "version");
+        form.Add(new StringContent(tokenMatch.Groups[1].Value), "__RequestVerificationToken");
+        var file = new ByteArrayContent(apk);
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse("application/vnd.android.package-archive");
+        form.Add(file, "file", "app.apk");
+
+        var uploadResponse = await client.PostAsync("/api/app/upload", form);
+        var versionResponse = await client.GetAsync("/api/app/version");
+        var version = await versionResponse.Content.ReadFromJsonAsync<AppUpdateInfo>();
+
+        Assert.Equal(HttpStatusCode.OK, uploadResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, versionResponse.StatusCode);
+        Assert.NotNull(version);
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(apk)).ToLowerInvariant(), version!.Sha256);
+        Assert.Equal(apk.Length, version.FileSize);
     }
 
     [Fact]
@@ -526,6 +628,18 @@ public class SecurityIntegrationTests
         };
     }
 
+    private static byte[] CreateMinimalApk()
+    {
+        using var output = new MemoryStream();
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            archive.CreateEntry("AndroidManifest.xml");
+            archive.CreateEntry("classes.dex");
+        }
+
+        return output.ToArray();
+    }
+
     private static string GetStoredFilePath(string uploadsPath, string fileUrl)
     {
         var path = Uri.TryCreate(fileUrl, UriKind.Absolute, out var absoluteUri)
@@ -569,11 +683,11 @@ public class SecurityIntegrationTests
                     ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=unused-for-tests;Trusted_Connection=True;TrustServerCertificate=True",
                     ["AllowedHosts"] = "*",
                     ["Database:ApplyMigrationsOnStartup"] = "false",
-                    ["Seed:EnableDemoData"] = "false",
                     ["Redis:Enabled"] = "false",
                     ["RabbitMQ:Enabled"] = "false",
                     ["UploadsPath"] = _uploadsPath,
                     ["MobileRateLimiting:WindowSeconds"] = "60",
+                    ["MobileRateLimiting:RegistrationPermitLimit"] = "1",
                     ["MobileRateLimiting:DeviceInfoPermitLimit"] = "1",
                     ["MobileRateLimiting:HeartbeatPermitLimit"] = "1",
                     ["MobileRateLimiting:PlaybackStatePermitLimit"] = "1",

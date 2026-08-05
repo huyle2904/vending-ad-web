@@ -23,6 +23,8 @@ public class PortalController : Controller
     private readonly IPlaybackScheduleResolver _scheduleResolver;
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly IYouTubeService _youTubeService;
+    private readonly ICacheService _cacheService;
+    private readonly IMobilePlaybackCacheService _mobilePlaybackCacheService;
 
     public PortalController(
         ICurrentSession currentSession,
@@ -35,7 +37,9 @@ public class PortalController : Controller
         IPlaybackScheduleService playbackScheduleService,
         IPlaybackScheduleResolver scheduleResolver,
         IDevicePresenceService devicePresenceService,
-        IYouTubeService youTubeService)
+        IYouTubeService youTubeService,
+        ICacheService cacheService,
+        IMobilePlaybackCacheService mobilePlaybackCacheService)
     {
         _currentSession = currentSession;
         _deviceService = deviceService;
@@ -48,6 +52,8 @@ public class PortalController : Controller
         _scheduleResolver = scheduleResolver;
         _devicePresenceService = devicePresenceService;
         _youTubeService = youTubeService;
+        _cacheService = cacheService;
+        _mobilePlaybackCacheService = mobilePlaybackCacheService;
     }
 
     private static string DateRangeText(PlaybackSchedule schedule)
@@ -166,7 +172,7 @@ public class PortalController : Controller
             DateFilterLabel = $"Hôm nay, {vietnamNow:dd/MM/yyyy}",
             Kpis = new List<KpiViewModel>
             {
-                new() { Key = "total", Label = "Tổng thiết bị", Value = devices.Count.ToString(), Description = "2 so với tuần trước", Icon = "bi-pc-display", Tone = "primary" },
+                new() { Key = "total", Label = "Tổng thiết bị", Value = devices.Count.ToString(), Description = "", Icon = "bi-pc-display", Tone = "primary" },
                 new() { Key = "online", Label = "Trực tuyến", Value = onlineDevices.ToString(), Description = "", Icon = "bi-wifi", Tone = "success" },
                 new() { Key = "offline", Label = "Ngoại tuyến", Value = (devices.Count - onlineDevices).ToString(), Description = "", Icon = "bi-power", Tone = "danger" },
                 new() { Key = "playing", Label = "Đang phát", Value = currentSchedules.Count.ToString(), Description = "", Icon = "bi-play-circle", Tone = "warning" },
@@ -318,31 +324,6 @@ public class PortalController : Controller
         return View("~/Views/PortalDevices/Index.cshtml", visibleDevices.ToList());
     }
 
-    [HttpGet("/portal/app-update")]
-    public async Task<IActionResult> AppUpdate()
-    {
-        if (!IsPortalLoggedIn())
-            return RedirectToAction("Login", "Account");
-
-        // Fetch current update info from the API
-        var uploadsPath = HttpContext.RequestServices
-            .GetRequiredService<IConfiguration>()["UploadsPath"] ?? "uploads";
-        var jsonPath = Path.Combine(uploadsPath, "app-update.json");
-        AppUpdateInfo? currentInfo = null;
-
-        if (System.IO.File.Exists(jsonPath))
-        {
-            try
-            {
-                var json = await System.IO.File.ReadAllTextAsync(jsonPath);
-                currentInfo = System.Text.Json.JsonSerializer.Deserialize<AppUpdateInfo>(json);
-            }
-            catch { /* ignore parse errors */ }
-        }
-
-        return View("~/Views/Portal/AppUpdate.cshtml", currentInfo ?? new AppUpdateInfo());
-    }
-
     private async Task<Dictionary<string, bool>> GetOnlineDeviceMapAsync(IEnumerable<Device> devices, DateTime utcNow)
     {
         var checks = devices.Select(async device => new
@@ -379,7 +360,8 @@ public class PortalController : Controller
         if (!IsPortalLoggedIn())
             return Unauthorized();
 
-        var device = await _deviceService.GetDeviceForUserAsync(deviceId, _currentSession.UserId ?? 0);
+        var userId = _currentSession.UserId ?? 0;
+        var device = await _deviceService.GetDeviceForUserAsync(deviceId, userId);
 
         if (device == null)
         {
@@ -387,10 +369,16 @@ public class PortalController : Controller
             return RedirectToAction("Devices");
         }
 
-        _deviceService.Remove(device);
-        await _deviceService.SaveChangesAsync();
+        var deviceCode = device.DeviceCode;
+        var result = await _deviceService.UnassignFromUserAsync(deviceId, userId, _timeService.UtcNow);
 
-        TempData["Success"] = "Đã xóa thiết bị";
+        if (result.Success)
+        {
+            await _cacheService.RemoveAsync(_mobilePlaybackCacheService.PlaybackStateKey(deviceCode));
+            await _cacheService.RemoveAsync(_mobilePlaybackCacheService.DeviceActiveScheduleKey(deviceCode));
+        }
+
+        TempData[result.Success ? "Success" : "Error"] = result.Message;
         return RedirectToAction("Devices");
     }
 
@@ -687,12 +675,4 @@ public class PlaylistOrderRequest
 {
     public int PlaylistId { get; set; }
     public List<VendingAdSystem.Application.DTOs.PlaylistOrderUpdate> Updates { get; set; } = new();
-}
-
-public class AppUpdateInfo
-{
-    public string LatestVersion { get; set; } = "";
-    public string ApkUrl { get; set; } = "";
-    public string Notes { get; set; } = "";
-    public string UpdatedAt { get; set; } = "";
 }

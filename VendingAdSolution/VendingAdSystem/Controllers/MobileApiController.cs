@@ -34,14 +34,15 @@ public class MobileApiController : ControllerBase
     }
 
     [HttpPost("devices/register")]
+    [MobileRateLimit(MobileRateLimitPolicy.Registration)]
     public async Task<IActionResult> RegisterDevice([FromBody] RegisterDeviceRequestDto request)
     {
         if (string.IsNullOrWhiteSpace(request.DeviceName))
-            return BadRequest(new { message = "TÃªn thiáº¿t bá»‹ lÃ  báº¯t buá»™c." });
+            return BadRequest(new { message = "Tên thiết bị là bắt buộc." });
 
         var normalizedDeviceName = request.DeviceName.Trim();
         if (normalizedDeviceName.Length > 100)
-            return BadRequest(new { message = "TÃªn thiáº¿t bá»‹ khÃ´ng Ä‘Æ°á»£c vÆ°á»£t quÃ¡ 100 kÃ½ tá»±." });
+            return BadRequest(new { message = "Tên thiết bị không được vượt quá 100 ký tự." });
 
         var utcNow = _timeService.UtcNow;
         var deviceSecret = _deviceCredentialService.GenerateSecret();

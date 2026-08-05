@@ -11,6 +11,7 @@ using Serilog;
 using VendingAdSystem.Application.Services;
 using VendingAdSystem.Metrics;
 using VendingAdSystem.Middleware;
+using VendingAdSystem.Domain.Entities;
 
 // Configure Serilog from appsettings.json
 Log.Logger = new LoggerConfiguration()
@@ -113,7 +114,7 @@ try
             "base-uri 'self'; " +
             "form-action 'self'; " +
             "frame-ancestors 'none'; " +
-            "img-src 'self' data: blob:; " +
+            "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com; " +
             "media-src 'self' blob:; " +
             "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
             "style-src 'self' 'unsafe-inline'; " +
@@ -123,23 +124,57 @@ try
         await next();
     });
 
-    // Database initialization
+    // Database initialization. Production deployments should invoke
+    // `dotnet VendingAdSystem.dll --migrate` as a separate pre-deploy step.
+    var migrateOnly = args.Any(argument =>
+        argument.Equals("--migrate", StringComparison.OrdinalIgnoreCase));
+    var bootstrapAdminOnly = args.Any(argument =>
+        argument.Equals("--bootstrap-admin", StringComparison.OrdinalIgnoreCase));
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var applyMigrationsOnStartup = builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
 
-        if (applyMigrationsOnStartup)
+        if (migrateOnly || applyMigrationsOnStartup)
+            db.Database.Migrate();
+
+        if (bootstrapAdminOnly)
         {
-            try
+            var adminEmail = builder.Configuration["BootstrapAdmin:Email"]?.Trim();
+            var adminPassword = builder.Configuration["BootstrapAdmin:Password"];
+            var adminFullName = builder.Configuration["BootstrapAdmin:FullName"]?.Trim();
+
+            if (string.IsNullOrWhiteSpace(adminEmail) ||
+                string.IsNullOrWhiteSpace(adminPassword) ||
+                adminPassword.Length < 12)
             {
-                db.Database.Migrate();
+                throw new InvalidOperationException(
+                    "BootstrapAdmin__Email and BootstrapAdmin__Password with at least 12 characters are required.");
             }
-            catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+
+            if (db.Admins.Any())
+                throw new InvalidOperationException("Admin bootstrap refused because an admin account already exists.");
+
+            var passwordHashingService = scope.ServiceProvider.GetRequiredService<IPasswordHashingService>();
+            db.Admins.Add(new Admin
             {
-                Log.Warning("Database tables already exist — continuing. Add future migrations manually.");
-            }
+                Email = adminEmail,
+                PasswordHash = passwordHashingService.HashPassword(adminPassword),
+                FullName = string.IsNullOrWhiteSpace(adminFullName) ? "Administrator" : adminFullName,
+                Role = "Admin",
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true
+            });
+            db.SaveChanges();
+            Log.Information("Initial admin account created for {AdminEmail}", adminEmail);
         }
+    }
+
+    if (migrateOnly || bootstrapAdminOnly)
+    {
+        if (migrateOnly)
+            Log.Information("Database migrations completed successfully");
+        return;
     }
 
     app.UseStaticFiles();

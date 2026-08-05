@@ -12,6 +12,9 @@ VendingAdSolution/VendingAdSystem/wwwroot/uploads/*
 !VendingAdSolution/VendingAdSystem/wwwroot/uploads/.gitkeep
 VendingAdSolution/VendingAdSystem/logs/
 node_modules/
+.env
+.env.*
+!.env.example
 playwright-report/
 test-results/
 
@@ -22,3 +25,6 @@ skills-lock.json
 
 # Local architecture notes for future sessions
 VENDING-AD/
+
+# Local build verification output
+VendingAdSolution/.build-check/

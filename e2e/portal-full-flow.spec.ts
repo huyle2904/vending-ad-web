@@ -1,11 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 
+function requiredEnvironmentVariable(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required for the full portal E2E flow.`);
+  }
+  return value;
+}
+
 const credentials = {
-  username: process.env.E2E_USER ?? 'cococaca',
-  password: process.env.E2E_PASSWORD ?? 'TD@12345',
+  username: requiredEnvironmentVariable('E2E_USER'),
+  password: requiredEnvironmentVariable('E2E_PASSWORD'),
 };
 
-const rawSampleVideo = process.env.E2E_SAMPLE_VIDEO ?? 'C:\\Users\\TD-997\\Downloads\\VendingAD1.mp4';
+const rawSampleVideo = requiredEnvironmentVariable('E2E_SAMPLE_VIDEO');
 const sampleVideo = rawSampleVideo.replace(/[\u202A-\u202E]/g, '');
 const runId = Date.now();
 
@@ -50,7 +58,7 @@ test.describe.serial('portal full feature flow', () => {
     await expect(page.locator('#youtubeUrl')).toBeVisible();
 
     await gotoPortal(page, '/portal/devices');
-    await expect(page.locator('body')).toContainText(/thiết bị|thiáº¿t bá»‹|Device/i);
+    await expect(page.locator('body')).toContainText(/thiết bị|Device/i);
   });
 
   test('upload video, store thumbnail, create playlist, and add video', async ({ page }) => {
@@ -81,7 +89,7 @@ test.describe.serial('portal full feature flow', () => {
     await expect(page.getByText(playlistName)).toBeVisible();
 
     const playlistCard = page.locator('.playlist-item-card', { hasText: playlistName }).first();
-    await playlistCard.locator('button', { hasText: /Thêm video|ThÃªm video/i }).click();
+    await playlistCard.locator('button', { hasText: /Thêm video/i }).click();
     await expect(page.locator('#videoModal')).toBeVisible();
     await page.locator('#videoModal input[name="mediaIds"]').first().check();
     await Promise.all([

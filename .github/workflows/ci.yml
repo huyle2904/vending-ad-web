@@ -40,3 +40,17 @@ jobs:
 
       - name: Test
         run: dotnet test VendingAdSolution/VendingAdSolution.sln --configuration Release --no-build
+
+      - name: Audit NuGet dependencies
+        run: dotnet list VendingAdSolution/VendingAdSolution.sln package --vulnerable --include-transitive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify Node.js lockfile and dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high

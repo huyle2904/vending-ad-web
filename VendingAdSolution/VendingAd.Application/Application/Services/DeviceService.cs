@@ -21,6 +21,7 @@ public interface IDeviceService
     Task<string> GenerateDeviceCodeAsync(string deviceName);
     Task<string> GenerateClaimCodeAsync();
     Task<DeviceClaimResult> ClaimAsync(string claimCode, int userId, DateTime utcNow);
+    Task<DeviceClaimResult> UnassignFromUserAsync(int deviceId, int userId, DateTime utcNow);
     Task AddAsync(Device device);
     void Remove(Device device);
     Task SaveChangesAsync();
@@ -69,6 +70,10 @@ public class DeviceService : IDeviceService
         if (string.IsNullOrWhiteSpace(slug))
             slug = "DEVICE";
 
+        var existing = await _devices.Query().AnyAsync(d => d.DeviceCode == slug);
+        if (!existing)
+            return slug;
+
         for (var attempt = 0; attempt < 100; attempt++)
         {
             var suffix = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
@@ -111,6 +116,30 @@ public class DeviceService : IDeviceService
             return new DeviceClaimResult { Success = false, Message = "Mã liên kết không hợp lệ hoặc đã được sử dụng." };
 
         return new DeviceClaimResult { Success = true, Message = "Đã thêm thiết bị vào tài khoản của bạn." };
+    }
+
+    public async Task<DeviceClaimResult> UnassignFromUserAsync(int deviceId, int userId, DateTime utcNow)
+    {
+        var device = await _devices.Query()
+            .Include(d => d.PlaybackScheduleDevices)
+            .FirstOrDefaultAsync(d => d.Id == deviceId && d.UserId == userId);
+
+        if (device == null)
+            return new DeviceClaimResult { Success = false, Message = "Không tìm thấy thiết bị." };
+
+        device.UserId = null;
+        device.ClaimedAt = null;
+        device.ClaimCode = await GenerateClaimCodeAsync();
+        device.PlaybackMode = "Online";
+        device.LocalFileName = null;
+        device.LocalFileStartedUtc = null;
+        device.CurrentFileName = null;
+
+        device.PlaybackScheduleDevices.Clear();
+
+        await _devices.SaveChangesAsync();
+
+        return new DeviceClaimResult { Success = true, Message = "Đã hủy liên kết thiết bị." };
     }
 
     public Task AddAsync(Device device) => _devices.AddAsync(device);

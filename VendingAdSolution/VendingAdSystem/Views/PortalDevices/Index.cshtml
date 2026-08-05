@@ -467,7 +467,7 @@ else
     if (!device) return;
 
     document.getElementById('quickPlayDeviceId').value = deviceId;
-    document.getElementById('quickPlayName').value = 'Phát nhanh - ' + device.code + ' - ' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
+    document.getElementById('quickPlayName').value = 'Lịch phát nhanh';
     document.getElementById('quickPlayDeviceInfo').textContent = device.code + ' | ' + device.location;
     setQuickPlayDateTime();
     clearQuickPlaySelection();

@@ -6,6 +6,7 @@ namespace VendingAdSystem.Application.Services;
 public class MobileRateLimitOptions
 {
     public int WindowSeconds { get; set; } = 60;
+    public int RegistrationPermitLimit { get; set; } = 5;
     public int DeviceInfoPermitLimit { get; set; } = 20;
     public int HeartbeatPermitLimit { get; set; } = 10;
     public int PlaybackStatePermitLimit { get; set; } = 30;
@@ -14,6 +15,7 @@ public class MobileRateLimitOptions
 
 public enum MobileRateLimitPolicy
 {
+    Registration,
     DeviceInfo,
     Heartbeat,
     PlaybackState,
@@ -68,6 +70,7 @@ public class MobileRateLimitService : IMobileRateLimitService
     {
         var limit = policy switch
         {
+            MobileRateLimitPolicy.Registration => _options.RegistrationPermitLimit,
             MobileRateLimitPolicy.DeviceInfo => _options.DeviceInfoPermitLimit,
             MobileRateLimitPolicy.Heartbeat => _options.HeartbeatPermitLimit,
             MobileRateLimitPolicy.PlaybackState => _options.PlaybackStatePermitLimit,

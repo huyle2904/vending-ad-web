@@ -36,6 +36,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IApplicationMetrics, NullApplicationMetrics>();
         services.AddSingleton<IPasswordHashingService, PasswordHashingService>();
+        services.AddSingleton<ITemporaryPasswordGenerator, TemporaryPasswordGenerator>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<ICurrentSession, CurrentSession>();

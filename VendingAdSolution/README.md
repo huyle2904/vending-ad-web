@@ -1,30 +1,26 @@
 # VendingAd Local Setup
 
-This solution contains:
-
-- `VendingAdSystem`: ASP.NET Core MVC/API web app
-- `VendingAdWorker`: background worker for RabbitMQ events
-- `VendingAd.Application`: DTOs, contracts, business services
-- `VendingAd.Domain`: entities
-- `VendingAd.Infrastructure`: EF Core, cache, RabbitMQ, health checks
-- `VendingAd.Contracts`: integration event contracts
+The solution contains the ASP.NET Core CMS and API, an optional background worker, application and domain projects, infrastructure integrations, and tests.
 
 ## Prerequisites
 
-- .NET 8 SDK
-- Docker Desktop, recommended for SQL Server, Redis, and RabbitMQ
-- FFmpeg/ffprobe, recommended for production-like video validation
-- Visual Studio 2022 or VS Code
+- .NET SDK 8.x.
+- Docker with Docker Compose for local infrastructure.
+- FFmpeg and ffprobe for production-equivalent video validation.
+- Node.js 22 when running Playwright.
 
-## Restore, Build, Test
+## Configure local secrets
 
-```powershell
-dotnet restore VendingAdSolution.sln
-dotnet build VendingAdSolution.sln
-dotnet test VendingAdSolution.sln
-```
+From the repository root, copy `.env.example` to `.env` and replace every placeholder.
+Then copy these files and replace their placeholders:
 
-## Start Local Infrastructure
+- `VendingAdSystem/appsettings.Development.example.json` to `VendingAdSystem/appsettings.Development.json`.
+- `VendingAdWorker/appsettings.Development.example.json` to `VendingAdWorker/appsettings.Development.json`.
+
+Both destination files and `.env` are ignored by Git.
+Do not place production credentials in any repository file.
+
+## Start infrastructure
 
 From the repository root:
 
@@ -32,215 +28,65 @@ From the repository root:
 docker compose -f docker-compose.infra.yml up -d postgres redis rabbitmq
 ```
 
-If you still want the previous SQL Server local stack:
+SQL Server, Seq, Prometheus, and Grafana are optional services in the same Compose file.
+
+## Restore, build, and migrate
 
 ```powershell
-docker compose -f docker-compose.infra.yml up -d sqlserver redis rabbitmq
+dotnet restore VendingAdSolution/VendingAdSolution.sln
+dotnet build VendingAdSolution/VendingAdSolution.sln --configuration Release
+dotnet run --project VendingAdSolution/VendingAdSystem -- --migrate
 ```
 
-Local service defaults:
+Production runs the same `--migrate` command as a separate pre-deploy step.
+Normal production startup must keep `Database__ApplyMigrationsOnStartup=false`.
 
-- PostgreSQL: `localhost:5432`
-- PostgreSQL user/password: `vendingad` / `vendingad`
-- SQL Server: `localhost,1433`
-- SQL Server user: `sa`
-- SQL Server password: `VendingAd@12345`
-- Redis: `localhost:6379`
-- RabbitMQ: `localhost:5672`
-- RabbitMQ management UI: `http://localhost:15672`
-- RabbitMQ user/password: `vendingad` / `vendingad@123`
+## Bootstrap the first admin
 
-## Run Web With PostgreSQL
-
-From the repository root:
+The database no longer contains a built-in admin password.
+After migrations and only when no admin exists, run:
 
 ```powershell
-$env:ASPNETCORE_ENVIRONMENT="Development"
-$env:DatabaseProvider="Postgres"
-$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=vendingad;Username=vendingad;Password=change-me"
-$env:Database__ApplyMigrationsOnStartup="true"
-$env:Database__EnsureCreatedOnStartup="false"
-$env:Database__ResetOnStartup="false"
-$env:Database__ResetSchemaOnStartup="false"
-$env:Seed__EnableDemoData="true"
-$env:Redis__Enabled="true"
-$env:RabbitMQ__Enabled="true"
-$env:RabbitMQ__UserName="vendingad"
-$env:RabbitMQ__Password="vendingad@123"
-$env:VideoValidation__FfprobeEnabled="true"
-$env:VideoValidation__RequireFfprobe="false"
-
-dotnet run --no-launch-profile --project VendingAdSolution/VendingAdSystem
+$env:BootstrapAdmin__Email="<initial-admin-email>"
+$env:BootstrapAdmin__Password="<generated-password-at-least-12-characters>"
+$env:BootstrapAdmin__FullName="<admin-display-name>"
+dotnet run --project VendingAdSolution/VendingAdSystem -- --bootstrap-admin
+Remove-Item Env:BootstrapAdmin__Email,Env:BootstrapAdmin__Password,Env:BootstrapAdmin__FullName
 ```
 
-## Run Web With SQL Server
+The command refuses to run when an admin account already exists.
 
-From the repository root:
-
-```powershell
-$env:ASPNETCORE_ENVIRONMENT="Development"
-$env:DatabaseProvider="SqlServer"
-$env:ConnectionStrings__DefaultConnection="Server=localhost,1433;Database=VendingAdDb;User Id=sa;Password=VendingAd@12345;TrustServerCertificate=True;"
-$env:Database__ApplyMigrationsOnStartup="true"
-$env:Database__EnsureCreatedOnStartup="false"
-$env:Database__ResetOnStartup="false"
-$env:Database__ResetSchemaOnStartup="false"
-$env:Seed__EnableDemoData="true"
-$env:Redis__Enabled="true"
-$env:RabbitMQ__Enabled="true"
-$env:RabbitMQ__UserName="vendingad"
-$env:RabbitMQ__Password="vendingad@123"
-$env:VideoValidation__FfprobeEnabled="true"
-$env:VideoValidation__RequireFfprobe="false"
-
-dotnet run --no-launch-profile --project VendingAdSolution/VendingAdSystem
-```
-
-Open:
-
-- Web app: `http://localhost:8080`
-- Health live: `http://localhost:8080/health/live`
-- Health ready: `http://localhost:8080/health/ready`
-
-Seeded accounts when `Seed__EnableDemoData=true`:
-
-- Admin: `admin@admin` / `admin@admin`
-- Demo user: `test@test` / `test@test`
-
-Seeded demo device secrets:
-
-- `TAB-01`: `dev-secret-TAB-01`
-- `TAB-02`: `dev-secret-TAB-02`
-- `CLAIM-TEST-290403`: `dev-secret-CLAIM-TEST-290403`
-- `CLAIM-TEST-210603`: `dev-secret-CLAIM-TEST-210603`
-
-Mobile/device API calls must send either `X-Device-Secret: <secret>` or `Authorization: Bearer <secret>`.
-
-Admin can rotate or revoke a device secret from `/admin/devices`. A rotated secret is shown once and the old secret stops working immediately.
-
-## Run Worker
-
-Open a second terminal:
+## Run services
 
 ```powershell
-$env:DOTNET_ENVIRONMENT="Development"
-$env:DatabaseProvider="Postgres"
-$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=vendingad;Username=vendingad;Password=change-me"
-$env:Redis__Enabled="true"
-$env:Redis__ConnectionString="localhost:6379"
-$env:RabbitMQ__UserName="vendingad"
-$env:RabbitMQ__Password="vendingad@123"
-
+dotnet run --project VendingAdSolution/VendingAdSystem
 dotnet run --project VendingAdSolution/VendingAdWorker
 ```
 
-For SQL Server instead, set `DatabaseProvider="SqlServer"` and switch the connection string back to the SQL Server format.
+Run the worker only when Redis and RabbitMQ are enabled and reachable.
 
-The worker validates database, Redis, and RabbitMQ connectivity during startup.
+Local endpoints:
 
-## Optional: Use Example Appsettings
+- Web: `http://localhost:8080`.
+- Liveness: `http://localhost:8080/health/live`.
+- Readiness: `http://localhost:8080/health/ready`.
+- Metrics: `http://localhost:8080/metrics`.
 
-Example config files are available:
-
-- `VendingAdSystem/appsettings.Development.example.json`
-- `VendingAdWorker/appsettings.Development.example.json`
-
-Copy the relevant example to `appsettings.Development.json` only for local work, then adjust credentials if needed.
-
-## Event-Driven Cache Verification
-
-1. Start PostgreSQL, Redis, and RabbitMQ.
-2. Run the web app with `RabbitMQ__Enabled=true` and `Redis__Enabled=true`.
-3. Run the worker.
-4. Login to the CMS as `test@test`.
-5. Create, edit, toggle, or delete a playback schedule.
-6. Confirm the worker logs `Consumed ScheduleChangedEvent`.
-7. Check RabbitMQ queue depth:
+## Verify
 
 ```powershell
-docker exec vendingad-rabbitmq rabbitmqctl list_queues name messages_ready messages_unacknowledged
+dotnet test VendingAdSolution/VendingAdSolution.sln --configuration Release
+dotnet list VendingAdSolution/VendingAdSolution.sln package --vulnerable --include-transitive
 ```
 
-8. Check Redis mobile cache keys:
+Use `e2e/README.md`, `k6/README.md`, and `smoke-tests/critical-flows.sh` for environment-level verification.
 
-```powershell
-docker exec vendingad-redis redis-cli --scan --pattern 'mobile:*'
-```
+## Device API and updates
 
-## Startup Flags
+Device API requests authenticate with `X-Device-Secret` or `Authorization: Bearer <secret>`.
+Registration is rate-limited by client address, and subsequent requests are rate-limited by device code.
 
-`Database:ApplyMigrationsOnStartup`
+Only Admin users can upload a mobile APK.
+The server validates the APK archive and publishes a SHA-256 checksum that the mobile client verifies before installation.
 
-- `true`: web app runs EF Core migrations for relational databases during startup (SQL Server/PostgreSQL/SQLite).
-- Good for local/dev.
-- Consider `false` for production and run migrations in deployment.
-- Must not be enabled together with `Database:EnsureCreatedOnStartup`.
-- In production, prefer running migrations in a controlled deployment step instead of app startup.
-
-`Database:EnsureCreatedOnStartup`
-
-- `true`: web app calls `EnsureCreated()` for quick SQLite startup.
-- Do not use for SQL Server migration-based environments.
-- Must not be enabled together with `Database:ApplyMigrationsOnStartup`.
-- The current SQL Server-only runtime rejects this flag when enabled.
-
-Recommended baseline for consistent local/deploy behavior:
-
-- `Database:ApplyMigrationsOnStartup=true`
-- `Database:EnsureCreatedOnStartup=false`
-- `Database:ResetOnStartup=false`
-
-`Database:ResetOnStartup`
-
-- `true`: web app calls `EnsureDeleted()` first, then recreates schema using migrations or `EnsureCreated`.
-- Intended for disposable/test databases only.
-- Keep `false` in normal environments.
-- The app now fails fast if this flag is enabled outside `Development`.
-
-Local SQLite recovery when tables exist but migration history is out of sync:
-
-1. Start once with `Database__ResetOnStartup=true`.
-2. After successful startup, switch it back to `false`.
-
-`Database:ResetSchemaOnStartup`
-
-- `true`: drops PostgreSQL public tables, including EF migration history, then reruns migrations.
-- Intended for disposable/test databases only.
-- Keep `false` in normal environments.
-- The app now fails fast if this flag is enabled outside `Development`.
-
-`Seed:EnableDemoData`
-
-- `true`: seeds demo/admin accounts and sample data.
-- Good for local/dev.
-- Defaults to `false` in committed production config.
-- Startup fails outside `Development` unless `Seed:AllowDemoDataOutsideDevelopment=true`.
-- Production deployments must keep this disabled.
-
-`Seed:AllowDemoDataOutsideDevelopment`
-
-- `true`: allows demo/admin account seeding in non-Development environments.
-- Intended only for disposable demo environments.
-- Keep `false` for production.
-
-`VideoValidation:FfprobeEnabled`
-
-- `true`: uploaded videos are probed with `ffprobe` after basic extension/MIME/magic-byte checks.
-- If `ffprobe` is present and rejects the file, upload fails.
-- `VideoValidation:RequireFfprobe=true` makes uploads fail closed when `ffprobe` is missing.
-- `VideoValidation:AllowedVideoCodecs` defaults to `h264`, `hevc`, `vp8`, `vp9`, and `av1`.
-
-## Render Quick Recovery (Disposable DB)
-
-Use this only for short-lived non-production environments:
-
-1. Set env vars in Render:
-   - `DatabaseProvider=Postgres`
-   - `Database__ResetOnStartup=true`
-   - `Database__ApplyMigrationsOnStartup=true`
-   - `Database__EnsureCreatedOnStartup=false`
-   - `Seed__EnableDemoData=true`
-   - `Seed__AllowDemoDataOutsideDevelopment=true`
-2. Redeploy once.
-3. After successful boot, set `Database__ResetOnStartup=false`.
-4. Keep `Database__ResetSchemaOnStartup=false` unless you intentionally want to rebuild the temporary database again.
+See the repository-level `HANDOVER.md`, `DEPLOYMENT.md`, `RUNBOOK.md`, and `SECURITY.md` before production release or ownership transfer.

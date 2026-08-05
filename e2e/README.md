@@ -32,16 +32,15 @@ npm run e2e
 
 The Playwright config uses the installed Microsoft Edge browser, so it does not need to download Chromium.
 
-Run the full portal flow with the local default test account and sample video:
+Run the full portal flow after setting an explicit disposable account and sample video:
 
 ```powershell
+$env:E2E_USER = 'your-disposable-user'
+$env:E2E_PASSWORD = 'your-disposable-password'
+$env:E2E_SAMPLE_VIDEO = 'C:\path\to\sample.mp4'
 npm run e2e -- e2e/portal-full-flow.spec.ts
 ```
 
 This covers login, portal navigation, video upload with thumbnail, playlist creation, adding video to a playlist, YouTube form validation/add, and schedule creation when the account has a claimed device.
 
-Defaults used by `portal-full-flow.spec.ts`:
-
-- `E2E_USER`: `cococaca`
-- `E2E_PASSWORD`: `TD@12345`
-- `E2E_SAMPLE_VIDEO`: `C:\Users\TD-997\Downloads\VendingAD1.mp4`
+`portal-full-flow.spec.ts` fails immediately when any required environment variable is missing.

@@ -23,6 +23,7 @@ public class AdminController : Controller
     private readonly IPlaybackScheduleService _playbackScheduleService;
     private readonly IDevicePresenceService _devicePresenceService;
     private readonly IPasswordHashingService _passwordHashingService;
+    private readonly ITemporaryPasswordGenerator _temporaryPasswordGenerator;
     private readonly IDeviceCredentialService _deviceCredentialService;
     private readonly IFileStorageService _fileStorageService;
     private readonly IAuditService _auditService;
@@ -39,6 +40,7 @@ public class AdminController : Controller
         IPlaybackScheduleService playbackScheduleService,
         IDevicePresenceService devicePresenceService,
         IPasswordHashingService passwordHashingService,
+        ITemporaryPasswordGenerator temporaryPasswordGenerator,
         IDeviceCredentialService deviceCredentialService,
         IFileStorageService fileStorageService,
         IAuditService auditService,
@@ -54,6 +56,7 @@ public class AdminController : Controller
         _playbackScheduleService = playbackScheduleService;
         _devicePresenceService = devicePresenceService;
         _passwordHashingService = passwordHashingService;
+        _temporaryPasswordGenerator = temporaryPasswordGenerator;
         _deviceCredentialService = deviceCredentialService;
         _fileStorageService = fileStorageService;
         _auditService = auditService;
@@ -431,12 +434,13 @@ public class AdminController : Controller
             return RedirectToAction("Users");
         }
 
+        var temporaryPassword = _temporaryPasswordGenerator.Generate();
         var user = new User
         {
             Username = username,
             Email = email,
             FullName = fullName,
-            PasswordHash = _passwordHashingService.HashPassword("TD@12345"),
+            PasswordHash = _passwordHashingService.HashPassword(temporaryPassword),
             IsActive = true,
             CreatedAt = _timeService.UtcNow
         };
@@ -456,7 +460,7 @@ public class AdminController : Controller
             }
         });
 
-        TempData["Success"] = $"User {username} created with default password TD@12345";
+        TempData["Success"] = $"Đã tạo user {username}. Mật khẩu tạm thời chỉ hiển thị lần này: {temporaryPassword}";
         return RedirectToAction("Users");
     }
 
@@ -473,7 +477,8 @@ public class AdminController : Controller
             return RedirectToAction("Users");
         }
 
-        user.PasswordHash = _passwordHashingService.HashPassword("TD@12345");
+        var temporaryPassword = _temporaryPasswordGenerator.Generate();
+        user.PasswordHash = _passwordHashingService.HashPassword(temporaryPassword);
         await _userService.SaveChangesAsync();
         await _auditService.LogAsync(new AuditLogEntry
         {
@@ -486,7 +491,7 @@ public class AdminController : Controller
             }
         });
 
-        TempData["Success"] = $"Password reset for {user.Username}";
+        TempData["Success"] = $"Đã đặt lại mật khẩu cho {user.Username}. Mật khẩu tạm thời chỉ hiển thị lần này: {temporaryPassword}";
         return RedirectToAction("Users");
     }
 

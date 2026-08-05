@@ -70,7 +70,7 @@ Content-Type: application/json
 - Passwords are hashed with ASP.NET Core `PasswordHasher`.
 - Legacy SHA256 hashes are accepted only to allow rehash after a successful login.
 - CMS authorization uses cookie roles (`Admin`, `User`) plus existing session helpers.
-- Admin-created users still receive the temporary default password `TD@12345`; this is tracked in `REMAINING_REVIEW_ISSUES.md`.
+- Admin-created and reset users receive a cryptographically random temporary password that is displayed once.
 
 ## Implementation Files
 

@@ -20,8 +20,12 @@ export const options = {
 };
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
-const DEVICE_CODE = __ENV.DEVICE_CODE || 'TAB-01';
-const DEVICE_SECRET = __ENV.DEVICE_SECRET || 'dev-secret-TAB-01';
+const DEVICE_CODE = __ENV.DEVICE_CODE;
+const DEVICE_SECRET = __ENV.DEVICE_SECRET;
+
+if (!DEVICE_CODE || !DEVICE_SECRET) {
+  throw new Error('DEVICE_CODE and DEVICE_SECRET are required.');
+}
 
 const errorRate = new Rate('errors');
 

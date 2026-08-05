@@ -10,6 +10,45 @@ public interface IPasswordHashingService
     PasswordVerificationResult VerifyPassword(string passwordHash, string providedPassword);
 }
 
+public interface ITemporaryPasswordGenerator
+{
+    string Generate();
+}
+
+public sealed class TemporaryPasswordGenerator : ITemporaryPasswordGenerator
+{
+    private const string Uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private const string Lowercase = "abcdefghijkmnopqrstuvwxyz";
+    private const string Digits = "23456789";
+    private const string Symbols = "!@$%*-_";
+    private const string AllCharacters = Uppercase + Lowercase + Digits + Symbols;
+
+    public string Generate()
+    {
+        Span<char> characters = stackalloc char[16];
+        characters[0] = RandomCharacter(Uppercase);
+        characters[1] = RandomCharacter(Lowercase);
+        characters[2] = RandomCharacter(Digits);
+        characters[3] = RandomCharacter(Symbols);
+
+        for (var index = 4; index < characters.Length; index++)
+            characters[index] = RandomCharacter(AllCharacters);
+
+        for (var index = characters.Length - 1; index > 0; index--)
+        {
+            var swapIndex = RandomNumberGenerator.GetInt32(index + 1);
+            (characters[index], characters[swapIndex]) = (characters[swapIndex], characters[index]);
+        }
+
+        return new string(characters);
+    }
+
+    private static char RandomCharacter(string alphabet)
+    {
+        return alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+    }
+}
+
 public sealed class PasswordHashingService : IPasswordHashingService
 {
     private static readonly PasswordHasher<object> PasswordHasher = new();
